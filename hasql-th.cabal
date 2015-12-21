@@ -1,7 +1,7 @@
 name:
   hasql-th
 version:
-  0.1.0.1
+  0.2
 category:
   Hasql, Database, PostgreSQL, Template Haskell
 synopsis:
@@ -43,20 +43,12 @@ library
     Haskell2010
   other-modules:
     Hasql.TH.Prelude
-    Hasql.TH.Queries
-    Hasql.TH.Transactions
-    Hasql.TH.Parsers
     Hasql.TH.Renderers
   exposed-modules:
     Hasql.TH
   build-depends:
-    -- database:
-    hasql >= 0.15 && < 0.16,
-    hasql-transaction >= 0.3 && < 0.4,
     -- template-haskell:
     template-haskell >= 2.8 && < 3,
-    -- parsers:
-    attoparsec >= 0.10 && < 0.14,
     -- data:
     bytestring >= 0.10 && < 0.11,
     text >= 1 && < 2,

@@ -2,18 +2,8 @@ module Hasql.TH.Renderers where
 
 import Hasql.TH.Prelude
 import Language.Haskell.TH
-import qualified Hasql.Transaction as Transaction
-import qualified Hasql.TH.Transactions as Transactions
 import qualified Data.ByteString as ByteString
 
-
-statementsTransactionExp :: [ByteString] -> Exp
-statementsTransactionExp x =
-  sequenceExp_ (map statementTransactionExp x)
-
-statementTransactionExp :: ByteString -> Exp
-statementTransactionExp x =
-  AppE (VarE 'Transactions.statement) (byteStringExp x)
 
 byteStringExp :: ByteString -> Exp
 byteStringExp x =
