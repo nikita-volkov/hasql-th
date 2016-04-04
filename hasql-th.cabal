@@ -1,7 +1,7 @@
 name:
   hasql-th
 version:
-  0.2
+  0.2.1
 category:
   Hasql, Database, PostgreSQL, Template Haskell
 synopsis:
@@ -53,4 +53,4 @@ library
     bytestring >= 0.10 && < 0.11,
     text >= 1 && < 2,
     -- general:
-    base-prelude >= 0.1.19 && < 0.2
+    base-prelude >= 0.1.19 && < 2

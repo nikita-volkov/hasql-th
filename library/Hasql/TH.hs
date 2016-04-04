@@ -1,7 +1,11 @@
-module Hasql.TH where
+module Hasql.TH
+(
+  readFileAsSQL,
+)
+where
 
 import Hasql.TH.Prelude
-import Language.Haskell.TH
+import Language.Haskell.TH.Syntax
 import qualified Hasql.TH.Renderers as Renderers
 import qualified Data.ByteString
 
@@ -19,7 +23,9 @@ import qualified Data.ByteString
 -- >  Hasql.Session.sql $(Hasql.TH.readFileAsSQL "sql/migration-1.sql")
 -- 
 readFileAsSQL :: String -> Q Exp
-readFileAsSQL path =
-  fmap Renderers.byteStringExp $
-  runIO $ Data.ByteString.readFile path
+readFileAsSQL =
+  fmap Renderers.byteStringExp . readFileAsBytes
 
+readFileAsBytes :: String -> Q ByteString
+readFileAsBytes =
+  (*>) <$> addDependentFile <*> runIO . Data.ByteString.readFile
