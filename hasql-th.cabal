@@ -26,7 +26,7 @@ library
     Hasql.TH.Prelude
     Hasql.TH.Exp
   build-depends:
-    base-prelude >=0.1.19 && <2,
+    base >=4.9 && <5,
     bytestring >=0.10 && <0.11,
     template-haskell >=2.8 && <3,
     text >=1 && <2
