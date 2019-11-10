@@ -1,4 +1,4 @@
-module Hasql.TH.Rendering where
+module Hasql.TH.Exp where
 
 import Hasql.TH.Prelude
 import Language.Haskell.TH

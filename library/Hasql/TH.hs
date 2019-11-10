@@ -4,7 +4,7 @@ where
 import Hasql.TH.Prelude
 import Language.Haskell.TH.Syntax
 import Language.Haskell.TH.Quote
-import qualified Hasql.TH.Rendering as A
+import qualified Hasql.TH.Exp as A
 import qualified Data.ByteString as B
 import qualified Data.Text.Encoding as C
 

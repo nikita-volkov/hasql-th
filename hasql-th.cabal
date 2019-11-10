@@ -24,7 +24,7 @@ library
     Hasql.TH
   other-modules:
     Hasql.TH.Prelude
-    Hasql.TH.Rendering
+    Hasql.TH.Exp
   build-depends:
     base-prelude >=0.1.19 && <2,
     bytestring >=0.10 && <0.11,
