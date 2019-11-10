@@ -1,13 +1,13 @@
-module Hasql.TH.Renderers where
+module Hasql.TH.Rendering where
 
 import Hasql.TH.Prelude
 import Language.Haskell.TH
-import qualified Data.ByteString as ByteString
+import qualified Data.ByteString as A
 
 
 byteStringExp :: ByteString -> Exp
 byteStringExp x =
-  AppE (VarE 'ByteString.pack) (listExp integralExp (ByteString.unpack x))
+  AppE (VarE 'A.pack) (listExp integralExp (A.unpack x))
 
 integralExp :: Integral a => a -> Exp
 integralExp x =

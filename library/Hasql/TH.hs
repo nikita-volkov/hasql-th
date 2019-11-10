@@ -1,14 +1,20 @@
 module Hasql.TH
-(
-  readFileAsSQL,
-)
 where
 
 import Hasql.TH.Prelude
 import Language.Haskell.TH.Syntax
-import qualified Hasql.TH.Renderers as Renderers
-import qualified Data.ByteString
+import Language.Haskell.TH.Quote
+import qualified Hasql.TH.Rendering as A
+import qualified Data.ByteString as B
+import qualified Data.Text.Encoding as C
 
+
+sql :: QuasiQuoter
+sql =
+  QuasiQuoter exp undefined undefined undefined
+  where
+    exp =
+      return . A.byteStringExp . C.encodeUtf8 . fromString
 
 -- |
 -- Read an SQL-file, containing multiple statements,
@@ -22,10 +28,6 @@ import qualified Data.ByteString
 -- >migration1 =
 -- >  Hasql.Session.sql $(Hasql.TH.readFileAsSQL "sql/migration-1.sql")
 -- 
-readFileAsSQL :: String -> Q Exp
-readFileAsSQL =
-  fmap Renderers.byteStringExp . readFileAsBytes
-
-readFileAsBytes :: String -> Q ByteString
-readFileAsBytes =
-  (*>) <$> addDependentFile <*> runIO . Data.ByteString.readFile
+sqlFile :: QuasiQuoter
+sqlFile =
+  quoteFile sql
