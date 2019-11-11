@@ -23,8 +23,8 @@ library
   exposed-modules:
     Hasql.TH
   other-modules:
-    Hasql.TH.Prelude
     Hasql.TH.Exp
+    Hasql.TH.Prelude
   build-depends:
     base >=4.9 && <5,
     bytestring >=0.10 && <0.11,
