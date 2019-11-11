@@ -24,9 +24,11 @@ library
     Hasql.TH
   other-modules:
     Hasql.TH.Exp
+    Hasql.TH.Parser
     Hasql.TH.Prelude
   build-depends:
     base >=4.9 && <5,
     bytestring >=0.10 && <0.11,
+    megaparsec >=8 && <9,
     template-haskell >=2.8 && <3,
     text >=1 && <2
