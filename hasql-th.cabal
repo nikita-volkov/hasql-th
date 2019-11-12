@@ -31,4 +31,5 @@ library
     bytestring >=0.10 && <0.11,
     megaparsec >=8 && <9,
     template-haskell >=2.8 && <3,
-    text >=1 && <2
+    text >=1 && <2,
+    unordered-containers >=0.2.10 && <0.3
