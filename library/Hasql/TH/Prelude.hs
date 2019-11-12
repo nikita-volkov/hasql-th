@@ -47,6 +47,7 @@ import Data.Traversable as Exports
 import Data.Tuple as Exports
 import Data.Unique as Exports
 import Data.Version as Exports
+import Data.Void as Exports
 import Data.Word as Exports
 import Debug.Trace as Exports
 import Foreign.ForeignPtr as Exports
