@@ -10,24 +10,21 @@ import qualified Data.Text.Encoding as C
 
 
 sql :: QuasiQuoter
-sql =
-  QuasiQuoter exp undefined undefined undefined
-  where
-    exp =
-      return . A.byteStringExp . C.encodeUtf8 . fromString
+sql = let
+  exp = return . A.byteString . C.encodeUtf8 . fromString
+  unsupported _ = fail "Unsupported"
+  in QuasiQuoter exp unsupported unsupported unsupported
 
--- |
--- Read an SQL-file, containing multiple statements,
--- and produce an expression of type `ByteString`.
--- 
--- Allows to store plain SQL in external files and read it at compile time.
--- 
--- E.g.,
--- 
--- >migration1 :: Hasql.Session.Session ()
--- >migration1 =
--- >  Hasql.Session.sql $(Hasql.TH.readFileAsSQL "sql/migration-1.sql")
--- 
+{-|
+Read an SQL-file, containing multiple statements,
+and produce an expression of type `ByteString`.
+
+Allows to store plain SQL in external files and read it at compile time.
+
+E.g.,
+
+>migration1 :: Hasql.Session.Session ()
+>migration1 = Hasql.Session.sql $(Hasql.TH.sqlFile "sql/migration-1.sql")
+-}
 sqlFile :: QuasiQuoter
-sqlFile =
-  quoteFile sql
+sqlFile = quoteFile sql

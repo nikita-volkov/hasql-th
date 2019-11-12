@@ -1,38 +1,31 @@
 module Hasql.TH.Exp where
 
-import Hasql.TH.Prelude
+import Hasql.TH.Prelude hiding (sequence_, pure, string, list)
 import Language.Haskell.TH
-import qualified Data.ByteString as A
+import qualified Hasql.TH.Prelude as Prelude
+import qualified Data.ByteString as ByteString
 
 
-byteStringExp :: ByteString -> Exp
-byteStringExp x =
-  AppE (VarE 'A.pack) (listExp integralExp (A.unpack x))
+byteString :: ByteString -> Exp
+byteString x = AppE (VarE 'ByteString.pack) (list integral (ByteString.unpack x))
 
-integralExp :: Integral a => a -> Exp
-integralExp x =
-  LitE (IntegerL (fromIntegral x))
+integral :: Integral a => a -> Exp
+integral x = LitE (IntegerL (fromIntegral x))
 
-listExp :: (a -> Exp) -> [a] -> Exp
-listExp renderer x =
-  ListE (map renderer x)
+list :: (a -> Exp) -> [a] -> Exp
+list renderer x = ListE (map renderer x)
 
-stringExp :: String -> Exp
-stringExp x =
-  LitE (StringL x)
+string :: String -> Exp
+string x = LitE (StringL x)
 
-charExp :: Char -> Exp
-charExp x =
-  LitE (CharL x)
+char :: Char -> Exp
+char x = LitE (CharL x)
 
-sequenceExp_ :: [Exp] -> Exp
-sequenceExp_ =
-  foldl' andThenExp pureExp_
+sequence_ :: [Exp] -> Exp
+sequence_ = foldl' andThen pure
 
-pureExp_ :: Exp
-pureExp_ =
-  AppE (VarE 'pure) (TupE [])
+pure :: Exp
+pure = AppE (VarE 'Prelude.pure) (TupE [])
 
-andThenExp :: Exp -> Exp -> Exp
-andThenExp exp1 exp2 =
-  AppE (AppE (VarE '(*>)) exp1) exp2
+andThen :: Exp -> Exp -> Exp
+andThen exp1 exp2 = AppE (AppE (VarE '(*>)) exp1) exp2
