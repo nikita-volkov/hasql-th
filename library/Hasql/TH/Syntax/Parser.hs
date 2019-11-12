@@ -1,4 +1,4 @@
-module Hasql.TH.Parser where
+module Hasql.TH.Syntax.Parser where
 
 import Hasql.TH.Prelude
 import Text.Megaparsec
