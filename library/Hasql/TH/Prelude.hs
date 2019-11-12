@@ -4,7 +4,6 @@ module Hasql.TH.Prelude
 )
 where
 
-
 -- base
 -------------------------
 import Control.Applicative as Exports
