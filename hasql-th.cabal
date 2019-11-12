@@ -25,7 +25,9 @@ library
   other-modules:
     Hasql.TH.Exp
     Hasql.TH.Prelude
+    Hasql.TH.Syntax.HashSet
     Hasql.TH.Syntax.Parser
+    Hasql.TH.Syntax.Predicate
   build-depends:
     base >=4.9 && <5,
     bytestring >=0.10 && <0.11,
