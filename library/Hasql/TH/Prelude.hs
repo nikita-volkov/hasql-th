@@ -1,6 +1,7 @@
 module Hasql.TH.Prelude
 ( 
   module Exports,
+  intersperseFoldMap1,
 )
 where
 
@@ -86,3 +87,11 @@ import Data.Text as Exports (Text)
 -------------------------
 import Data.HashSet as Exports (HashSet)
 import Data.HashMap.Strict as Exports (HashMap)
+
+-- hashable
+-------------------------
+import Data.Hashable as Exports (Hashable)
+
+
+intersperseFoldMap1 :: Monoid m => m -> (a -> m) -> NonEmpty a -> m
+intersperseFoldMap1 a b (c :| d) = b c <> a <> foldMap (mappend a . b) d

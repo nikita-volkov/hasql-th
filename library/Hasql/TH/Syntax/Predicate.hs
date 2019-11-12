@@ -24,7 +24,16 @@ notFirstIdentifierChar :: Char -> Bool
 notFirstIdentifierChar x = isAlphaNum x || x == '_' || x == '$'
 
 unreservedKeyword :: Text -> Bool
-unreservedKeyword = flip HashSet.member HashSet.unreservedKeyword
+unreservedKeyword = inSet HashSet.unreservedKeyword
 
 colNameKeyword :: Text -> Bool
-colNameKeyword = flip HashSet.member HashSet.colNameKeyword
+colNameKeyword = inSet HashSet.colNameKeyword
+
+reservedKeyword :: Text -> Bool
+reservedKeyword = inSet HashSet.reservedKeyword
+
+inSet :: (Eq a, Hashable a) => HashSet a -> a -> Bool
+inSet = flip HashSet.member
+
+symbolicBinOpChar :: Char -> Bool
+symbolicBinOpChar = inSet HashSet.symbolicBinOpChars
