@@ -1,6 +1,6 @@
 module Hasql.TH.Exp where
 
-import Hasql.TH.Prelude hiding (sequence_, pure, string, list)
+import Hasql.TH.Prelude hiding (sequence_, string, list)
 import Language.Haskell.TH
 import qualified Hasql.TH.Prelude as Prelude
 import qualified Hasql.TH.Syntax.Ast as Ast
@@ -26,24 +26,24 @@ char :: Char -> Exp
 char x = LitE (CharL x)
 
 sequence_ :: [Exp] -> Exp
-sequence_ = foldl' andThen pure
+sequence_ = foldl' andThen pureUnit
 
-pure :: Exp
-pure = AppE (VarE 'Prelude.pure) (TupE [])
+pureUnit :: Exp
+pureUnit = AppE (VarE 'Prelude.pure) (TupE [])
 
 andThen :: Exp -> Exp -> Exp
 andThen exp1 exp2 = AppE (AppE (VarE '(*>)) exp1) exp2
 
 tuple :: Int -> Exp
-tuple = VarE . tupleDataName
+tuple = ConE . tupleDataName
 
 splitTupleAt :: Int -> Int -> Exp
 splitTupleAt arity position = unsafePerformIO $ runQ $ TupleTH.splitTupleAt arity position
 
 {-|
-Given a list of contravariant functor expressions,
+Given a list of divisible functor expressions,
 constructs an expression, which composes them together into
-a single contravariant functor, parameterized by a tuple of the according arity.
+a single divisible functor, parameterized by a tuple of according arity.
 
 >>> contrazip []
 VarE ...conquer
@@ -62,6 +62,28 @@ contrazip = \ case
   head : [] -> head
   head : tail -> foldl1 AppE [VarE 'divide, splitTupleAt (succ (length tail)) 1, head, contrazip tail]
   [] -> VarE 'conquer
+
+{-|
+Given a list of applicative functor expressions,
+constructs an expression, which composes them together into
+a single applicative functor, parameterized by a tuple of according arity.
+
+>>> $(return (cozip [])) :: Maybe ()
+Just ()
+
+>>> $(return (cozip (fmap (AppE (ConE 'Just) . LitE . IntegerL) [1,2,3]))) :: Maybe (Int, Int, Int)
+Just (1,2,3)
+-}
+cozip :: [Exp] -> Exp
+cozip = \ case
+  _head : [] -> _head
+  _head : _tail -> let
+    _length = length _tail + 1
+    in
+      foldl' (\ a b -> AppE (AppE (VarE '(<*>)) a) b)
+        (AppE (AppE (VarE 'fmap) (tuple _length)) _head)
+        _tail
+  [] -> AppE (VarE 'pure) (TupE [])
 
 paramsEncoderByAstType :: Ast.Type -> Either Text Exp
 paramsEncoderByAstType = let
@@ -99,3 +121,9 @@ paramsEncoderByAstType = let
     if dimensionality > 0
       then valueEncoder name <&> applyNullability valueNull <&> applyArray dimensionality <&> applyNullability arrayNull <&> applyParam
       else valueEncoder name <&> applyNullability valueNull <&> applyParam
+
+{-|
+Encoder of a product of parameters.
+-}
+paramsEncoder :: [Exp] -> Exp
+paramsEncoder = contrazip
