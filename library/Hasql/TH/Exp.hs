@@ -32,9 +32,9 @@ pure = AppE (VarE 'Prelude.pure) (TupE [])
 andThen :: Exp -> Exp -> Exp
 andThen exp1 exp2 = AppE (AppE (VarE '(*>)) exp1) exp2
 
-encoderByAstType :: Ast.Type -> Either Text Exp
-encoderByAstType = let
-  applyParams = AppE (VarE 'Encoders.param)
+paramsEncoderByAstType :: Ast.Type -> Either Text Exp
+paramsEncoderByAstType = let
+  applyParam = AppE (VarE 'Encoders.param)
   applyArray levels = AppE (VarE 'Encoders.array) . applyArrayDimensionality levels
   applyArrayDimensionality levels =
     if levels > 0
@@ -66,6 +66,5 @@ encoderByAstType = let
     name -> Left ("No value encoder exists for type: " <> name)
   in \ (Ast.Type name valueNull dimensionality arrayNull) ->
     if dimensionality > 0
-      then valueEncoder name <&> applyNullability valueNull <&> applyArray dimensionality <&> applyNullability arrayNull <&> applyParams
-      else valueEncoder name <&> applyNullability valueNull <&> applyParams
-    
+      then valueEncoder name <&> applyNullability valueNull <&> applyArray dimensionality <&> applyNullability arrayNull <&> applyParam
+      else valueEncoder name <&> applyNullability valueNull <&> applyParam
