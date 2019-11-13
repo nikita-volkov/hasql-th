@@ -117,6 +117,15 @@ singletonStatement :: Extraction.Statement -> Exp
 singletonStatement = statement (VarE 'Decoders.singleRow)
 
 {-|
+>>> test = either (fail . show) (return . maybeStatement) . Extraction.statement
+
+>>> :t $(test "select 1 :: int4")
+$(test "select 1 :: int4") :: Statement.Statement () (Maybe Int32)
+-}
+maybeStatement :: Extraction.Statement -> Exp
+maybeStatement = statement (VarE 'Decoders.rowMaybe)
+
+{-|
 Encoder of a product of parameters.
 -}
 encoderList :: [Extraction.Encoder] -> Exp
