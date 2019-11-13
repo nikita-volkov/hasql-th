@@ -2,6 +2,7 @@ module Hasql.TH.Prelude
 ( 
   module Exports,
   intersperseFoldMap1,
+  showAsText,
 )
 where
 
@@ -83,6 +84,14 @@ import Data.ByteString as Exports (ByteString)
 -------------------------
 import Data.Text as Exports (Text)
 
+-- containers
+-------------------------
+import Data.IntMap.Strict as Exports (IntMap)
+import Data.IntSet as Exports (IntSet)
+import Data.Map.Strict as Exports (Map)
+import Data.Sequence as Exports (Seq)
+import Data.Set as Exports (Set)
+
 -- unordered-containers
 -------------------------
 import Data.HashSet as Exports (HashSet)
@@ -99,3 +108,6 @@ import Data.Scientific as Exports (Scientific)
 
 intersperseFoldMap1 :: Monoid m => m -> (a -> m) -> NonEmpty a -> m
 intersperseFoldMap1 a b (c :| d) = b c <> a <> foldMap (mappend a . b) d
+
+showAsText :: Show a => a -> Text
+showAsText = show >>> fromString

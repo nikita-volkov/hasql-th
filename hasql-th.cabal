@@ -29,10 +29,15 @@ library
     Hasql.TH.Syntax.HashSet
     Hasql.TH.Syntax.Parsing
     Hasql.TH.Syntax.Predicate
+    Hasql.TH.Syntax.Projections.ChildExprList
+    Hasql.TH.Syntax.Projections.InputTypeList
+    Hasql.TH.Syntax.Projections.OutputTypeList
+    Hasql.TH.Syntax.Projections.PlaceholderTypeMap
     Hasql.TH.Syntax.Rendering
   build-depends:
     base >=4.9 && <5,
     bytestring >=0.10 && <0.11,
+    containers >=0.6.2 && <0.7,
     fast-builder >=0.1.2 && <0.2,
     hashable >=1.3 && <2,
     hasql >=1.4 && <1.5,
