@@ -80,7 +80,7 @@ Select Nothing (Just (ExprSelection (BinOpExpr "+" (PlaceholderExpr 1) (Placehol
 Select Nothing (Just (ExprSelection (ColumnRefExpr (Ref Nothing (UnquotedName "a"))) Nothing :| [ExprSelection (ColumnRefExpr (Ref Nothing (UnquotedName "b"))) Nothing])) Nothing
 
 >>> test select "select $1 :: text"
-Select Nothing (Just (ExprSelection (TypecastExpr (PlaceholderExpr 1) (Type False "text" 0)) Nothing :| [])) Nothing
+Select Nothing (Just (ExprSelection (TypecastExpr (PlaceholderExpr 1) (Type "text" False 0 False)) Nothing :| [])) Nothing
 
 >>> test select "select 1"
 Select Nothing (Just (ExprSelection (LiteralExpr (IntLiteral 1)) Nothing :| [])) Nothing
@@ -467,20 +467,27 @@ nullLiteral = NullLiteral <$ string' "null" <?> "null literal"
 
 {-|
 >>> test type_ "int4"
-Type False "int4" 0
+Type "int4" False 0 False
+
+>>> test type_ "int4?"
+Type "int4" True 0 False
 
 >>> test type_ "int4[]"
-Type False "int4" 1
+Type "int4" False 1 False
 
 >>> test type_ "int4[ ] []"
-Type False "int4" 2
+Type "int4" False 2 False
 
 >>> test type_ "int4[][]?"
-Type True "int4" 2
+Type "int4" False 2 True
+
+>>> test type_ "int4?[][]"
+Type "int4" True 2 False
 -}
 type_ :: Parser Type
 type_ = do
   _baseName <- fmap Text.toLower $ takeWhile1P Nothing isAlphaNum
+  _baseNullable <- option False (try (True <$ space <* char '?'))
   _arrayLevels <- fmap length $ many $ space *> char '[' *> space *> char ']'
-  _nullable <- option False (try (True <$ space <* char '?'))
-  return (Type _nullable _baseName _arrayLevels)
+  _arrayNullable <- option False (try (True <$ space <* char '?'))
+  return (Type _baseName _baseNullable _arrayLevels _arrayNullable)

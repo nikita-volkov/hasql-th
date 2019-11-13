@@ -45,10 +45,9 @@ expr = \ case
   _ -> error "TODO"
 
 type_ :: Type -> Builder
-type_ (Type a b c) =
-  text b <>
-  bool "" "?" a <>
-  fold (replicate c "[]")
+type_ (Type a _ b _) =
+  text a <>
+  fold (replicate b "[]")
 
 name :: Name -> Builder
 name = \ case

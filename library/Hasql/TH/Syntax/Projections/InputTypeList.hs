@@ -15,16 +15,19 @@ import qualified Data.IntMap.Strict as IntMap
 
 {-|
 >>> "select $1 :: INT4" & parse P.select & select
-Right [Type False "int4" 0]
+Right [Type "int4" False 0 False]
 
 >>> "select $1 :: int4, a + $2 :: text[]?" & parse P.select & select
-Right [Type False "int4" 0,Type True "text" 1]
+Right [Type "int4" False 0 False,Type "text" False 1 True]
+
+>>> "select $1 :: int4, a + $2 :: text?[]?" & parse P.select & select
+Right [Type "int4" False 0 False,Type "text" True 1 True]
 
 >>> "select $1" & parse P.select & select
 Left "Placeholder $1 misses an explicit typecast"
 
 >>> "select $2 :: int4, $1 :: int4, $2 :: int4" & parse P.select & select
-Right [Type False "int4" 0,Type False "int4" 0]
+Right [Type "int4" False 0 False,Type "int4" False 0 False]
 
 >>> "select $1 :: int4, $1 :: text" & parse P.select & select
 Left "Placeholder $1 has conflicting type annotations"

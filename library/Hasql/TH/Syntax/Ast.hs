@@ -107,11 +107,12 @@ data Interval =
 {-|
 Consists of:
 
-- Nullability marker
-- Base name
-- Array levels amount
+- Value/element type name
+- Value/element nullability marker
+- Array dimensions amount
+- Array nullability marker
 -}
-data Type = Type Bool Text Int
+data Type = Type Text Bool Int Bool
   deriving (Show, Eq, Ord)
 
 

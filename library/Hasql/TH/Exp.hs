@@ -35,9 +35,7 @@ andThen exp1 exp2 = AppE (AppE (VarE '(*>)) exp1) exp2
 encoderByAstType :: Ast.Type -> Either Text Exp
 encoderByAstType = let
   applyParams = AppE (VarE 'Encoders.param)
-  applyArray levels = if levels > 0
-    then AppE (VarE 'Encoders.array) . applyArrayDimensionality levels
-    else id
+  applyArray levels = AppE (VarE 'Encoders.array) . applyArrayDimensionality levels
   applyArrayDimensionality levels =
     if levels > 0
       then AppE (AppE (VarE 'Encoders.dimension) (VarE 'foldl')) . applyArrayDimensionality (pred levels)
@@ -66,5 +64,8 @@ encoderByAstType = let
     "jsonb" -> Right (VarE 'Encoders.jsonb)
     "enum" -> Right (VarE 'Encoders.enum)
     name -> Left ("No value encoder exists for type: " <> name)
-  in \ (Ast.Type nullable name dimensionality) ->
-    valueEncoder name <&> applyNullability False <&> applyArray dimensionality <&> applyNullability nullable <&> applyParams
+  in \ (Ast.Type name valueNull dimensionality arrayNull) ->
+    if dimensionality > 0
+      then valueEncoder name <&> applyNullability valueNull <&> applyArray dimensionality <&> applyNullability arrayNull <&> applyParams
+      else valueEncoder name <&> applyNullability valueNull <&> applyParams
+    

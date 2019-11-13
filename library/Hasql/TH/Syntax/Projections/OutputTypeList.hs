@@ -16,7 +16,7 @@ traverse' fn = fmap join . traverse fn
 
 {-|
 >>> "select 1 :: int4, b :: text" & parse P.select & select
-Right [Type False "int4" 0,Type False "text" 0]
+Right [Type "int4" False 0 False,Type "text" False 0 False]
 
 >>> "select 1 :: int4, b" & parse P.select & select
 Left "Expression is missing a typecast"
