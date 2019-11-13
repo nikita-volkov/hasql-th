@@ -5,7 +5,9 @@ import Language.Haskell.TH
 import qualified Hasql.TH.Prelude as Prelude
 import qualified Hasql.TH.Syntax.Ast as Ast
 import qualified Data.ByteString as ByteString
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Hasql.Encoders as Encoders
+import qualified TupleTH
 
 
 byteString :: ByteString -> Exp
@@ -31,6 +33,35 @@ pure = AppE (VarE 'Prelude.pure) (TupE [])
 
 andThen :: Exp -> Exp -> Exp
 andThen exp1 exp2 = AppE (AppE (VarE '(*>)) exp1) exp2
+
+tuple :: Int -> Exp
+tuple = VarE . tupleDataName
+
+splitTupleAt :: Int -> Int -> Exp
+splitTupleAt arity position = unsafePerformIO $ runQ $ TupleTH.splitTupleAt arity position
+
+{-|
+Given a list of contravariant functor expressions,
+constructs an expression, which composes them together into
+a single contravariant functor, parameterized by a tuple of the according arity.
+
+>>> contrazip []
+VarE ...conquer
+
+>>> contrazip [LitE (IntegerL 1)]
+LitE (IntegerL 1)
+
+>>> contrazip [LitE (IntegerL 1), LitE (IntegerL 2)]
+AppE (AppE (AppE (VarE ...divide) (...)) (LitE (IntegerL 1))) (LitE (IntegerL 2))
+
+>>> contrazip [LitE (IntegerL 1), LitE (IntegerL 2), LitE (IntegerL 3)]
+AppE (AppE (AppE (VarE ...divide) (...)) (LitE (IntegerL 1))) (AppE (AppE (AppE (VarE ...divide) (...)) (LitE (IntegerL 2))) (LitE (IntegerL 3)))
+-}
+contrazip :: [Exp] -> Exp
+contrazip = \ case
+  head : [] -> head
+  head : tail -> foldl1 AppE [VarE 'divide, splitTupleAt (succ (length tail)) 1, head, contrazip tail]
+  [] -> VarE 'conquer
 
 paramsEncoderByAstType :: Ast.Type -> Either Text Exp
 paramsEncoderByAstType = let

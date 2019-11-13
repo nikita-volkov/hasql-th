@@ -76,6 +76,10 @@ import Text.Printf as Exports (printf, hPrintf)
 import Text.Read as Exports (Read(..), readMaybe, readEither)
 import Unsafe.Coerce as Exports
 
+-- contravariant
+-------------------------
+import Data.Functor.Contravariant.Divisible as Exports
+
 -- bytestring
 -------------------------
 import Data.ByteString as Exports (ByteString)
