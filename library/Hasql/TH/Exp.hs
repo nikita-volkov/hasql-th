@@ -158,6 +158,45 @@ vectorStatement :: Extraction.Statement -> Exp
 vectorStatement = rowStatement (VarE 'Decoders.rowVector)
 
 {-|
+>>> test = either (fail . show) (return . foldStatement) . Extraction.statement
+
+>>> :t $(test "select 1 :: int4")
+$(test "select 1 :: int4")
+  :: Fold Int32 b -> Statement.Statement () b
+-}
+foldStatement :: Extraction.Statement -> Exp
+foldStatement (Extraction.Statement _sql _encoders _decoders) = let
+  _stepVarName = mkName "step"
+  _initVarName = mkName "init"
+  _extractVarName = mkName "extract"
+  in
+    LamE
+      [
+        ConP 'Fold
+          [
+            VarP _stepVarName,
+            VarP _initVarName,
+            VarP _extractVarName
+          ]
+      ]
+      (
+        foldl1 AppE
+          [
+            ConE 'Statement.Statement,
+            byteString _sql,
+            encoderList _encoders,
+            AppE
+              (AppE (VarE 'fmap) (VarE _extractVarName))
+              (AppE
+                (AppE
+                  (AppE (VarE 'Decoders.foldlRows) (VarE _stepVarName))
+                  (VarE _initVarName))
+                (decoderList _decoders)),
+            ConE 'True
+          ]
+      )
+
+{-|
 Encoder of a product of parameters.
 -}
 encoderList :: [Extraction.Encoder] -> Exp

@@ -110,6 +110,10 @@ import Data.Hashable as Exports (Hashable)
 -------------------------
 import Data.Scientific as Exports (Scientific)
 
+-- foldl
+-------------------------
+import Control.Foldl as Exports (Fold(..))
+
 
 intersperseFoldMap1 :: Monoid m => m -> (a -> m) -> NonEmpty a -> m
 intersperseFoldMap1 a b (c :| d) = b c <> a <> foldMap (mappend a . b) d
