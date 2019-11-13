@@ -33,11 +33,17 @@ andThen :: Exp -> Exp -> Exp
 andThen exp1 exp2 = AppE (AppE (VarE '(*>)) exp1) exp2
 
 encoderByAstType :: Ast.Type -> Either Text Exp
-encoderByAstType (Ast.Type nullable name arrayLevels) = let
-  paramsEncoder =
-    AppE (VarE 'Encoders.param) .
-    AppE (VarE (if nullable then 'Encoders.nullable else 'Encoders.nonNullable))
-  valueEncoder = case name of
+encoderByAstType = let
+  applyParams = AppE (VarE 'Encoders.param)
+  applyArray levels = if levels > 0
+    then AppE (VarE 'Encoders.array) . applyArrayDimensionality levels
+    else id
+  applyArrayDimensionality levels =
+    if levels > 0
+      then AppE (AppE (VarE 'Encoders.dimension) (VarE 'foldl')) . applyArrayDimensionality (pred levels)
+      else AppE (VarE 'Encoders.element)
+  applyNullability nullable = AppE (VarE (if nullable then 'Encoders.nullable else 'Encoders.nonNullable))
+  valueEncoder = \ case
     "bool" -> Right (VarE 'Encoders.bool)
     "int2" -> Right (VarE 'Encoders.int2)
     "int4" -> Right (VarE 'Encoders.int4)
@@ -59,5 +65,6 @@ encoderByAstType (Ast.Type nullable name arrayLevels) = let
     "json" -> Right (VarE 'Encoders.json)
     "jsonb" -> Right (VarE 'Encoders.jsonb)
     "enum" -> Right (VarE 'Encoders.enum)
-    _ -> Left ("No value encoder exists for type: " <> name)
-  in fmap paramsEncoder valueEncoder
+    name -> Left ("No value encoder exists for type: " <> name)
+  in \ (Ast.Type nullable name dimensionality) ->
+    valueEncoder name <&> applyNullability False <&> applyArray dimensionality <&> applyNullability nullable <&> applyParams
