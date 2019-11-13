@@ -27,6 +27,7 @@ library
     Hasql.TH.Prelude
     Hasql.TH.Syntax.Ast
     Hasql.TH.Syntax.HashSet
+    Hasql.TH.Syntax.Extraction
     Hasql.TH.Syntax.Parsing
     Hasql.TH.Syntax.Predicate
     Hasql.TH.Syntax.Projections.ChildExprList
@@ -49,4 +50,5 @@ library
     text >=1 && <2,
     text-builder >=0.6.6.1 && <0.7,
     tuple-th >=0.2.5 && <0.3,
-    unordered-containers >=0.2.10 && <0.3
+    unordered-containers >=0.2.10 && <0.3,
+    vector >=0.12 && <0.13

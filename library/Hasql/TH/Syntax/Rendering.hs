@@ -39,17 +39,25 @@ selection = \ case
 expr :: Expr -> Builder
 expr = \ case
   PlaceholderExpr a -> "$" <> intDec a
-  InParenthesisExpr a -> "(" <> expr a <> ")"
   TypecastExpr a b -> expr a <> " :: " <> type_ b
   BinOpExpr a b c -> expr b <> " " <> text a <> " " <> expr c
-  _ -> error "TODO"
+  ColumnRefExpr a -> ref a
+  LiteralExpr a -> literal a
+  InParenthesisExpr a -> "(" <> expr a <> ")"
 
 type_ :: Type -> Builder
 type_ (Type a _ b _) =
   text a <>
   fold (replicate b "[]")
 
+ref :: Ref -> Builder
+ref (Ref a b) = foldMap (\ c -> name c <> ".") a <> name b
+
 name :: Name -> Builder
 name = \ case
   QuotedName a -> char7 '"' <> text a <> char7 '"'
   UnquotedName a -> text a
+
+literal :: Literal -> Builder
+literal = \ case
+  IntLiteral a -> integerDec a
