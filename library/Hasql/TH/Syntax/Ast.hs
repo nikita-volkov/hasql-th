@@ -44,6 +44,7 @@ data Expr =
   BetweenExpr Bool Expr Expr |
   DefaultExpr |
   ColumnRefExpr Ref |
+  LiteralExpr Literal |
   InParenthesisExpr Expr |
   CaseExpr (Maybe Expr) (NonEmpty WhenClause) (Maybe Expr) |
   FuncExpr FuncApplication |
@@ -77,6 +78,26 @@ data OrderByItem = OrderByItem Expr (Maybe Order)
   deriving (Show, Eq, Ord)
 
 data Order = AscOrder | DescOrder
+  deriving (Show, Eq, Ord)
+
+data Literal =
+  IntLiteral Integer |
+  FloatLiteral Scientific |
+  StringLiteral Text |
+  BitLiteral Text |
+  NamedLiteral Text Text |
+  IntervalLiteral Interval |
+  BoolLiteral Bool |
+  NullLiteral
+  deriving (Show, Eq, Ord)
+
+{-
+| ConstInterval Sconst opt_interval
+| ConstInterval '(' Iconst ')' Sconst
+-}
+data Interval =
+  StringInterval Text (Maybe Text) |
+  IntInterval Integer Text
   deriving (Show, Eq, Ord)
 
 

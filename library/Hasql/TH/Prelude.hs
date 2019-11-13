@@ -92,6 +92,10 @@ import Data.HashMap.Strict as Exports (HashMap)
 -------------------------
 import Data.Hashable as Exports (Hashable)
 
+-- scientific
+-------------------------
+import Data.Scientific as Exports (Scientific)
+
 
 intersperseFoldMap1 :: Monoid m => m -> (a -> m) -> NonEmpty a -> m
 intersperseFoldMap1 a b (c :| d) = b c <> a <> foldMap (mappend a . b) d

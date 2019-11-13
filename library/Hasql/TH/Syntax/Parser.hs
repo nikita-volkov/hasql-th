@@ -9,6 +9,12 @@ import qualified Text.Megaparsec.Char.Lexer as Lex
 import qualified Hasql.TH.Syntax.Predicate as Predicate
 import qualified Hasql.TH.Syntax.HashSet as HashSet
 import qualified Data.Text as Text
+import qualified Text.Builder as TextBuilder
+
+
+{- $setup
+>>> test parser = parseTest (parser <* eof)
+-}
 
 
 type Parser = Parsec Void Text
@@ -26,25 +32,58 @@ dotSeparator = space *> char '.' *> space
 inParenthesis :: Parser a -> Parser a
 inParenthesis p = char '(' *> space *> p <* space <* char ')'
 
+{-|
+>>> test (quotedString '\'') "'abc''d'"
+"abc'd"
+-}
+quotedString :: Char -> Parser Text
+quotedString q = do
+  char q
+  let
+    collectChunks !bdr = do
+      chunk <- takeWhileP Nothing (/= q)
+      let bdr' = bdr <> TextBuilder.text chunk
+      try (consumeEscapedQuote bdr') <|> finish bdr'
+    consumeEscapedQuote bdr = do
+      char q
+      char q
+      collectChunks (bdr <> TextBuilder.char q)
+    finish bdr = do
+      char q
+      return (TextBuilder.run bdr)
+    in collectChunks mempty
+
+tryList :: [Parser a] -> Parser a
+tryList = \ case
+  a : [] -> a
+  a : b -> try a <|> tryList b
+  _ -> empty
+
 
 -- * Select
 -------------------------
 
 {-|
->>> parseTest select "select"
+>>> test select "select"
 Select Nothing Nothing Nothing
 
->>> parseTest select "select distinct"
+>>> test select "select distinct"
 Select (Just (DistinctAllOrDistinctSelectClause Nothing)) Nothing Nothing
 
->>> parseTest select "select $1"
+>>> test select "select $1"
 Select Nothing (Just (ExprSelection (PlaceholderExpr 1) Nothing :| [])) Nothing
 
->>> parseTest select "select $1 + $2"
+>>> test select "select $1 + $2"
 Select Nothing (Just (ExprSelection (BinOpExpr "+" (PlaceholderExpr 1) (PlaceholderExpr 2)) Nothing :| [])) Nothing
 
->>> parseTest select "select a, b"
+>>> test select "select a, b"
 Select Nothing (Just (ExprSelection (ColumnRefExpr (Ref Nothing (UnquotedName "a"))) Nothing :| [ExprSelection (ColumnRefExpr (Ref Nothing (UnquotedName "b"))) Nothing])) Nothing
+
+>>> test select "select $1 :: text"
+Select Nothing (Just (ExprSelection (TypecastExpr (PlaceholderExpr 1) (Type False "text" 0)) Nothing :| [])) Nothing
+
+>>> test select "select 1"
+Select Nothing (Just (ExprSelection (LiteralExpr (IntLiteral 1)) Nothing :| [])) Nothing
 -}
 select :: Parser Select
 select = label "select" $ do
@@ -76,7 +115,7 @@ asAliasClause name =
   name
 
 {-|
->>> parseTest fromClause "from a as b, c"
+>>> test fromClause "from a as b, c"
 TableRefFromItem False (Ref Nothing (UnquotedName "a")) False (Just (UnquotedName "b",Nothing)) :| [TableRefFromItem False (Ref Nothing (UnquotedName "c")) False Nothing]
 -}
 fromClause :: Parser (NonEmpty FromItem)
@@ -111,16 +150,16 @@ columnAliasList = label "column alias list" $ inParenthesis (sepBy1 name commaSe
 -------------------------
 
 {-|
->>> parseTest ref "a"
+>>> test ref "a"
 Ref Nothing (UnquotedName "a")
 
->>> parseTest ref "a.b"
+>>> test ref "a.b"
 Ref (Just (UnquotedName "a")) (UnquotedName "b")
 
->>> parseTest ref "a.\"b\""
+>>> test ref "a.\"b\""
 Ref (Just (UnquotedName "a")) (QuotedName "b")
 
->>> parseTest ref "user"
+>>> test ref "user"
 1:5:
   |
 1 | user
@@ -151,10 +190,10 @@ unquotedName = label "unquoted name" $ do
 
 quotedName :: Parser Name
 quotedName = label "quoted name" $ do
-  char '"'
-  _contents <- takeWhile1P Nothing (/= '"')
-  char '"'
-  return (QuotedName _contents)
+  _contents <- quotedString '"'
+  if Text.null _contents
+    then fail "Empty name"
+    else return (QuotedName _contents)
 
 
 -- * Expressions
@@ -168,26 +207,27 @@ Expr, which does not start with another expression.
 -}
 nonLoopingExpr :: Parser Expr
 nonLoopingExpr = 
-  asum
+  tryList
     [
-      try placeholderExpr,
-      try defaultExpr,
-      try columnRefExpr,
-      try inParenthesisExpr,
-      try caseExpr,
-      try funcExpr,
-      try selectExpr,
-      try existsSelectExpr,
-      try arraySelectExpr,
+      placeholderExpr,
+      defaultExpr,
+      columnRefExpr,
+      literalExpr,
+      inParenthesisExpr,
+      caseExpr,
+      funcExpr,
+      selectExpr,
+      existsSelectExpr,
+      arraySelectExpr,
       groupingExpr
     ]
 
 loopingExpr :: Parser Expr
 loopingExpr = 
-  asum
+  tryList
     [
-      try typecastExpr,
-      try escapableBinOpExpr,
+      typecastExpr,
+      escapableBinOpExpr,
       binOpExpr
     ]
 
@@ -243,15 +283,18 @@ defaultExpr = DefaultExpr <$ string' "default"
 columnRefExpr :: Parser Expr
 columnRefExpr = ColumnRefExpr <$> ref
 
+literalExpr :: Parser Expr
+literalExpr = LiteralExpr <$> literal
+
 {-|
 Full specification:
 
->>> parseTest caseExpr "CASE WHEN a = b THEN c WHEN d THEN e ELSE f END"
+>>> test caseExpr "CASE WHEN a = b THEN c WHEN d THEN e ELSE f END"
 CaseExpr Nothing (WhenClause (BinOpExpr "=" (ColumnRefExpr (Ref Nothing (UnquotedName "a"))) (ColumnRefExpr (Ref Nothing (UnquotedName "b")))) (ColumnRefExpr (Ref Nothing (UnquotedName "c"))) :| [WhenClause (ColumnRefExpr (Ref Nothing (UnquotedName "d"))) (ColumnRefExpr (Ref Nothing (UnquotedName "e")))]) (Just (ColumnRefExpr (Ref Nothing (UnquotedName "f"))))
 
 Implicit argument:
 
->>> parseTest caseExpr "CASE a WHEN b THEN c ELSE d END"
+>>> test caseExpr "CASE a WHEN b THEN c ELSE d END"
 CaseExpr (Just (ColumnRefExpr (Ref Nothing (UnquotedName "a")))) (WhenClause (ColumnRefExpr (Ref Nothing (UnquotedName "b"))) (ColumnRefExpr (Ref Nothing (UnquotedName "c"))) :| []) (Just (ColumnRefExpr (Ref Nothing (UnquotedName "d"))))
 -}
 caseExpr :: Parser Expr
@@ -364,20 +407,75 @@ groupingExpr = do
   GroupingExpr <$> inParenthesis (sepBy1 expr commaSeparator)
 
 
+-- * Literals
+-------------------------
+
+{-|
+@
+AexprConst: Iconst
+      | FCONST
+      | Sconst
+      | BCONST
+      | XCONST
+      | func_name Sconst
+      | func_name '(' func_arg_list opt_sort_clause ')' Sconst
+      | ConstTypename Sconst
+      | ConstInterval Sconst opt_interval
+      | ConstInterval '(' Iconst ')' Sconst
+      | TRUE_P
+      | FALSE_P
+      | NULL_P
+@
+
+>>> test literal "- 324098320984320480392480923842"
+IntLiteral (-324098320984320480392480923842)
+
+>>> test literal "'abc''de'"
+StringLiteral "abc'de"
+
+>>> test literal "23.43234"
+FloatLiteral 23.43234
+
+>>> test literal "-32423423.3243248732492739847923874"
+FloatLiteral -3.24234233243248732492739847923874e7
+
+>>> test literal "NULL"
+NullLiteral
+-}
+literal :: Parser Literal
+literal = label "literal" $ tryList [numericLiteral, stringLiteral, boolLiteral, nullLiteral]
+
+numericLiteral :: Parser Literal
+numericLiteral = label "numeric literal" $ do
+  (_input, _scientific) <- match $ Lex.signed space Lex.scientific
+  case parseMaybe (Lex.signed space Lex.decimal <* eof :: Parser Integer) _input of
+    Just _int -> return (IntLiteral _int)
+    Nothing -> return (FloatLiteral _scientific)
+
+stringLiteral :: Parser Literal
+stringLiteral = quotedString '\'' <&> StringLiteral <?> "string literal"
+
+boolLiteral :: Parser Literal
+boolLiteral = BoolLiteral True <$ string' "true" <|> BoolLiteral False <$ string' "false" <?> "bool literal"
+
+nullLiteral :: Parser Literal
+nullLiteral = NullLiteral <$ string' "null" <?> "null literal"
+
+
 -- * Types
 -------------------------
 
 {-|
->>> parseTest type_ "int4"
+>>> test type_ "int4"
 Type False "int4" 0
 
->>> parseTest type_ "int4[]"
+>>> test type_ "int4[]"
 Type False "int4" 1
 
->>> parseTest type_ "int4[ ] []"
+>>> test type_ "int4[ ] []"
 Type False "int4" 2
 
->>> parseTest type_ "int4?[][]"
+>>> test type_ "int4?[][]"
 Type True "int4" 2
 -}
 type_ :: Parser Type
