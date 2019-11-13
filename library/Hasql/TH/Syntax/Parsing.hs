@@ -475,12 +475,12 @@ Type False "int4" 1
 >>> test type_ "int4[ ] []"
 Type False "int4" 2
 
->>> test type_ "int4?[][]"
+>>> test type_ "int4[][]?"
 Type True "int4" 2
 -}
 type_ :: Parser Type
 type_ = do
   _baseName <- fmap Text.toLower $ takeWhile1P Nothing isAlphaNum
-  _nullable <- option False (try (True <$ space <* char '?'))
   _arrayLevels <- fmap length $ many $ space *> char '[' *> space *> char ']'
+  _nullable <- option False (try (True <$ space <* char '?'))
   return (Type _nullable _baseName _arrayLevels)

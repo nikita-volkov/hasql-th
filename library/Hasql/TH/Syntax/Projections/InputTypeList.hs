@@ -17,7 +17,7 @@ import qualified Data.IntMap.Strict as IntMap
 >>> "select $1 :: INT4" & parse P.select & select
 Right [Type False "int4" 0]
 
->>> "select $1 :: int4, a + $2 :: text?[]" & parse P.select & select
+>>> "select $1 :: int4, a + $2 :: text[]?" & parse P.select & select
 Right [Type False "int4" 0,Type True "text" 1]
 
 >>> "select $1" & parse P.select & select
