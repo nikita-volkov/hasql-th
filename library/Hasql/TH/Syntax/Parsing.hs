@@ -1,4 +1,4 @@
-module Hasql.TH.Syntax.Parser where
+module Hasql.TH.Syntax.Parsing where
 
 import Hasql.TH.Prelude hiding (expr, try, option, many)
 import Text.Megaparsec hiding (some, endBy1, someTill, sepBy1, sepEndBy1)

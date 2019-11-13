@@ -27,7 +27,7 @@ library
     Hasql.TH.Prelude
     Hasql.TH.Syntax.Ast
     Hasql.TH.Syntax.HashSet
-    Hasql.TH.Syntax.Parser
+    Hasql.TH.Syntax.Parsing
     Hasql.TH.Syntax.Predicate
     Hasql.TH.Syntax.Rendering
   build-depends:
