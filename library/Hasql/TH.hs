@@ -139,7 +139,7 @@ Allows to store plain SQL in external files and read it at compile time.
 E.g.,
 
 >migration1 :: Hasql.Session.Session ()
->migration1 = Hasql.Session.sql [uncheckedSqlFile|sql/migration-1.sql|]
+>migration1 = Hasql.Session.sql [uncheckedSqlFile|migrations/1.sql|]
 -}
 uncheckedSqlFile :: QuasiQuoter
 uncheckedSqlFile = quoteFile uncheckedSql
