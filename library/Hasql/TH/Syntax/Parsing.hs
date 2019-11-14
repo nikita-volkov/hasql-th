@@ -119,7 +119,7 @@ asAliasClause name =
 
 {-|
 >>> test fromClause "from a as b, c"
-RelationExprTableRef False (Ref Nothing (UnquotedName "a")) False (Just (UnquotedName "b",Nothing)) :| [RelationExprTableRef False (Ref Nothing (UnquotedName "c")) False Nothing]
+RelationExprTableRef (RelationExpr False (Ref Nothing (UnquotedName "a")) False) (Just (AliasClause (UnquotedName "b") Nothing)) :| [RelationExprTableRef (RelationExpr False (Ref Nothing (UnquotedName "c")) False) Nothing]
 -}
 fromClause :: Parser (NonEmpty TableRef)
 fromClause = label "from clause" $ string' "from" *> space1 *> sepBy1 tableRef commaSeparator
@@ -135,15 +135,22 @@ TODO: Add support for TABLESAMPLE.
 -}
 relationExprTableRef :: Parser TableRef
 relationExprTableRef = label "table reference" $ do
+  _relationExpr <- relationExpr
+  _optAliasClause <- optional $ try $ space1 *> aliasClause
+  return (RelationExprTableRef _relationExpr _optAliasClause)
+
+relationExpr :: Parser RelationExpr
+relationExpr = label "relation expression" $ do
   _only <- option False $ try $ True <$ string' "only" <* space1
-  _tableRef <- ref
+  _ref <- ref
   _asterisk <- option False $ try $ True <$ space1 <* char '*'
-  _aliasing <- optional $ try $ do
-    space1
-    _alias <- asAliasClause name
-    _columnAliases <- optional $ try $ space1 *> columnAliasList
-    return (_alias, _columnAliases)
-  return (RelationExprTableRef _only _tableRef _asterisk _aliasing)
+  return (RelationExpr _only _ref _asterisk)
+
+aliasClause :: Parser AliasClause
+aliasClause = do
+  _alias <- asAliasClause name
+  _columnAliases <- optional $ try $ space1 *> columnAliasList
+  return (AliasClause _alias _columnAliases)
 
 columnAliasList :: Parser (NonEmpty Name)
 columnAliasList = label "column alias list" $ inParenthesis (sepBy1 name commaSeparator)

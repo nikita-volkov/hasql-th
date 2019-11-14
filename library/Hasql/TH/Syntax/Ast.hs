@@ -29,7 +29,15 @@ data Selection =
   deriving (Show, Eq, Ord)
 
 data TableRef =
-  RelationExprTableRef Bool Ref Bool (Maybe (Name, Maybe (NonEmpty Name)))
+  RelationExprTableRef RelationExpr (Maybe AliasClause)
+  deriving (Show, Eq, Ord)
+
+data RelationExpr =
+  {-| Only, qualified name, asterisk -}
+  RelationExpr Bool Ref Bool
+  deriving (Show, Eq, Ord)
+
+data AliasClause = AliasClause Name (Maybe (NonEmpty Name))
   deriving (Show, Eq, Ord)
 
 
