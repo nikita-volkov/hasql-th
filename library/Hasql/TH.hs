@@ -52,65 +52,65 @@ exp = let
   _unsupported _ = fail "Unsupported"
   in \ _exp -> QuasiQuoter _exp _unsupported _unsupported _unsupported
 
-statementExp :: (Extraction.Statement -> Exp) -> QuasiQuoter
-statementExp _statement = exp (either (fail . Text.unpack) (return . _statement) . Extraction.statement . fromString)
+statementExp :: (Extraction.Statement -> Exp) -> (Text -> Either Text Extraction.Statement) -> QuasiQuoter
+statementExp _exp _extract = exp (either (fail . Text.unpack) (return . _exp) . _extract . fromString)
 
 
 -- * Statements
 -------------------------
 
 {-|
->>> :t [resultlessStatement|select 1 :: int2|]
-[resultlessStatement|select 1 :: int2|] :: Statement () ()
+>>> :t [resultlessStatement|select 1|]
+[resultlessStatement|select 1|] :: Statement () ()
 
 Incorrect SQL:
->>> :t [resultlessStatement|elect 1 :: int2|]
+>>> :t [resultlessStatement|elect 1|]
 <BLANKLINE>
 <interactive>:1:22: error:
     • 1:1:
   |
-1 | elect 1 :: int2
+1 | elect 1
   | ^^^^^^
 unexpected "elect "
 ...
 -}
 resultlessStatement :: QuasiQuoter
-resultlessStatement = statementExp Exp.resultlessStatement
+resultlessStatement = statementExp Exp.resultlessStatement Extraction.rowlessStatement
 
 {-|
->>> :t [rowsAffectedStatement|select 1 :: int2|]
-[rowsAffectedStatement|select 1 :: int2|] :: Statement () Int64
+>>> :t [rowsAffectedStatement|select 1|]
+[rowsAffectedStatement|select 1|] :: Statement () Int64
 -}
 rowsAffectedStatement :: QuasiQuoter
-rowsAffectedStatement = statementExp Exp.rowsAffectedStatement
+rowsAffectedStatement = statementExp Exp.rowsAffectedStatement Extraction.rowlessStatement
 
 {-|
 >>> :t [singletonStatement|select 1 :: int2|]
 [singletonStatement|select 1 :: int2|] :: Statement () Int16
 -}
 singletonStatement :: QuasiQuoter
-singletonStatement = statementExp Exp.singletonStatement
+singletonStatement = statementExp Exp.singletonStatement Extraction.statement
 
 {-|
 >>> :t [maybeStatement|select 1 :: int2|]
 [maybeStatement|select 1 :: int2|] :: Statement () (Maybe Int16)
 -}
 maybeStatement :: QuasiQuoter
-maybeStatement = statementExp Exp.maybeStatement
+maybeStatement = statementExp Exp.maybeStatement Extraction.statement
 
 {-|
 >>> :t [vectorStatement|select 1 :: int2|]
 [vectorStatement|select 1 :: int2|] :: Statement () (Vector Int16)
 -}
 vectorStatement :: QuasiQuoter
-vectorStatement = statementExp Exp.vectorStatement
+vectorStatement = statementExp Exp.vectorStatement Extraction.statement
 
 {-|
 >>> :t [foldStatement|select 1 :: int2|]
 [foldStatement|select 1 :: int2|] :: Fold Int16 b -> Statement () b
 -}
 foldStatement :: QuasiQuoter
-foldStatement = statementExp Exp.foldStatement
+foldStatement = statementExp Exp.foldStatement Extraction.statement
 
 
 -- * SQL ByteStrings

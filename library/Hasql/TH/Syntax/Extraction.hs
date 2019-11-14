@@ -21,13 +21,24 @@ data Decoder = Decoder TH.Name Bool Int Bool
 
 statement :: Text -> Either Text Statement
 statement _quote = do
-  _select <- first (fromString . Megaparsec.errorBundlePretty) $ Megaparsec.runParser (Parsing.select <* Megaparsec.eof) "" _quote
+  _select <- ast _quote
   _inputTypeList <- InputTypeList.select _select
   _outputTypeList <- OutputTypeList.select _select
   _encoderList <- traverse encoder _inputTypeList
   _decoderList <- traverse decoder _outputTypeList
   let _sql = FastBuilder.toStrictByteString (Rendering.select _select)
   return (Statement _sql _encoderList _decoderList)
+
+rowlessStatement :: Text -> Either Text Statement
+rowlessStatement _quote = do
+  _select <- ast _quote
+  _inputTypeList <- InputTypeList.select _select
+  _encoderList <- traverse encoder _inputTypeList
+  let _sql = FastBuilder.toStrictByteString (Rendering.select _select)
+  return (Statement _sql _encoderList [])
+
+ast :: Text -> Either Text Select
+ast = first (fromString . Megaparsec.errorBundlePretty) . Megaparsec.runParser (Parsing.select <* Megaparsec.eof) ""
 
 encoder :: Type -> Either Text Encoder
 encoder (Type _name _nullable _dimensions _arrayNullable) =
