@@ -38,7 +38,7 @@ expr = \ case
   DefaultExpr -> []
   ColumnRefExpr _ -> []
   LiteralExpr _ -> []
-  InParenthesisExpr a -> [a]
+  InParensExpr a -> [a]
   CaseExpr a b c -> maybeToList a <> foldable whenClause b <> maybeToList c
   FuncExpr a -> funcApplication a
   SelectExpr a -> select a

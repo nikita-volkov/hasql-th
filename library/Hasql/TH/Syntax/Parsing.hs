@@ -56,8 +56,8 @@ commaSeparator = space *> char ',' *> space
 dotSeparator :: Parser ()
 dotSeparator = space *> char '.' *> space
 
-inParenthesis :: Parser a -> Parser a
-inParenthesis p = char '(' *> space *> p <* space <* char ')'
+inParens :: Parser a -> Parser a
+inParens p = char '(' *> space *> p <* space <* char ')'
 
 {-|
 >>> test (quotedString '\'') "'abc''d'"
@@ -194,7 +194,7 @@ aliasClause = do
   return (AliasClause _alias _columnAliases)
 
 columnAliasList :: Parser (NonEmpty Name)
-columnAliasList = label "column alias list" $ inParenthesis (sepBy1 name commaSeparator)
+columnAliasList = label "column alias list" $ inParens (sepBy1 name commaSeparator)
 
 
 -- * References & Names
@@ -264,7 +264,7 @@ nonLoopingExpr =
       defaultExpr,
       columnRefExpr,
       literalExpr,
-      inParenthesisExpr,
+      inParensExpr,
       caseExpr,
       funcExpr,
       selectExpr,
@@ -285,8 +285,8 @@ loopingExpr =
 placeholderExpr :: Parser Expr
 placeholderExpr = PlaceholderExpr <$> (char '$' *> Lex.decimal)
 
-inParenthesisExpr :: Parser Expr
-inParenthesisExpr = fmap InParenthesisExpr (inParenthesis expr)
+inParensExpr :: Parser Expr
+inParensExpr = fmap InParensExpr (inParens expr)
 
 typecastExpr :: Parser Expr
 typecastExpr = do
@@ -380,7 +380,7 @@ funcApplication :: Parser FuncApplication
 funcApplication = do
   _name <- name
   space
-  _params <- inParenthesis funcApplicationParams
+  _params <- inParens funcApplicationParams
   return (FuncApplication _name _params)
 
 funcApplicationParams :: Parser FuncApplicationParams
@@ -437,25 +437,25 @@ order :: Parser Order
 order = string' "asc" $> AscOrder <|> string' "desc" $> DescOrder
 
 selectExpr :: Parser Expr
-selectExpr = SelectExpr <$> inParenthesis select
+selectExpr = SelectExpr <$> inParens select
 
 existsSelectExpr :: Parser Expr
 existsSelectExpr = do
   string' "exists"
   space
-  ExistsSelectExpr <$> inParenthesis select
+  ExistsSelectExpr <$> inParens select
 
 arraySelectExpr :: Parser Expr
 arraySelectExpr = do
   string' "array"
   space
-  ExistsSelectExpr <$> inParenthesis select
+  ExistsSelectExpr <$> inParens select
 
 groupingExpr :: Parser Expr
 groupingExpr = do
   string' "grouping"
   space
-  GroupingExpr <$> inParenthesis (sepBy1 expr commaSeparator)
+  GroupingExpr <$> inParens (sepBy1 expr commaSeparator)
 
 
 -- * Literals

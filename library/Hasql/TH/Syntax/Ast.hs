@@ -87,7 +87,7 @@ data AliasClause = AliasClause Name (Maybe (NonEmpty Name))
 The options are covered by the `JoinMeth` type.
 -}
 data JoinedTable =
-  InParenthesisJoinedTable JoinedTable |
+  InParensJoinedTable JoinedTable |
   MethJoinedTable JoinMeth TableRef TableRef
   deriving (Show, Eq, Ord)
 
@@ -150,7 +150,7 @@ data Expr =
   DefaultExpr |
   ColumnRefExpr Ref |
   LiteralExpr Literal |
-  InParenthesisExpr Expr |
+  InParensExpr Expr |
   CaseExpr (Maybe Expr) (NonEmpty WhenClause) (Maybe Expr) |
   FuncExpr FuncApplication |
   SelectExpr Select |

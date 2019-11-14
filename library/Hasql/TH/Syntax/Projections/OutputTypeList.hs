@@ -34,5 +34,5 @@ selection = \ case
 expr :: Expr -> Either Text [Type]
 expr = \ case
   TypecastExpr _ a -> Right [a]
-  InParenthesisExpr a -> expr a
+  InParensExpr a -> expr a
   a -> Left "Result expression is missing a typecast"

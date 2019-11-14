@@ -43,7 +43,7 @@ expr = \ case
   BinOpExpr a b c -> expr b <> " " <> text a <> " " <> expr c
   ColumnRefExpr a -> ref a
   LiteralExpr a -> literal a
-  InParenthesisExpr a -> "(" <> expr a <> ")"
+  InParensExpr a -> "(" <> expr a <> ")"
 
 type_ :: Type -> Builder
 type_ (Type a _ b _) =
