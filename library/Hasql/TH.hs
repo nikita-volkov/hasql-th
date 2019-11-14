@@ -62,6 +62,17 @@ statementExp _statement = exp (either (fail . Text.unpack) (return . _statement)
 {-|
 >>> :t [resultlessStatement|select 1 :: int2|]
 [resultlessStatement|select 1 :: int2|] :: Statement () ()
+
+Incorrect SQL:
+>>> :t [resultlessStatement|elect 1 :: int2|]
+<BLANKLINE>
+<interactive>:1:22: error:
+    • 1:1:
+  |
+1 | elect 1 :: int2
+  | ^^^^^^
+unexpected "elect "
+...
 -}
 resultlessStatement :: QuasiQuoter
 resultlessStatement = statementExp Exp.resultlessStatement

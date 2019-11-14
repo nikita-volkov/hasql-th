@@ -21,7 +21,7 @@ data Decoder = Decoder TH.Name Bool Int Bool
 
 statement :: Text -> Either Text Statement
 statement _quote = do
-  _select <- first showAsText $ Megaparsec.runParser (Parsing.select <* Megaparsec.eof) "" _quote
+  _select <- first (fromString . Megaparsec.errorBundlePretty) $ Megaparsec.runParser (Parsing.select <* Megaparsec.eof) "" _quote
   _inputTypeList <- InputTypeList.select _select
   _outputTypeList <- OutputTypeList.select _select
   _encoderList <- traverse encoder _inputTypeList
