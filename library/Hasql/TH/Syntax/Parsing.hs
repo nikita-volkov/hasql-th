@@ -152,12 +152,26 @@ fromClause :: Parser (NonEmpty TableRef)
 fromClause = label "from clause" $ string' "from" *> space1 *> sepBy1 tableRef commaSeparator
 
 {-
+| relation_expr opt_alias_clause
+| relation_expr opt_alias_clause tablesample_clause
+| func_table func_alias_clause
+| LATERAL_P func_table func_alias_clause
+| xmltable opt_alias_clause
+| LATERAL_P xmltable opt_alias_clause
+| select_with_parens opt_alias_clause
+| LATERAL_P select_with_parens opt_alias_clause
+| joined_table
+| '(' joined_table ')' alias_clause
+
 TODO: Add support for joins, inner selects and ctes.
 -}
 tableRef :: Parser TableRef
 tableRef = relationExprTableRef
 
 {-
+| relation_expr opt_alias_clause
+| relation_expr opt_alias_clause tablesample_clause
+
 TODO: Add support for TABLESAMPLE.
 -}
 relationExprTableRef :: Parser TableRef
