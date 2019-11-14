@@ -67,8 +67,8 @@ a single divisible functor, parameterized by a tuple of according arity.
 -}
 contrazip :: [Exp] -> Exp
 contrazip = \ case
-  head : [] -> head
-  head : tail -> foldl1 AppE [VarE 'divide, splitTupleAt (succ (length tail)) 1, head, contrazip tail]
+  _head : [] -> _head
+  _head : _tail -> appList (VarE 'divide) [splitTupleAt (succ (length _tail)) 1, _head, contrazip _tail]
   [] -> SigE (VarE 'conquer)
     (let
       _fName = mkName "f"
@@ -104,9 +104,9 @@ cozip = \ case
 
 statement :: ([Extraction.Decoder] -> Exp) -> Extraction.Statement -> Exp
 statement _decodersExp (Extraction.Statement _sql _encoders _decoders) =
-  foldl1 AppE
+  appList
+    (ConE 'Statement.Statement)
     [
-      ConE 'Statement.Statement,
       byteString _sql,
       encoderList _encoders,
       _decodersExp _decoders,
