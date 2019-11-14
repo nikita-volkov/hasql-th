@@ -38,7 +38,7 @@ rowlessStatement _quote = do
   return (Statement _sql _encoderList [])
 
 ast :: Text -> Either Text Select
-ast = first (fromString . Megaparsec.errorBundlePretty) . Megaparsec.runParser (Parsing.select <* Megaparsec.eof) ""
+ast = first (fromString . Megaparsec.errorBundlePretty) . Megaparsec.runParser (Parsing.quasiQuote Parsing.select) ""
 
 encoder :: Type -> Either Text Encoder
 encoder (Type _name _nullable _dimensions _arrayNullable) =

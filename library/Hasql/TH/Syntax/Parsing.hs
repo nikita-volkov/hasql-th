@@ -59,6 +59,9 @@ tryList = \ case
   a : b -> try a <|> tryList b
   _ -> empty
 
+quasiQuote :: Parser a -> Parser a
+quasiQuote p = space *> p <* space <* eof
+
 
 -- * Select
 -------------------------
