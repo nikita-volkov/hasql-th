@@ -23,7 +23,7 @@ Allows to store plain SQL in external files and read it at compile time.
 E.g.,
 
 >migration1 :: Hasql.Session.Session ()
->migration1 = Hasql.Session.sql $(Hasql.TH.sqlFile "sql/migration-1.sql")
+>migration1 = Hasql.Session.sql [sqlFile|sql/migration-1.sql|]
 -}
 sqlFile :: QuasiQuoter
 sqlFile = quoteFile sql
