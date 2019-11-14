@@ -6,8 +6,8 @@ import qualified Data.IntMap.Strict as IntMap
 import qualified Hasql.TH.Syntax.Projections.ChildExprList as ChildExprList
 
 
-select :: Select -> Either Text (IntMap Type)
-select = exprList . ChildExprList.select
+preparableStmt :: PreparableStmt -> Either Text (IntMap Type)
+preparableStmt = exprList . ChildExprList.preparableStmt
 
 exprList :: [Expr] -> Either Text (IntMap Type)
 exprList = foldM union IntMap.empty <=< traverse expr

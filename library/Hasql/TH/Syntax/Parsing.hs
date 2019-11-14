@@ -27,7 +27,7 @@ Here's the essence of how the original parser is implemented, citing from
 -}
 module Hasql.TH.Syntax.Parsing where
 
-import Hasql.TH.Prelude hiding (expr, try, option, many)
+import Hasql.TH.Prelude hiding (expr, try, option, many, sortBy)
 import Text.Megaparsec hiding (some, endBy1, someTill, sepBy1, sepEndBy1)
 import Text.Megaparsec.Char
 import Control.Applicative.Combinators.NonEmpty
@@ -40,7 +40,7 @@ import qualified Text.Builder as TextBuilder
 
 
 {- $setup
->>> test parser = parseTest (parser <* eof)
+>>> testParser parser = parseTest (parser <* eof)
 -}
 
 
@@ -49,6 +49,12 @@ type Parser = Parsec Void Text
 
 -- * Helpers
 -------------------------
+
+{-|
+Consume a keyword, ignoring case and types of spaces between words.
+-}
+keyword :: Text -> Parser Text
+keyword a = Text.words a & fmap (void . string') & intersperse space1 & sequence_ & fmap (const a) & label ("keyword " <> Text.unpack a)
 
 commaSeparator :: Parser ()
 commaSeparator = space *> char ',' *> space
@@ -59,8 +65,11 @@ dotSeparator = space *> char '.' *> space
 inParens :: Parser a -> Parser a
 inParens p = char '(' *> space *> p <* space <* char ')'
 
+nonEmptyList :: Parser a -> Parser (NonEmpty a)
+nonEmptyList p = sepBy1 p commaSeparator
+
 {-|
->>> test (quotedString '\'') "'abc''d'"
+>>> testParser (quotedString '\'') "'abc''d'"
 "abc'd"
 -}
 quotedString :: Char -> Parser Text
@@ -86,70 +95,191 @@ tryList = \ case
   a : b -> try a <|> tryList b
   _ -> empty
 
+infixl 3 <?|>
+(<?|>) :: Parser a -> Parser a -> Parser a
+(<?|>) a b = try a <|> b
+
 quasiQuote :: Parser a -> Parser a
 quasiQuote p = space *> p <* space <* eof
+
+-- * PreparableStmt
+-------------------------
+
+preparableStmt :: Parser PreparableStmt
+preparableStmt = selectPreparableStmt
+
+selectPreparableStmt :: Parser PreparableStmt
+selectPreparableStmt = SelectPreparableStmt <$> selectStmt
 
 
 -- * Select
 -------------------------
 
+selectStmt :: Parser SelectStmt
+selectStmt = try inParensSelectStmt <|> noParensSelectStmt
+
+inParensSelectStmt :: Parser SelectStmt
+inParensSelectStmt = inParens (InParensSelectStmt <$> selectStmt)
+
+noParensSelectStmt :: Parser SelectStmt
+noParensSelectStmt = NoParensSelectStmt <$> selectNoParens
+
+selectNoParens :: Parser SelectNoParens
+selectNoParens = simpleSelectNoParens
+
+simpleSelectNoParens :: Parser SelectNoParens
+simpleSelectNoParens = SimpleSelectNoParens <$> simpleSelect
+
 {-|
->>> test select "select"
-Select Nothing Nothing Nothing
+>>> test = testParser simpleSelect
 
->>> test select "select distinct"
-Select (Just (DistinctAllOrDistinctSelectClause Nothing)) Nothing Nothing
+>>> test "select"
+NormalSimpleSelect Nothing Nothing Nothing Nothing Nothing Nothing Nothing
 
->>> test select "select $1"
-Select Nothing (Just (ExprSelection (PlaceholderExpr 1) Nothing :| [])) Nothing
+>>> test "select distinct 1"
+...DistinctTargeting Nothing (ExprTarget (LiteralExpr (IntLiteral 1)) Nothing :| [])...
 
->>> test select "select $1 + $2"
-Select Nothing (Just (ExprSelection (BinOpExpr "+" (PlaceholderExpr 1) (PlaceholderExpr 2)) Nothing :| [])) Nothing
+>>> test "select $1"
+...NormalTargeting (ExprTarget (PlaceholderExpr 1) Nothing :| [])...
 
->>> test select "select a, b"
-Select Nothing (Just (ExprSelection (ColumnRefExpr (Ref Nothing (UnquotedName "a"))) Nothing :| [ExprSelection (ColumnRefExpr (Ref Nothing (UnquotedName "b"))) Nothing])) Nothing
+>>> test "select $1 + $2"
+...BinOpExpr "+" (PlaceholderExpr 1) (PlaceholderExpr 2)...
 
->>> test select "select $1 :: text"
-Select Nothing (Just (ExprSelection (TypecastExpr (PlaceholderExpr 1) (Type "text" False 0 False)) Nothing :| [])) Nothing
+>>> test "select a, b"
+...ExprTarget (ColumnRefExpr (Ref Nothing (UnquotedName "a"))) Nothing :| [ExprTarget (ColumnRefExpr (Ref Nothing (UnquotedName "b"))) Nothing]...
 
->>> test select "select 1"
-Select Nothing (Just (ExprSelection (LiteralExpr (IntLiteral 1)) Nothing :| [])) Nothing
+>>> test "select $1 :: text"
+...TypecastExpr (PlaceholderExpr 1) (Type "text" False 0 False)...
+
+>>> test "select 1"
+...ExprTarget (LiteralExpr (IntLiteral 1))...
 -}
-select :: Parser Select
-select = label "select" $ do
-  string' "select"
-  _allOrDistinct <- optional $ try $ space1 *> allOrDistinctSelectClause
-  _selections <- optional $ try $ space1 *> sepBy1 selection commaSeparator
-  _from <- optional $ try $ fromClause
-  return (Select _allOrDistinct _selections _from)
+{-
+simple_select:
+  |  SELECT opt_all_clause opt_target_list
+      into_clause from_clause where_clause
+      group_clause having_clause window_clause
+  |  SELECT distinct_clause target_list
+      into_clause from_clause where_clause
+      group_clause having_clause window_clause
+  |  values_clause
+  |  TABLE relation_expr
+  |  select_clause UNION all_or_distinct select_clause
+  |  select_clause INTERSECT all_or_distinct select_clause
+  |  select_clause EXCEPT all_or_distinct select_clause
+-}
+simpleSelect :: Parser SimpleSelect
+simpleSelect = normal where
+  normal = do
+    string' "select"
+    _targeting <- optional (try (space1 *> targeting))
+    _intoClause <- optional (try (space1 *> intoClause))
+    _fromClause <- optional (try (space1 *> fromClause))
+    _whereClause <- optional (try (space1 *> whereClause))
+    _groupClause <- optional (try (space1 *> groupClause))
+    _havingClause <- optional (try (space1 *> havingClause))
+    _windowClause <- optional (try (space1 *> windowClause))
+    return (NormalSimpleSelect _targeting _intoClause _fromClause _whereClause _groupClause _havingClause _windowClause)
 
-allOrDistinctSelectClause :: Parser AllOrDistinctSelectClause
-allOrDistinctSelectClause =
-  AllAllOrDistinctSelectClause <$ string' "all" <|>
-  DistinctAllOrDistinctSelectClause <$> (string' "distinct" *> optional (space1 *> onExpressionsClause))
+{-
+simple_select:
+  |  SELECT opt_all_clause opt_target_list
+      into_clause from_clause where_clause
+      group_clause having_clause window_clause
+  |  SELECT distinct_clause target_list
+      into_clause from_clause where_clause
+      group_clause having_clause window_clause
+
+distinct_clause:
+  |  DISTINCT
+  |  DISTINCT ON '(' expr_list ')'
+-}
+targeting :: Parser Targeting
+targeting = distinct <?|> all <?|> normal <?> "targeting" where
+  normal = NormalTargeting <$> targetList
+  all = do
+    string' "all"
+    _optTargetList <- optional (try (space1 *> targetList))
+    return (AllTargeting _optTargetList)
+  distinct = do
+    string' "distinct"
+    space1
+    _optOn <- optional (try (onExpressionsClause <* space1))
+    _targetList <- targetList
+    return (DistinctTargeting _optOn _targetList)
+
+targetList :: Parser (NonEmpty Target)
+targetList = nonEmptyList target
+
+target :: Parser Target
+target =
+  AllTarget <$ char '*' <|>
+  ExprTarget <$> expr <*> optional (try (space1 *> asAliasClause name))
+
+asAliasClause :: Parser a -> Parser a
+asAliasClause name =
+  string' "as" *> space1 *> name <?|>
+  name
 
 onExpressionsClause :: Parser (NonEmpty Expr)
 onExpressionsClause = do
   string' "on"
   space1
-  sepBy1 expr commaSeparator
+  nonEmptyList expr
 
-selection :: Parser Selection
-selection =
-  AllSelection <$ char '*' <|>
-  ExprSelection <$> expr <*> optional (space1 *> asAliasClause name)
 
-asAliasClause :: Parser a -> Parser a
-asAliasClause name =
-  try (string' "as" *> space1 *> name) <|>
-  name
+-- * Clauses
+-------------------------
+
+clause :: Text -> Parser a -> Parser a
+clause name p = keyword name *> space1 *> p <?> Text.unpack name <> " clause"
+
+intoClause :: Parser OptTempTableName
+intoClause = clause "into" optTempTableName
 
 {-|
->>> test fromClause "from a as b, c"
+>>> testParser fromClause "from a as b, c"
 RelationExprTableRef (RelationExpr False (Ref Nothing (UnquotedName "a")) False) (Just (AliasClause (UnquotedName "b") Nothing)) :| [RelationExprTableRef (RelationExpr False (Ref Nothing (UnquotedName "c")) False) Nothing]
 -}
 fromClause :: Parser (NonEmpty TableRef)
-fromClause = label "from clause" $ string' "from" *> space1 *> sepBy1 tableRef commaSeparator
+fromClause = clause "from" (nonEmptyList tableRef)
+
+whereClause :: Parser Expr
+whereClause = clause "where" expr
+
+groupClause :: Parser (NonEmpty GroupByItem)
+groupClause = clause "group by" (nonEmptyList groupByItem)
+
+havingClause :: Parser Expr
+havingClause = clause "having" expr
+
+windowClause :: Parser (NonEmpty WindowDefinition)
+windowClause = clause "window" (nonEmptyList windowDefinition)
+
+
+-- * Into clause details
+-------------------------
+
+optTempTableName :: Parser OptTempTableName
+optTempTableName = error "TODO"
+
+
+-- * Group by details
+-------------------------
+
+groupByItem :: Parser GroupByItem
+groupByItem = error "TODO"
+
+
+-- * Window clause details
+-------------------------
+
+windowDefinition :: Parser WindowDefinition
+windowDefinition = error "TODO"
+
+
+-- * Table refs
+-------------------------
 
 {-
 | relation_expr opt_alias_clause
@@ -194,23 +324,23 @@ aliasClause = do
   return (AliasClause _alias _columnAliases)
 
 columnAliasList :: Parser (NonEmpty Name)
-columnAliasList = label "column alias list" $ inParens (sepBy1 name commaSeparator)
+columnAliasList = label "column alias list" $ inParens (nonEmptyList name)
 
 
 -- * References & Names
 -------------------------
 
 {-|
->>> test ref "a"
+>>> testParser ref "a"
 Ref Nothing (UnquotedName "a")
 
->>> test ref "a.b"
+>>> testParser ref "a.b"
 Ref (Just (UnquotedName "a")) (UnquotedName "b")
 
->>> test ref "a.\"b\""
+>>> testParser ref "a.\"b\""
 Ref (Just (UnquotedName "a")) (QuotedName "b")
 
->>> test ref "user"
+>>> testParser ref "user"
 1:5:
   |
 1 | user
@@ -312,14 +442,14 @@ symbolicBinOp = do
     else fail ("Unknown binary operator: " <> show _text)
 
 lexicalBinOp :: Parser Text
-lexicalBinOp = asum $ fmap string' $ ["and", "or", "is distinct from", "is not distinct from"]
+lexicalBinOp = asum $ fmap (try . keyword) $ ["and", "or", "is distinct from", "is not distinct from"]
 
 escapableBinOpExpr :: Parser Expr
 escapableBinOpExpr = do
   _a <- nonLoopingExpr
   space1
   _not <- option False $ True <$ string' "not" <* space1
-  _op <- asum $ fmap string' $ ["like", "ilike", "similar to"]
+  _op <- asum $ fmap (try . keyword) $ ["like", "ilike", "similar to"]
   space1
   _b <- expr
   _escaping <- optional $ try $ do
@@ -340,12 +470,12 @@ literalExpr = LiteralExpr <$> literal
 {-|
 Full specification:
 
->>> test caseExpr "CASE WHEN a = b THEN c WHEN d THEN e ELSE f END"
+>>> testParser caseExpr "CASE WHEN a = b THEN c WHEN d THEN e ELSE f END"
 CaseExpr Nothing (WhenClause (BinOpExpr "=" (ColumnRefExpr (Ref Nothing (UnquotedName "a"))) (ColumnRefExpr (Ref Nothing (UnquotedName "b")))) (ColumnRefExpr (Ref Nothing (UnquotedName "c"))) :| [WhenClause (ColumnRefExpr (Ref Nothing (UnquotedName "d"))) (ColumnRefExpr (Ref Nothing (UnquotedName "e")))]) (Just (ColumnRefExpr (Ref Nothing (UnquotedName "f"))))
 
 Implicit argument:
 
->>> test caseExpr "CASE a WHEN b THEN c ELSE d END"
+>>> testParser caseExpr "CASE a WHEN b THEN c ELSE d END"
 CaseExpr (Just (ColumnRefExpr (Ref Nothing (UnquotedName "a")))) (WhenClause (ColumnRefExpr (Ref Nothing (UnquotedName "b"))) (ColumnRefExpr (Ref Nothing (UnquotedName "c"))) :| []) (Just (ColumnRefExpr (Ref Nothing (UnquotedName "d"))))
 -}
 caseExpr :: Parser Expr
@@ -380,23 +510,22 @@ funcApplication :: Parser FuncApplication
 funcApplication = do
   _name <- name
   space
-  _params <- inParens funcApplicationParams
+  _params <- inParens (optional (try funcApplicationParams))
   return (FuncApplication _name _params)
 
 funcApplicationParams :: Parser FuncApplicationParams
 funcApplicationParams =
-  asum
+  tryList
     [
       normalFuncApplicationParams,
       singleVariadicFuncApplicationParams,
-      listVariadicFuncApplicationParams,
-      pure NoFuncApplicationParams
+      listVariadicFuncApplicationParams
     ]
 
 normalFuncApplicationParams :: Parser FuncApplicationParams
 normalFuncApplicationParams = do
   _optAllOrDistinct <- optional ((string' "all" $> AllAllOrDistinct <|> string' "distinct" $> DistinctAllOrDistinct) <* space1)
-  _argList <- sepBy1 funcArg commaSeparator
+  _argList <- nonEmptyList funcArgExpr
   _optSortClause <- optional (space1 *> sortClause)
   return (NormalFuncApplicationParams _optAllOrDistinct _argList _optSortClause)
 
@@ -404,58 +533,58 @@ singleVariadicFuncApplicationParams :: Parser FuncApplicationParams
 singleVariadicFuncApplicationParams = do
   string' "variadic"
   space1
-  _arg <- funcArg
+  _arg <- funcArgExpr
   _optSortClause <- optional (space1 *> sortClause)
   return (VariadicFuncApplicationParams Nothing _arg _optSortClause)
 
 listVariadicFuncApplicationParams :: Parser FuncApplicationParams
 listVariadicFuncApplicationParams = do
-  _argList <- sepBy1 funcArg commaSeparator
+  _argList <- nonEmptyList funcArgExpr
   commaSeparator
   string' "variadic"
   space1
-  _arg <- funcArg
+  _arg <- funcArgExpr
   _optSortClause <- optional (space1 *> sortClause)
   return (VariadicFuncApplicationParams (Just _argList) _arg _optSortClause)
 
-funcArg :: Parser FuncArg
-funcArg = ExprFuncArg <$> expr
+funcArgExpr :: Parser FuncArgExpr
+funcArgExpr = ExprFuncArgExpr <$> expr
 
-sortClause :: Parser (NonEmpty OrderByItem)
+sortClause :: Parser (NonEmpty SortBy)
 sortClause = do
-  string' "order by"
+  keyword "order by"
   space1
-  sepBy1 orderByItem commaSeparator
+  nonEmptyList sortBy
 
-orderByItem :: Parser OrderByItem
-orderByItem = do
+sortBy :: Parser SortBy
+sortBy = do
   _expr <- expr
   _optOrder <- optional (space1 *> order)
-  return (OrderByItem _expr _optOrder)
+  return (SortBy _expr _optOrder)
 
 order :: Parser Order
 order = string' "asc" $> AscOrder <|> string' "desc" $> DescOrder
 
 selectExpr :: Parser Expr
-selectExpr = SelectExpr <$> inParens select
+selectExpr = SelectExpr <$> inParens selectNoParens
 
 existsSelectExpr :: Parser Expr
 existsSelectExpr = do
   string' "exists"
   space
-  ExistsSelectExpr <$> inParens select
+  ExistsSelectExpr <$> inParens selectNoParens
 
 arraySelectExpr :: Parser Expr
 arraySelectExpr = do
   string' "array"
   space
-  ExistsSelectExpr <$> inParens select
+  ExistsSelectExpr <$> inParens selectNoParens
 
 groupingExpr :: Parser Expr
 groupingExpr = do
   string' "grouping"
   space
-  GroupingExpr <$> inParens (sepBy1 expr commaSeparator)
+  GroupingExpr <$> inParens (nonEmptyList expr)
 
 
 -- * Literals
@@ -478,19 +607,19 @@ AexprConst: Iconst
       | NULL_P
 @
 
->>> test literal "- 324098320984320480392480923842"
+>>> testParser literal "- 324098320984320480392480923842"
 IntLiteral (-324098320984320480392480923842)
 
->>> test literal "'abc''de'"
+>>> testParser literal "'abc''de'"
 StringLiteral "abc'de"
 
->>> test literal "23.43234"
+>>> testParser literal "23.43234"
 FloatLiteral 23.43234
 
->>> test literal "-32423423.3243248732492739847923874"
+>>> testParser literal "-32423423.3243248732492739847923874"
 FloatLiteral -3.24234233243248732492739847923874e7
 
->>> test literal "NULL"
+>>> testParser literal "NULL"
 NullLiteral
 -}
 literal :: Parser Literal
@@ -517,22 +646,22 @@ nullLiteral = NullLiteral <$ string' "null" <?> "null literal"
 -------------------------
 
 {-|
->>> test type_ "int4"
+>>> testParser type_ "int4"
 Type "int4" False 0 False
 
->>> test type_ "int4?"
+>>> testParser type_ "int4?"
 Type "int4" True 0 False
 
->>> test type_ "int4[]"
+>>> testParser type_ "int4[]"
 Type "int4" False 1 False
 
->>> test type_ "int4[ ] []"
+>>> testParser type_ "int4[ ] []"
 Type "int4" False 2 False
 
->>> test type_ "int4[][]?"
+>>> testParser type_ "int4[][]?"
 Type "int4" False 2 True
 
->>> test type_ "int4?[][]"
+>>> testParser type_ "int4?[][]"
 Type "int4" True 2 False
 -}
 type_ :: Parser Type

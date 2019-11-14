@@ -21,24 +21,24 @@ data Decoder = Decoder TH.Name Bool Int Bool
 
 statement :: Text -> Either Text Statement
 statement _quote = do
-  _select <- ast _quote
-  _inputTypeList <- InputTypeList.select _select
-  _outputTypeList <- OutputTypeList.select _select
+  _preparableStmt <- ast _quote
+  _inputTypeList <- InputTypeList.preparableStmt _preparableStmt
+  _outputTypeList <- OutputTypeList.preparableStmt _preparableStmt
   _encoderList <- traverse encoder _inputTypeList
   _decoderList <- traverse decoder _outputTypeList
-  let _sql = FastBuilder.toStrictByteString (Rendering.select _select)
+  let _sql = FastBuilder.toStrictByteString (Rendering.preparableStmt _preparableStmt)
   return (Statement _sql _encoderList _decoderList)
 
 rowlessStatement :: Text -> Either Text Statement
 rowlessStatement _quote = do
-  _select <- ast _quote
-  _inputTypeList <- InputTypeList.select _select
+  _preparableStmt <- ast _quote
+  _inputTypeList <- InputTypeList.preparableStmt _preparableStmt
   _encoderList <- traverse encoder _inputTypeList
-  let _sql = FastBuilder.toStrictByteString (Rendering.select _select)
+  let _sql = FastBuilder.toStrictByteString (Rendering.preparableStmt _preparableStmt)
   return (Statement _sql _encoderList [])
 
-ast :: Text -> Either Text Select
-ast = first (fromString . Megaparsec.errorBundlePretty) . Megaparsec.runParser (Parsing.quasiQuote Parsing.select) ""
+ast :: Text -> Either Text PreparableStmt
+ast = first (fromString . Megaparsec.errorBundlePretty) . Megaparsec.runParser (Parsing.quasiQuote Parsing.preparableStmt) ""
 
 encoder :: Type -> Either Text Encoder
 encoder (Type _name _nullable _dimensions _arrayNullable) =

@@ -11,25 +11,51 @@ import Hasql.TH.Syntax.Ast
 >>> parse parser = either (error . show) id . Text.Megaparsec.parse parser ""
 -}
 
-traverse' :: (a -> Either Text [Type]) -> [a] -> Either Text [Type]
-traverse' fn = fmap join . traverse fn
+foldable :: Foldable f => (a -> Either Text [Type]) -> f a -> Either Text [Type]
+foldable fn = fmap join . traverse fn . toList
 
-{-|
->>> "select 1 :: int4, b :: text" & parse P.select & select
-Right [Type "int4" False 0 False,Type "text" False 0 False]
+preparableStmt :: PreparableStmt -> Either Text [Type]
+preparableStmt = \ case
+  SelectPreparableStmt a -> selectStmt a
 
->>> "select 1 :: int4, b" & parse P.select & select
-Left "Result expression is missing a typecast"
--}
-select :: Select -> Either Text [Type]
-select (Select _ a _) = traverse' selection (foldMap toList a)
+selectStmt :: SelectStmt -> Either Text [Type]
+selectStmt = \ case
+  InParensSelectStmt a -> selectStmt a
+  NoParensSelectStmt a -> selectNoParens a
 
-selection :: Selection -> Either Text [Type]
-selection = \ case
-  ExprSelection a _ -> expr a
-  AllSelection -> Left "Selection of all fields is not allowed, \
+selectNoParens :: SelectNoParens -> Either Text [Type]
+selectNoParens = \ case
+  SimpleSelectNoParens a -> simpleSelect a
+
+selectClause :: SelectClause -> Either Text [Type]
+selectClause = either simpleSelect selectNoParens
+
+simpleSelect :: SimpleSelect -> Either Text [Type]
+simpleSelect = \ case
+  NormalSimpleSelect a _ _ _ _ _ _ -> foldable targeting a
+  ValuesSimpleSelect a -> valuesClause a
+  BinSimpleSelect _ a _ b -> do
+    c <- selectClause a
+    d <- selectClause b
+    if c == d
+      then return c
+      else Left "Merged queries produce results of incompatible types"
+
+targeting :: Targeting -> Either Text [Type]
+targeting = \ case
+  NormalTargeting a -> foldable target a
+  AllTargeting a -> foldable (foldable target) a
+  DistinctTargeting _ b -> foldable target b
+
+target :: Target -> Either Text [Type]
+target = \ case
+  ExprTarget a _ -> expr a
+  AllTarget -> Left "Target of all fields is not allowed, \
     \because it leaves the output types unspecified. \
     \You have to be specific."
+
+valuesClause :: ValuesClause -> Either Text [Type]
+valuesClause = foldable (foldable expr)
 
 expr :: Expr -> Either Text [Type]
 expr = \ case
