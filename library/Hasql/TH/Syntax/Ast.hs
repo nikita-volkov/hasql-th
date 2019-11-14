@@ -123,6 +123,21 @@ data JoinQual =
   deriving (Show, Eq, Ord)
 
 
+-- * Where
+-------------------------
+
+newtype WhereClause = WhereClause (Maybe Expr)
+  deriving (Show, Eq, Ord)
+
+{-
+| WHERE a_expr
+| WHERE CURRENT_P OF cursor_name
+| /*EMPTY*/
+-}
+newtype WhereOrCurrentClause = WhereOrCurrentClause (Maybe (Either Expr Name))
+  deriving (Show, Eq, Ord)
+
+
 -- * Expression
 -------------------------
 
