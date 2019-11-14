@@ -88,38 +88,25 @@ cozip = \ case
 -- * Statement
 -------------------------
 
-resultlessStatement :: Extraction.Statement -> Exp
-resultlessStatement (Extraction.Statement _sql _encoders _decoders) =
+statement :: ([Extraction.Decoder] -> Exp) -> Extraction.Statement -> Exp
+statement _decodersExp (Extraction.Statement _sql _encoders _decoders) =
   foldl1 AppE
     [
       ConE 'Statement.Statement,
       byteString _sql,
       encoderList _encoders,
-      VarE 'Decoders.noResult,
+      _decodersExp _decoders,
       ConE 'True
     ]
+
+resultlessStatement :: Extraction.Statement -> Exp
+resultlessStatement = statement (const (VarE 'Decoders.noResult))
 
 rowsAffectedStatement :: Extraction.Statement -> Exp
-rowsAffectedStatement (Extraction.Statement _sql _encoders _decoders) =
-  foldl1 AppE
-    [
-      ConE 'Statement.Statement,
-      byteString _sql,
-      encoderList _encoders,
-      VarE 'Decoders.rowsAffected,
-      ConE 'True
-    ]
+rowsAffectedStatement = statement (const (VarE 'Decoders.rowsAffected))
 
-rowStatement :: Exp -> Extraction.Statement -> Exp
-rowStatement _rowLifter (Extraction.Statement _sql _encoders _decoders) =
-  foldl1 AppE
-    [
-      ConE 'Statement.Statement,
-      byteString _sql,
-      encoderList _encoders,
-      AppE _rowLifter (decoderList _decoders),
-      ConE 'True
-    ]
+rowStatement :: Name -> Extraction.Statement -> Exp
+rowStatement _rowDecoderName = statement (\ _decoders -> AppE (VarE _rowDecoderName) (decoderList _decoders))
 
 {-|
 >>> test = either (fail . show) (return . singletonStatement) . Extraction.statement
@@ -136,7 +123,7 @@ $(test "select $2 :: int4, $1 :: text")
   :: Statement.Statement (Text, Int32) (Int32, Text)
 -}
 singletonStatement :: Extraction.Statement -> Exp
-singletonStatement = rowStatement (VarE 'Decoders.singleRow)
+singletonStatement = rowStatement 'Decoders.singleRow
 
 {-|
 >>> test = either (fail . show) (return . maybeStatement) . Extraction.statement
@@ -145,7 +132,7 @@ singletonStatement = rowStatement (VarE 'Decoders.singleRow)
 $(test "select 1 :: int4") :: Statement.Statement () (Maybe Int32)
 -}
 maybeStatement :: Extraction.Statement -> Exp
-maybeStatement = rowStatement (VarE 'Decoders.rowMaybe)
+maybeStatement = rowStatement 'Decoders.rowMaybe
 
 {-|
 >>> test = either (fail . show) (return . vectorStatement) . Extraction.statement
@@ -155,7 +142,7 @@ $(test "select 1 :: int4")
   :: Statement.Statement () (Data.Vector.Vector Int32)
 -}
 vectorStatement :: Extraction.Statement -> Exp
-vectorStatement = rowStatement (VarE 'Decoders.rowVector)
+vectorStatement = rowStatement 'Decoders.rowVector
 
 {-|
 >>> test = either (fail . show) (return . foldStatement) . Extraction.statement
@@ -165,7 +152,7 @@ $(test "select 1 :: int4")
   :: Fold Int32 b -> Statement.Statement () b
 -}
 foldStatement :: Extraction.Statement -> Exp
-foldStatement (Extraction.Statement _sql _encoders _decoders) = let
+foldStatement _statement = let
   _stepVarName = mkName "step"
   _initVarName = mkName "init"
   _extractVarName = mkName "extract"
@@ -180,20 +167,16 @@ foldStatement (Extraction.Statement _sql _encoders _decoders) = let
           ]
       ]
       (
-        foldl1 AppE
-          [
-            ConE 'Statement.Statement,
-            byteString _sql,
-            encoderList _encoders,
+        statement
+          (\ _decoders ->
             AppE
               (AppE (VarE 'fmap) (VarE _extractVarName))
               (AppE
                 (AppE
                   (AppE (VarE 'Decoders.foldlRows) (VarE _stepVarName))
                   (VarE _initVarName))
-                (decoderList _decoders)),
-            ConE 'True
-          ]
+                (decoderList _decoders)))
+          _statement
       )
 
 {-|
