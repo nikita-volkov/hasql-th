@@ -62,8 +62,24 @@ statementExp _exp _extract = exp (either (fail . Text.unpack) (return . _exp) . 
 -------------------------
 
 {-|
+Statement producing exactly one result row.
+
+Will raise the `Hasql.Session.UnexpectedAmountOfRows` error if it's any other.
+
+=== Examples
+
 >>> :t [singletonStatement|select 1 :: int2|]
 [singletonStatement|select 1 :: int2|] :: Statement () Int16
+
+Incorrect SQL:
+
+>>> :t [singletonStatement|elect 1|]
+...
+  |
+1 | elect 1
+  | ^^^^^^
+unexpected "elect "
+...
 -}
 singletonStatement :: QuasiQuoter
 singletonStatement = statementExp Exp.singletonStatement Extraction.statement
@@ -92,18 +108,6 @@ foldStatement = statementExp Exp.foldStatement Extraction.statement
 {-|
 >>> :t [resultlessStatement|select 1|]
 [resultlessStatement|select 1|] :: Statement () ()
-
-Incorrect SQL:
-
->>> :t [resultlessStatement|elect 1|]
-<BLANKLINE>
-<interactive>:1:22: error:
-    • 1:1:
-  |
-1 | elect 1
-  | ^^^^^^
-unexpected "elect "
-...
 -}
 resultlessStatement :: QuasiQuoter
 resultlessStatement = statementExp Exp.resultlessStatement Extraction.rowlessStatement
