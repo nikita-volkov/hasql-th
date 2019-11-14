@@ -4,14 +4,13 @@ where
 import Hasql.TH.Prelude
 import Language.Haskell.TH.Syntax
 import Language.Haskell.TH.Quote
-import qualified Hasql.TH.Exp as A
-import qualified Data.ByteString as B
-import qualified Data.Text.Encoding as C
+import qualified Hasql.TH.Exp as Exp
+import qualified Data.Text.Encoding as Text
 
 
 sql :: QuasiQuoter
 sql = let
-  exp = return . A.byteString . C.encodeUtf8 . fromString
+  exp = return . Exp.byteString . Text.encodeUtf8 . fromString
   unsupported _ = fail "Unsupported"
   in QuasiQuoter exp unsupported unsupported unsupported
 
