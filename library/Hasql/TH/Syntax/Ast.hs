@@ -29,16 +29,97 @@ data Selection =
   ExprSelection Expr (Maybe Name)
   deriving (Show, Eq, Ord)
 
+
+-- * Table references and joining
+-------------------------
+
+{-
+| relation_expr opt_alias_clause
+| relation_expr opt_alias_clause tablesample_clause
+| func_table func_alias_clause
+| LATERAL_P func_table func_alias_clause
+| xmltable opt_alias_clause
+| LATERAL_P xmltable opt_alias_clause
+| select_with_parens opt_alias_clause
+| LATERAL_P select_with_parens opt_alias_clause
+| joined_table
+| '(' joined_table ')' alias_clause
+-}
 data TableRef =
-  RelationExprTableRef RelationExpr (Maybe AliasClause)
+  {-
+  | relation_expr opt_alias_clause
+  | relation_expr opt_alias_clause tablesample_clause
+  -}
+  RelationExprTableRef RelationExpr (Maybe AliasClause) |
+  {-
+  | select_with_parens opt_alias_clause
+  | LATERAL_P select_with_parens opt_alias_clause
+  -}
+  SelectTableRef Bool Select (Maybe AliasClause) |
+  {-
+  | joined_table
+  | '(' joined_table ')' alias_clause
+  -}
+  JoinTableRef JoinedTable (Maybe AliasClause)
   deriving (Show, Eq, Ord)
 
+{-
+| qualified_name
+| qualified_name '*'
+| ONLY qualified_name
+| ONLY '(' qualified_name ')'
+-}
 data RelationExpr =
-  {-| Only, qualified name, asterisk -}
   RelationExpr Bool Ref Bool
   deriving (Show, Eq, Ord)
 
 data AliasClause = AliasClause Name (Maybe (NonEmpty Name))
+  deriving (Show, Eq, Ord)
+
+{-
+| '(' joined_table ')'
+| table_ref CROSS JOIN table_ref
+| table_ref join_type JOIN table_ref join_qual
+| table_ref JOIN table_ref join_qual
+| table_ref NATURAL join_type JOIN table_ref
+| table_ref NATURAL JOIN table_ref
+
+The options are covered by the `JoinMeth` type.
+-}
+data JoinedTable =
+  InParenthesisJoinedTable JoinedTable |
+  MethJoinedTable JoinMeth TableRef TableRef
+  deriving (Show, Eq, Ord)
+
+{-
+| table_ref CROSS JOIN table_ref
+| table_ref join_type JOIN table_ref join_qual
+| table_ref JOIN table_ref join_qual
+| table_ref NATURAL join_type JOIN table_ref
+| table_ref NATURAL JOIN table_ref
+-}
+data JoinMeth =
+  CrossJoinMeth |
+  QualJoinMeth (Maybe JoinType) JoinQual |
+  NaturalJoinMeth (Maybe JoinType)
+  deriving (Show, Eq, Ord)
+
+{-
+| FULL join_outer
+| LEFT join_outer
+| RIGHT join_outer
+| INNER_P
+-}
+data JoinType =
+  FullJoinType Bool |
+  LeftJoinType Bool |
+  RightJoinType Bool |
+  InnerJoinType
+  deriving (Show, Eq, Ord)
+
+data JoinQual =
+  UsingJoinQual (NonEmpty Name) |
+  OnJoinQual Expr
   deriving (Show, Eq, Ord)
 
 
