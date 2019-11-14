@@ -8,6 +8,7 @@ import qualified Hasql.Encoders as Encoders
 import qualified Hasql.Decoders as Decoders
 import qualified Hasql.Statement as Statement
 import qualified Data.ByteString as ByteString
+import qualified Data.ByteString.Unsafe as ByteString
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Vector.Generic as Vector
 import qualified TupleTH
@@ -16,8 +17,21 @@ import qualified TupleTH
 -- * Helpers
 -------------------------
 
+appList :: Exp -> [Exp] -> Exp
+appList = foldl' AppE 
+
 byteString :: ByteString -> Exp
-byteString x = AppE (VarE 'ByteString.pack) (list integral (ByteString.unpack x))
+byteString x =
+  appList
+    (VarE 'unsafeDupablePerformIO)
+    [
+      appList
+        (VarE 'ByteString.unsafePackAddressLen)
+        [
+          LitE (IntegerL (fromIntegral (ByteString.length x))),
+          LitE (StringPrimL (ByteString.unpack x))
+        ]
+    ]
 
 integral :: Integral a => a -> Exp
 integral x = LitE (IntegerL (fromIntegral x))
