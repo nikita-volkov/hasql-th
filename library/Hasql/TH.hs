@@ -30,8 +30,8 @@ module Hasql.TH
 
   For now they perform no compile-time checking.
   -}
-  sql,
-  sqlFile,
+  uncheckedSql,
+  uncheckedSqlFile,
 )
 where
 
@@ -127,8 +127,8 @@ rowsAffectedStatement = statementExp Exp.rowsAffectedStatement Extraction.rowles
 Quoter of a multiline Unicode SQL string,
 which gets converted into a format ready to be used for declaration of statements.
 -}
-sql :: QuasiQuoter
-sql = exp $ return . Exp.byteString . Text.encodeUtf8 . fromString
+uncheckedSql :: QuasiQuoter
+uncheckedSql = exp $ return . Exp.byteString . Text.encodeUtf8 . fromString
 
 {-|
 Read an SQL-file, containing multiple statements,
@@ -139,7 +139,7 @@ Allows to store plain SQL in external files and read it at compile time.
 E.g.,
 
 >migration1 :: Hasql.Session.Session ()
->migration1 = Hasql.Session.sql [sqlFile|sql/migration-1.sql|]
+>migration1 = Hasql.Session.sql [uncheckedSqlFile|sql/migration-1.sql|]
 -}
-sqlFile :: QuasiQuoter
-sqlFile = quoteFile sql
+uncheckedSqlFile :: QuasiQuoter
+uncheckedSqlFile = quoteFile uncheckedSql
