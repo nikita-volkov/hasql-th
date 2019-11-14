@@ -563,6 +563,22 @@ data FuncArgExpr =
   EqualsGreaterFuncArgExpr Name Expr
   deriving (Show, Eq, Ord)
 
+{-|
+AexprConst:
+  |  Iconst
+  |  FCONST
+  |  Sconst
+  |  BCONST
+  |  XCONST
+  |  func_name Sconst
+  |  func_name '(' func_arg_list opt_sort_clause ')' Sconst
+  |  ConstTypename Sconst
+  |  ConstInterval Sconst opt_interval
+  |  ConstInterval '(' Iconst ')' Sconst
+  |  TRUE_P
+  |  FALSE_P
+  |  NULL_P
+-}
 data Literal =
   IntLiteral Integer |
   FloatLiteral Scientific |
