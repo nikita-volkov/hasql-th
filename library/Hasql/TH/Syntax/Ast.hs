@@ -1,7 +1,8 @@
 {-|
-References:
+Names for nodes mostly resemble the according definitions in the @gram.y@
+original Postgres parser file, except for the cases where we can optimize on that.
 
-- https://www.postgresql.org/docs/current/sql-select.html
+For reasoning see the docs of the parsing module of this project.
 -}
 module Hasql.TH.Syntax.Ast where
 
