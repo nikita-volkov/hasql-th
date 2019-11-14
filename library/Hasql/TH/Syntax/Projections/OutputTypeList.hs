@@ -19,7 +19,7 @@ traverse' fn = fmap join . traverse fn
 Right [Type "int4" False 0 False,Type "text" False 0 False]
 
 >>> "select 1 :: int4, b" & parse P.select & select
-Left "Expression is missing a typecast"
+Left "Result expression is missing a typecast"
 -}
 select :: Select -> Either Text [Type]
 select (Select _ a _) = traverse' selection (foldMap toList a)
@@ -27,11 +27,12 @@ select (Select _ a _) = traverse' selection (foldMap toList a)
 selection :: Selection -> Either Text [Type]
 selection = \ case
   ExprSelection a _ -> expr a
-  AllSelection -> Left "Selection of all fields is not supported, \
-    \because it leaves the output types unspecified."
+  AllSelection -> Left "Selection of all fields is not allowed, \
+    \because it leaves the output types unspecified. \
+    \You have to be specific."
 
 expr :: Expr -> Either Text [Type]
 expr = \ case
   TypecastExpr _ a -> Right [a]
   InParenthesisExpr a -> expr a
-  a -> Left "Expression is missing a typecast"
+  a -> Left "Result expression is missing a typecast"
