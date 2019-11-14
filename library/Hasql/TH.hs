@@ -16,12 +16,14 @@ module Hasql.TH
   and its codecs explicitly.
   Please report such cases at the project\'s issue tracker.
   -}
-  resultlessStatement,
-  rowsAffectedStatement,
+  -- ** Row-parsing statements
   singletonStatement,
   maybeStatement,
   vectorStatement,
   foldStatement,
+  -- ** Row-ignoring statements
+  resultlessStatement,
+  rowsAffectedStatement,
   -- * SQL ByteStrings
   {-|
   ByteString-producing quasiquoters.
@@ -60,31 +62,6 @@ statementExp _exp _extract = exp (either (fail . Text.unpack) (return . _exp) . 
 -------------------------
 
 {-|
->>> :t [resultlessStatement|select 1|]
-[resultlessStatement|select 1|] :: Statement () ()
-
-Incorrect SQL:
->>> :t [resultlessStatement|elect 1|]
-<BLANKLINE>
-<interactive>:1:22: error:
-    • 1:1:
-  |
-1 | elect 1
-  | ^^^^^^
-unexpected "elect "
-...
--}
-resultlessStatement :: QuasiQuoter
-resultlessStatement = statementExp Exp.resultlessStatement Extraction.rowlessStatement
-
-{-|
->>> :t [rowsAffectedStatement|select 1|]
-[rowsAffectedStatement|select 1|] :: Statement () Int64
--}
-rowsAffectedStatement :: QuasiQuoter
-rowsAffectedStatement = statementExp Exp.rowsAffectedStatement Extraction.rowlessStatement
-
-{-|
 >>> :t [singletonStatement|select 1 :: int2|]
 [singletonStatement|select 1 :: int2|] :: Statement () Int16
 -}
@@ -111,6 +88,31 @@ vectorStatement = statementExp Exp.vectorStatement Extraction.statement
 -}
 foldStatement :: QuasiQuoter
 foldStatement = statementExp Exp.foldStatement Extraction.statement
+
+{-|
+>>> :t [resultlessStatement|select 1|]
+[resultlessStatement|select 1|] :: Statement () ()
+
+Incorrect SQL:
+>>> :t [resultlessStatement|elect 1|]
+<BLANKLINE>
+<interactive>:1:22: error:
+    • 1:1:
+  |
+1 | elect 1
+  | ^^^^^^
+unexpected "elect "
+...
+-}
+resultlessStatement :: QuasiQuoter
+resultlessStatement = statementExp Exp.resultlessStatement Extraction.rowlessStatement
+
+{-|
+>>> :t [rowsAffectedStatement|select 1|]
+[rowsAffectedStatement|select 1|] :: Statement () Int64
+-}
+rowsAffectedStatement :: QuasiQuoter
+rowsAffectedStatement = statementExp Exp.rowsAffectedStatement Extraction.rowlessStatement
 
 
 -- * SQL ByteStrings
