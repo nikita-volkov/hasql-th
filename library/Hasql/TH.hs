@@ -94,6 +94,7 @@ foldStatement = statementExp Exp.foldStatement Extraction.statement
 [resultlessStatement|select 1|] :: Statement () ()
 
 Incorrect SQL:
+
 >>> :t [resultlessStatement|elect 1|]
 <BLANKLINE>
 <interactive>:1:22: error:
