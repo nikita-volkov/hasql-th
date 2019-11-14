@@ -15,7 +15,7 @@ data Select =
   Select
     (Maybe AllOrDistinctSelectClause)
     (Maybe (NonEmpty Selection))
-    (Maybe (NonEmpty FromItem))
+    (Maybe (NonEmpty TableRef))
   deriving (Show, Eq, Ord)
 
 data AllOrDistinctSelectClause =
@@ -28,8 +28,8 @@ data Selection =
   ExprSelection Expr (Maybe Name)
   deriving (Show, Eq, Ord)
 
-data FromItem =
-  TableRefFromItem Bool Ref Bool (Maybe (Name, Maybe (NonEmpty Name)))
+data TableRef =
+  RelationExprTableRef Bool Ref Bool (Maybe (Name, Maybe (NonEmpty Name)))
   deriving (Show, Eq, Ord)
 
 

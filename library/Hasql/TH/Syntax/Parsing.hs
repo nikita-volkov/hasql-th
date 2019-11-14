@@ -119,22 +119,22 @@ asAliasClause name =
 
 {-|
 >>> test fromClause "from a as b, c"
-TableRefFromItem False (Ref Nothing (UnquotedName "a")) False (Just (UnquotedName "b",Nothing)) :| [TableRefFromItem False (Ref Nothing (UnquotedName "c")) False Nothing]
+RelationExprTableRef False (Ref Nothing (UnquotedName "a")) False (Just (UnquotedName "b",Nothing)) :| [RelationExprTableRef False (Ref Nothing (UnquotedName "c")) False Nothing]
 -}
-fromClause :: Parser (NonEmpty FromItem)
-fromClause = label "from clause" $ string' "from" *> space1 *> sepBy1 fromItem commaSeparator
+fromClause :: Parser (NonEmpty TableRef)
+fromClause = label "from clause" $ string' "from" *> space1 *> sepBy1 tableRef commaSeparator
 
 {-
 TODO: Add support for joins, inner selects and ctes.
 -}
-fromItem :: Parser FromItem
-fromItem = tableRefFromItem
+tableRef :: Parser TableRef
+tableRef = relationExprTableRef
 
 {-
 TODO: Add support for TABLESAMPLE.
 -}
-tableRefFromItem :: Parser FromItem
-tableRefFromItem = label "table reference" $ do
+relationExprTableRef :: Parser TableRef
+relationExprTableRef = label "table reference" $ do
   _only <- option False $ try $ True <$ string' "only" <* space1
   _tableRef <- ref
   _asterisk <- option False $ try $ True <$ space1 <* char '*'
@@ -143,7 +143,7 @@ tableRefFromItem = label "table reference" $ do
     _alias <- asAliasClause name
     _columnAliases <- optional $ try $ space1 *> columnAliasList
     return (_alias, _columnAliases)
-  return (TableRefFromItem _only _tableRef _asterisk _aliasing)
+  return (RelationExprTableRef _only _tableRef _asterisk _aliasing)
 
 columnAliasList :: Parser (NonEmpty Name)
 columnAliasList = label "column alias list" $ inParenthesis (sepBy1 name commaSeparator)

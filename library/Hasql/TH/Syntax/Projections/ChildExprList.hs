@@ -24,9 +24,9 @@ selection = \ case
   AllSelection -> []
   ExprSelection a _ -> [a]
 
-fromItem :: FromItem -> [Expr]
+fromItem :: TableRef -> [Expr]
 fromItem = \ case
-  TableRefFromItem _ _ _ _ -> []
+  RelationExprTableRef _ _ _ _ -> []
 
 expr :: Expr -> [Expr]
 expr = \ case
