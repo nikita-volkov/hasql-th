@@ -58,7 +58,7 @@ import Foreign.Ptr as Exports
 import Foreign.StablePtr as Exports
 import Foreign.Storable as Exports hiding (sizeOf, alignment)
 import GHC.Conc as Exports hiding (withMVar, threadWaitWriteSTM, threadWaitWrite, threadWaitReadSTM, threadWaitRead)
-import GHC.Exts as Exports (lazy, inline, sortWith, groupWith, IsList)
+import GHC.Exts as Exports (lazy, inline, sortWith, groupWith, IsList(fromList, Item))
 import GHC.Generics as Exports (Generic, Generic1)
 import GHC.IO.Exception as Exports
 import Numeric as Exports
@@ -115,8 +115,15 @@ import Data.Scientific as Exports (Scientific)
 import Control.Foldl as Exports (Fold(..))
 
 
+{-|
+>>> intersperseFoldMap1 ", " id (fromList ["a"])
+"a"
+
+>>> intersperseFoldMap1 ", " id (fromList ["a", "b", "c"])
+"a, b, c"
+-}
 intersperseFoldMap1 :: Monoid m => m -> (a -> m) -> NonEmpty a -> m
-intersperseFoldMap1 a b (c :| d) = b c <> a <> foldMap (mappend a . b) d
+intersperseFoldMap1 a b (c :| d) = b c <> foldMap (mappend a . b) d
 
 showAsText :: Show a => a -> Text
 showAsText = show >>> fromString
