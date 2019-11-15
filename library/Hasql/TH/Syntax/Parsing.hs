@@ -676,6 +676,11 @@ quotedName = label "quoted name" $ do
     then fail "Empty name"
     else return (QuotedName _contents)
 
+ident :: Parser Name
+ident =
+  try quotedName <|>
+  fmap UnquotedName (mfilter (not . Predicate.keyword) keyword)
+
 {-
 ColLabel:
   |  IDENT
@@ -686,8 +691,8 @@ ColLabel:
 -}
 colLabel :: Parser Name
 colLabel =
-  try quotedName <|>
-  fmap UnquotedName (mfilter (Predicate.oneOf [Predicate.unreservedKeyword, Predicate.colNameKeyword, Predicate.typeFuncNameKeyword, Predicate.reservedKeyword]) keyword)
+  try ident <|>
+  fmap UnquotedName (mfilter Predicate.keyword keyword)
 
 keyword :: Parser Text
 keyword = label "keyword" $ do

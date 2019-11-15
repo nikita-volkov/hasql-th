@@ -23,6 +23,9 @@ underscores, digits (0-9), or dollar signs ($).
 notFirstIdentifierChar :: Char -> Bool
 notFirstIdentifierChar x = isAlphaNum x || x == '_' || x == '$'
 
+keyword :: Text -> Bool
+keyword = inSet HashSet.keyword
+
 unreservedKeyword :: Text -> Bool
 unreservedKeyword = inSet HashSet.unreservedKeyword
 
