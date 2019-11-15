@@ -628,12 +628,7 @@ quotedName = label "quoted name" $ try $ do
     else return (QuotedName _contents)
 
 ident :: Parser Name
-ident =
-  quotedName <|>
-  fmap UnquotedName (filter
-    "Reserved keyword used as identifier. Wrap it in double quotes."
-    (not . Predicate.keyword)
-    keyword)
+ident = quotedName <|> keywordNameByPredicate (not . Predicate.keyword)
 
 {-
 ColId:
@@ -641,13 +636,9 @@ ColId:
   |  unreserved_keyword
   |  col_name_keyword
 -}
+{-# NOINLINE colId #-}
 colId :: Parser Name
-colId =
-  ident <|>
-  fmap UnquotedName (filter
-    "Reserved keyword used as identifier. Wrap it in double quotes."
-    (Predicate.oneOf [Predicate.unreservedKeyword, Predicate.colNameKeyword])
-    keyword)
+colId = ident <|> keywordNameFromSet (HashSet.unreservedKeyword <> HashSet.colNameKeyword)
 
 {-
 ColLabel:
@@ -658,9 +649,7 @@ ColLabel:
   |  reserved_keyword
 -}
 colLabel :: Parser Name
-colLabel =
-  ident <|>
-  fmap UnquotedName (filter "Not keyword" Predicate.keyword keyword)
+colLabel = ident <|> keywordNameFromSet HashSet.keyword
 
 {-
 qualified_name:
@@ -692,7 +681,7 @@ type_function_name:
 -}
 funcName =
   SimpleQualifiedName <$> ident <|>
-  SimpleQualifiedName <$> nameFromSet (HashSet.unreservedKeyword <> HashSet.typeFuncNameKeyword) <|>
+  SimpleQualifiedName <$> keywordNameFromSet (HashSet.unreservedKeyword <> HashSet.typeFuncNameKeyword) <|>
   indirectedQualifiedName
 
 {-
@@ -736,8 +725,15 @@ attr_name:
 -}
 attrName = colLabel
 
-nameFromSet :: HashSet Text -> Parser Name
-nameFromSet _set = UnquotedName <$> filter "Keyword is not in set" (Predicate.inSet _set) keyword
+keywordNameFromSet :: HashSet Text -> Parser Name
+keywordNameFromSet _set = keywordNameByPredicate (Predicate.inSet _set)
+
+keywordNameByPredicate :: (Text -> Bool) -> Parser Name
+keywordNameByPredicate _predicate = try $ do
+  _keyword <- keyword
+  if _predicate _keyword
+    then return (UnquotedName _keyword)
+    else fail ("Reserved keyword " <> show _keyword <> " used as an identifier. Wrap it in quotes.")
 
 keyword :: Parser Text
 keyword = label "keyword" $ try $ do
