@@ -3156,6 +3156,28 @@ interval_second:
   | SECOND_P
   | SECOND_P '(' Iconst ')'
 
+/*
+ * General expressions
+ * This is the heart of the expression syntax.
+ *
+ * We have two expression types: a_expr is the unrestricted kind, and
+ * b_expr is a subset that must be used in some places to avoid shift/reduce
+ * conflicts.  For example, we can't do BETWEEN as "BETWEEN a_expr AND a_expr"
+ * because that use of AND conflicts with AND as a boolean operator.  So,
+ * b_expr is used in BETWEEN and we remove boolean keywords from b_expr.
+ *
+ * Note that '(' a_expr ')' is a b_expr, so an unrestricted expression can
+ * always be used by surrounding it with parens.
+ *
+ * c_expr is all the productions that are common to a_expr and b_expr;
+ * it's factored out just to eliminate redundant coding.
+ *
+ * Be careful of productions involving more than one terminal token.
+ * By default, bison will assign such productions the precedence of their
+ * last terminal, but in nearly all cases you want it to be the precedence
+ * of the first terminal instead; otherwise you will not get the behavior
+ * you expect!  So we use %prec annotations freely to set precedences.
+ */
 a_expr:
   | c_expr
   | a_expr TYPECAST Typename
