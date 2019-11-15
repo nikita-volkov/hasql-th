@@ -155,6 +155,8 @@ NormalSimpleSelect Nothing Nothing Nothing Nothing Nothing Nothing Nothing
 1 | select id from user
   |                    ^
 Reserved keyword "user" used as an identifier. Wrap it in quotes.
+
+>>> test "select id :: int4 from \"user\""
 -}
 {-
 simple_select:
