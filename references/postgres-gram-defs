@@ -3577,8 +3577,7 @@ indirection_el:
   |  '.' attr_name
   |  '.' '*'
   |  '[' a_expr ']'
-  |  '[' opt_slice_bound ':
-  |  ' opt_slice_bound ']'
+  |  '[' opt_slice_bound ':' opt_slice_bound ']'
 
 opt_slice_bound:
   |  a_expr
