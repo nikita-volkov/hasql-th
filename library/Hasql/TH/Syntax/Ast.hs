@@ -411,7 +411,9 @@ data TableRef =
 | ONLY qualified_name
 | ONLY '(' qualified_name ')'
 -}
-data RelationExpr = RelationExpr Bool QualifiedName Bool
+data RelationExpr =
+  SimpleRelationExpr QualifiedName Bool |
+  OnlyRelationExpr QualifiedName
   deriving (Show, Eq, Ord)
 
 {-

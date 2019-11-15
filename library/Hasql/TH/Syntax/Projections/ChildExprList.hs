@@ -105,9 +105,13 @@ sortBy (SortBy a _) = [a]
 
 tableRef :: TableRef -> [Expr]
 tableRef = \ case
-  RelationExprTableRef _ _ -> []
+  RelationExprTableRef a _ -> relationExpr a
   SelectTableRef _ a _ -> selectNoParens a
   JoinTableRef a _ -> joinedTable a
+
+relationExpr = \ case
+  SimpleRelationExpr a _ -> qualifiedName a
+  OnlyRelationExpr a -> qualifiedName a
 
 joinedTable :: JoinedTable -> [Expr]
 joinedTable = \ case

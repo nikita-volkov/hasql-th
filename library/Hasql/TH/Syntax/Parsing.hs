@@ -322,11 +322,14 @@ relationExprTableRef = label "table reference" $ try $ do
 | ONLY '(' qualified_name ')'
 -}
 relationExpr :: Parser RelationExpr
-relationExpr = label "relation expression" $ try $ do
-  _only <- option False $ try $ True <$ string' "only" <* space1
-  _name <- qualifiedName
-  _asterisk <- option False $ try $ True <$ space1 <* char '*'
-  return (RelationExpr _only _name _asterisk)
+relationExpr =
+  asum
+    [
+      SimpleRelationExpr <$> qualifiedName <*> pure False,
+      try $ SimpleRelationExpr <$> qualifiedName <*> (space1 *> char '*' $> True),
+      try $ OnlyRelationExpr <$> (string' "only" *> space1 *> qualifiedName),
+      try $ OnlyRelationExpr <$> (string' "only" *> space *> inParens qualifiedName)
+    ]
 
 {-
 alias_clause:

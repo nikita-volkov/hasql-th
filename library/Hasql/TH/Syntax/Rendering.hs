@@ -125,13 +125,9 @@ tableRef = \ case
     Nothing -> joinedTable a
 
 relationExpr :: RelationExpr -> Builder
-relationExpr (RelationExpr a b c) =
-  optLexemes
-    [
-      if a then Just "ONLY" else Nothing,
-      Just (qualifiedName b),
-      if c then Just "*" else Nothing
-    ]
+relationExpr = \ case
+  SimpleRelationExpr a b -> qualifiedName a <> bool "" " *" b
+  OnlyRelationExpr a -> "ONLY " <> qualifiedName a
 
 aliasClause :: AliasClause -> Builder
 aliasClause (AliasClause a b) =
