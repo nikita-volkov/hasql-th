@@ -144,7 +144,7 @@ NormalSimpleSelect Nothing Nothing Nothing Nothing Nothing Nothing Nothing
 ...BinOpExpr "+" (PlaceholderExpr 1) (PlaceholderExpr 2)...
 
 >>> test "select a, b"
-...ExprTarget (ColumnRefExpr (Ref Nothing (UnquotedName "a"))) Nothing :| [ExprTarget (ColumnRefExpr (Ref Nothing (UnquotedName "b"))) Nothing]...
+...ExprTarget (QualifiedNameExpr (Ref Nothing (UnquotedName "a"))) Nothing :| [ExprTarget (QualifiedNameExpr (Ref Nothing (UnquotedName "b"))) Nothing]...
 
 >>> test "select $1 :: text"
 ...TypecastExpr (PlaceholderExpr 1) (Type "text" False 0 False)...
@@ -426,7 +426,7 @@ defaultExpr :: Parser Expr
 defaultExpr = DefaultExpr <$ string' "default"
 
 columnRefExpr :: Parser Expr
-columnRefExpr = ColumnRefExpr <$> columnRef
+columnRefExpr = QualifiedNameExpr <$> columnRef
 
 literalExpr :: Parser Expr
 literalExpr = LiteralExpr <$> literal
@@ -435,12 +435,12 @@ literalExpr = LiteralExpr <$> literal
 Full specification:
 
 >>> testParser caseExpr "CASE WHEN a = b THEN c WHEN d THEN e ELSE f END"
-CaseExpr Nothing (WhenClause (BinOpExpr "=" (ColumnRefExpr (SimpleColumnRef (UnquotedName "a"))) (ColumnRefExpr (SimpleColumnRef (UnquotedName "b")))) (ColumnRefExpr (SimpleColumnRef (UnquotedName "c"))) :| [WhenClause (ColumnRefExpr (SimpleColumnRef (UnquotedName "d"))) (ColumnRefExpr (SimpleColumnRef (UnquotedName "e")))]) (Just (ColumnRefExpr (SimpleColumnRef (UnquotedName "f"))))
+CaseExpr Nothing (WhenClause (BinOpExpr "=" (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "a"))) (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "b")))) (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "c"))) :| [WhenClause (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "d"))) (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "e")))]) (Just (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "f"))))
 
 Implicit argument:
 
 >>> testParser caseExpr "CASE a WHEN b THEN c ELSE d END"
-CaseExpr (Just (ColumnRefExpr (SimpleColumnRef (UnquotedName "a")))) (WhenClause (ColumnRefExpr (SimpleColumnRef (UnquotedName "b"))) (ColumnRefExpr (SimpleColumnRef (UnquotedName "c"))) :| []) (Just (ColumnRefExpr (SimpleColumnRef (UnquotedName "d"))))
+CaseExpr (Just (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "a")))) (WhenClause (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "b"))) (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "c"))) :| []) (Just (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "d"))))
 -}
 caseExpr :: Parser Expr
 caseExpr = label "case expression" $ try $ do
@@ -718,10 +718,10 @@ columnref:
   | ColId
   | ColId indirection
 -}
-columnRef :: Parser ColumnRef
+columnRef :: Parser QualifiedName
 columnRef = simple <|> indirected where
-  simple = try (SimpleColumnRef <$> name)
-  indirected = try (IndirectedColumnRef <$> name <*> (space *> indirection))
+  simple = try (SimpleQualifiedName <$> name)
+  indirected = try (IndirectedQualifiedName <$> name <*> (space *> indirection))
 
 {-
 indirection:

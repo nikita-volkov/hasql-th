@@ -133,7 +133,7 @@ expr = \ case
   EscapableBinOpExpr _ _ a b c -> [a, b] <> maybeToList c
   BetweenExpr _ a b -> [a, b]
   DefaultExpr -> []
-  ColumnRefExpr a -> columnRef a
+  QualifiedNameExpr a -> qualifiedName a
   LiteralExpr _ -> []
   InParensExpr a -> [a]
   CaseExpr a b c -> maybeToList a <> foldable whenClause b <> maybeToList c
@@ -161,10 +161,10 @@ funcArgExpr = \ case
   ColonEqualsFuncArgExpr _ a -> [a]
   EqualsGreaterFuncArgExpr _ a -> [a]
 
-columnRef :: ColumnRef -> [Expr]
-columnRef = \ case
-  SimpleColumnRef _ -> []
-  IndirectedColumnRef _ a -> indirection a
+qualifiedName :: QualifiedName -> [Expr]
+qualifiedName = \ case
+  SimpleQualifiedName _ -> []
+  IndirectedQualifiedName _ a -> indirection a
 
 indirection :: Indirection -> [Expr]
 indirection = foldable indirectionEl

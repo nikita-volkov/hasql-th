@@ -500,7 +500,7 @@ data Expr =
   EscapableBinOpExpr Bool Text Expr Expr (Maybe Expr) |
   BetweenExpr Bool Expr Expr |
   DefaultExpr |
-  ColumnRefExpr ColumnRef |
+  QualifiedNameExpr QualifiedName |
   LiteralExpr Literal |
   InParensExpr Expr |
   {-
@@ -626,12 +626,15 @@ data Name = QuotedName Text | UnquotedName Text
 
 {-
 columnref:
-  |  ColId
-  |  ColId indirection
+  | ColId
+  | ColId indirection
+qualified_name:
+  | ColId
+  | ColId indirection
 -}
-data ColumnRef =
-  SimpleColumnRef Name |
-  IndirectedColumnRef Name Indirection
+data QualifiedName =
+  SimpleQualifiedName Name |
+  IndirectedQualifiedName Name Indirection
   deriving (Show, Eq, Ord)
 
 {-

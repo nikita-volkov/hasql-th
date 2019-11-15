@@ -280,7 +280,7 @@ expr = \ case
   PlaceholderExpr a -> "$" <> intDec a
   TypecastExpr a b -> expr a <> " :: " <> type_ b
   BinOpExpr a b c -> expr b <> " " <> text a <> " " <> expr c
-  ColumnRefExpr a -> columnRef a
+  QualifiedNameExpr a -> qualifiedName a
   LiteralExpr a -> literal a
   InParensExpr a -> "(" <> expr a <> ")"
   CaseExpr a b c ->
@@ -366,10 +366,10 @@ name = \ case
   QuotedName a -> char7 '"' <> text (Text.replace "\"" "\"\"" a) <> char7 '"'
   UnquotedName a -> text a
 
-columnRef :: ColumnRef -> Builder
-columnRef = \ case
-  SimpleColumnRef a -> name a
-  IndirectedColumnRef a b -> name a <> indirection b
+qualifiedName :: QualifiedName -> Builder
+qualifiedName = \ case
+  SimpleQualifiedName a -> name a
+  IndirectedQualifiedName a b -> name a <> indirection b
 
 indirection :: Indirection -> Builder
 indirection = foldMap indirectionEl
