@@ -168,15 +168,15 @@ simple_select:
 -}
 simpleSelect :: Parser SimpleSelect
 simpleSelect = normal where
-  normal = do
+  normal = try $ do
     string' "select"
     _targeting <- optional (try (space1 *> targeting))
-    _intoClause <- optional (try (space1 *> intoClause))
-    _fromClause <- optional (try (space1 *> fromClause))
-    _whereClause <- optional (try (space1 *> whereClause))
-    _groupClause <- optional (try (space1 *> groupClause))
-    _havingClause <- optional (try (space1 *> havingClause))
-    _windowClause <- optional (try (space1 *> windowClause))
+    _intoClause <- optional (try (space1 *> string' "into" *> space1) *> optTempTableName)
+    _fromClause <- optional (try (space1 *> string' "from" *> space1) *> nonEmptyList tableRef)
+    _whereClause <- optional (try (space1 *> string' "where" *> space1) *> expr)
+    _groupClause <- optional (try (space1 *> keyphrase "group by" *> space1) *> nonEmptyList groupByItem)
+    _havingClause <- optional (try (space1 *> string' "having" *> space1) *> expr)
+    _windowClause <- optional (try (space1 *> string' "window" *> space1) *> nonEmptyList windowDefinition)
     return (NormalSimpleSelect _targeting _intoClause _fromClause _whereClause _groupClause _havingClause _windowClause)
 
 {-
@@ -231,35 +231,6 @@ onExpressionsClause = try $ do
   string' "on"
   space1
   nonEmptyList expr
-
-
--- * Clauses
--------------------------
-
-clause :: Text -> Parser a -> Parser a
-clause name p = label (Text.unpack name <> " clause") $ try $ keyphrase name *> space1 *> p
-
-intoClause :: Parser OptTempTableName
-intoClause = clause "into" optTempTableName
-
-{-|
->>> testParser fromClause "from a as b, c"
-RelationExprTableRef (RelationExpr False (Ref Nothing (UnquotedName "a")) False) (Just (AliasClause (UnquotedName "b") Nothing)) :| [RelationExprTableRef (RelationExpr False (Ref Nothing (UnquotedName "c")) False) Nothing]
--}
-fromClause :: Parser (NonEmpty TableRef)
-fromClause = clause "from" (nonEmptyList tableRef)
-
-whereClause :: Parser Expr
-whereClause = clause "where" expr
-
-groupClause :: Parser (NonEmpty GroupByItem)
-groupClause = clause "group by" (nonEmptyList groupByItem)
-
-havingClause :: Parser Expr
-havingClause = clause "having" expr
-
-windowClause :: Parser (NonEmpty WindowDefinition)
-windowClause = clause "window" (nonEmptyList windowDefinition)
 
 
 -- * Into clause details
