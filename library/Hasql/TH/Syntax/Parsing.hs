@@ -364,7 +364,7 @@ loopingExpr =
     ]
 
 placeholderExpr :: Parser Expr
-placeholderExpr = try $ PlaceholderExpr <$> (char '$' *> Lex.decimal)
+placeholderExpr = PlaceholderExpr <$> (try (char '$') *> Lex.decimal)
 
 inParensExpr :: Parser Expr
 inParensExpr = fmap InParensExpr (inParens expr)
