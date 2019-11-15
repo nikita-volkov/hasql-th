@@ -51,7 +51,7 @@ type Parser = Parsec Void Text
 -------------------------
 
 commaSeparator :: Parser ()
-commaSeparator = space *> char ',' *> space
+commaSeparator = try $ space *> char ',' *> space
 
 dotSeparator :: Parser ()
 dotSeparator = space *> char '.' *> space
@@ -125,9 +125,9 @@ simpleSelectNoParens :: Parser SelectNoParens
 simpleSelectNoParens = SimpleSelectNoParens <$> simpleSelect
 
 {-|
->>> test = testParser (quasiQuote simpleSelect)
+>>> test = testParser simpleSelect
 
->>> test "select id "
+>>> test "select id"
 
 >>> test "select id from user where email = $1"
 
