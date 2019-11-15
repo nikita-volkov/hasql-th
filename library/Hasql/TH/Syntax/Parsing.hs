@@ -396,11 +396,13 @@ lexicalBinOp :: Parser Text
 lexicalBinOp = asum $ fmap keyphrase $ ["and", "or", "is distinct from", "is not distinct from"]
 
 escapableBinOpExpr :: Parser Expr
-escapableBinOpExpr = try $ do
-  _a <- nonLoopingExpr
-  space1
-  _not <- option False $ True <$ string' "not" <* space1
-  _op <- asum $ fmap (try . keyphrase) $ ["like", "ilike", "similar to"]
+escapableBinOpExpr = do
+  (_a, _not, _op) <- try $ do
+    _a <- nonLoopingExpr
+    space1
+    _not <- option False $ try $ True <$ string' "not" <* space1
+    _op <- asum $ fmap keyphrase $ ["like", "ilike", "similar to"]
+    return (_a, _not, _op)
   space1
   _b <- expr
   _escaping <- optional $ try $ do
