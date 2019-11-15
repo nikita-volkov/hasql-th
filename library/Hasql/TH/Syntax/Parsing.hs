@@ -301,7 +301,7 @@ windowDefinition = error "TODO"
 TODO: Add support for joins, inner selects and ctes.
 -}
 tableRef :: Parser TableRef
-tableRef = relationExprTableRef
+tableRef = label "table reference" $ relationExprTableRef
 
 {-
 | relation_expr opt_alias_clause
@@ -310,7 +310,7 @@ tableRef = relationExprTableRef
 TODO: Add support for TABLESAMPLE.
 -}
 relationExprTableRef :: Parser TableRef
-relationExprTableRef = label "table reference" $ try $ do
+relationExprTableRef = try $ do
   _relationExpr <- relationExpr
   _optAliasClause <- optional $ try $ space1 *> aliasClause
   return (RelationExprTableRef _relationExpr _optAliasClause)
