@@ -500,7 +500,7 @@ data Expr =
   EscapableBinOpExpr Bool Text Expr Expr (Maybe Expr) |
   BetweenExpr Bool Expr Expr |
   DefaultExpr |
-  ColumnRefExpr Ref |
+  ColumnRefExpr ColumnRef |
   LiteralExpr Literal |
   InParensExpr Expr |
   {-
@@ -622,4 +622,38 @@ data Ref = Ref (Maybe Name) Name
   deriving (Show, Eq, Ord)
 
 data Name = QuotedName Text | UnquotedName Text
+  deriving (Show, Eq, Ord)
+
+{-
+columnref:
+  |  ColId
+  |  ColId indirection
+-}
+data ColumnRef =
+  SimpleColumnRef Name |
+  IndirectedColumnRef Name Indirection
+  deriving (Show, Eq, Ord)
+
+{-
+indirection:
+  |  indirection_el
+  |  indirection indirection_el
+-}
+type Indirection = NonEmpty IndirectionEl
+
+{-
+indirection_el:
+  |  '.' attr_name
+  |  '.' '*'
+  |  '[' a_expr ']'
+  |  '[' opt_slice_bound ':' opt_slice_bound ']'
+opt_slice_bound:
+  |  a_expr
+  |  EMPTY
+-}
+data IndirectionEl =
+  AttrNameIndirectionEl Name |
+  AllIndirectionEl |
+  ExprIndirectionEl Expr |
+  SliceIndirectionEl (Maybe Expr) (Maybe Expr)
   deriving (Show, Eq, Ord)

@@ -428,7 +428,7 @@ defaultExpr :: Parser Expr
 defaultExpr = DefaultExpr <$ string' "default"
 
 columnRefExpr :: Parser Expr
-columnRefExpr = ColumnRefExpr <$> ref
+columnRefExpr = ColumnRefExpr <$> columnRef
 
 literalExpr :: Parser Expr
 literalExpr = LiteralExpr <$> literal
@@ -437,12 +437,12 @@ literalExpr = LiteralExpr <$> literal
 Full specification:
 
 >>> testParser caseExpr "CASE WHEN a = b THEN c WHEN d THEN e ELSE f END"
-CaseExpr Nothing (WhenClause (BinOpExpr "=" (ColumnRefExpr (Ref Nothing (UnquotedName "a"))) (ColumnRefExpr (Ref Nothing (UnquotedName "b")))) (ColumnRefExpr (Ref Nothing (UnquotedName "c"))) :| [WhenClause (ColumnRefExpr (Ref Nothing (UnquotedName "d"))) (ColumnRefExpr (Ref Nothing (UnquotedName "e")))]) (Just (ColumnRefExpr (Ref Nothing (UnquotedName "f"))))
+CaseExpr Nothing (WhenClause (BinOpExpr "=" (ColumnRefExpr (SimpleColumnRef (UnquotedName "a"))) (ColumnRefExpr (SimpleColumnRef (UnquotedName "b")))) (ColumnRefExpr (SimpleColumnRef (UnquotedName "c"))) :| [WhenClause (ColumnRefExpr (SimpleColumnRef (UnquotedName "d"))) (ColumnRefExpr (SimpleColumnRef (UnquotedName "e")))]) (Just (ColumnRefExpr (SimpleColumnRef (UnquotedName "f"))))
 
 Implicit argument:
 
 >>> testParser caseExpr "CASE a WHEN b THEN c ELSE d END"
-CaseExpr (Just (ColumnRefExpr (Ref Nothing (UnquotedName "a")))) (WhenClause (ColumnRefExpr (Ref Nothing (UnquotedName "b"))) (ColumnRefExpr (Ref Nothing (UnquotedName "c"))) :| []) (Just (ColumnRefExpr (Ref Nothing (UnquotedName "d"))))
+CaseExpr (Just (ColumnRefExpr (SimpleColumnRef (UnquotedName "a")))) (WhenClause (ColumnRefExpr (SimpleColumnRef (UnquotedName "b"))) (ColumnRefExpr (SimpleColumnRef (UnquotedName "c"))) :| []) (Just (ColumnRefExpr (SimpleColumnRef (UnquotedName "d"))))
 -}
 caseExpr :: Parser Expr
 caseExpr = label "case expression" $ do
@@ -714,6 +714,57 @@ colLabel :: Parser Name
 colLabel =
   try ident <|>
   fmap UnquotedName (mfilter Predicate.keyword keyword)
+
+{-
+columnref:
+  | ColId
+  | ColId indirection
+-}
+columnRef :: Parser ColumnRef
+columnRef = simple <|> indirected where
+  simple = try (SimpleColumnRef <$> name)
+  indirected = try (IndirectedColumnRef <$> name <*> (space *> indirection))
+
+{-
+indirection:
+  | indirection_el
+  | indirection indirection_el
+-}
+indirection :: Parser Indirection
+indirection = sepBy1 indirectionEl space
+
+{-
+indirection_el:
+  | '.' attr_name
+  | '.' '*'
+  | '[' a_expr ']'
+  | '[' opt_slice_bound ':' opt_slice_bound ']'
+opt_slice_bound:
+  | a_expr
+  | EMPTY
+-}
+indirectionEl :: Parser IndirectionEl
+indirectionEl = asum [attrNameCase, allCase, exprCase, sliceCase] <?> "indirection element" where
+  attrNameCase = try $ AttrNameIndirectionEl <$> (char '.' *> space *> attrName)
+  allCase = try $ AllIndirectionEl <$ (char '.' *> space *> char '*')
+  exprCase = try $ ExprIndirectionEl <$> (char '[' *> space *> expr <* space <* char ']')
+  sliceCase = try $ do
+    char '['
+    space
+    _a <- optional (try expr)
+    space
+    char ':'
+    space
+    _b <- optional (try expr)
+    space
+    char ']'
+    return (SliceIndirectionEl _a _b)
+
+{-
+attr_name:
+  | ColLabel
+-}
+attrName = colLabel
 
 keyword :: Parser Text
 keyword = label "keyword" $ do

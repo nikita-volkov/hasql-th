@@ -133,7 +133,7 @@ expr = \ case
   EscapableBinOpExpr _ _ a b c -> [a, b] <> maybeToList c
   BetweenExpr _ a b -> [a, b]
   DefaultExpr -> []
-  ColumnRefExpr _ -> []
+  ColumnRefExpr a -> columnRef a
   LiteralExpr _ -> []
   InParensExpr a -> [a]
   CaseExpr a b c -> maybeToList a <> foldable whenClause b <> maybeToList c
@@ -158,3 +158,20 @@ funcApplicationParams = \ case
 funcArgExpr :: FuncArgExpr -> [Expr]
 funcArgExpr = \ case
   ExprFuncArgExpr a -> [a]
+  ColonEqualsFuncArgExpr _ a -> [a]
+  EqualsGreaterFuncArgExpr _ a -> [a]
+
+columnRef :: ColumnRef -> [Expr]
+columnRef = \ case
+  SimpleColumnRef _ -> []
+  IndirectedColumnRef _ a -> indirection a
+
+indirection :: Indirection -> [Expr]
+indirection = foldable indirectionEl
+
+indirectionEl :: IndirectionEl -> [Expr]
+indirectionEl = \ case
+  AttrNameIndirectionEl _ -> []
+  AllIndirectionEl -> []
+  ExprIndirectionEl a -> [a]
+  SliceIndirectionEl a b -> toList a <> toList b
