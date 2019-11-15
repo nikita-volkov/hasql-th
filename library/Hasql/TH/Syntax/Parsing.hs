@@ -125,12 +125,6 @@ simpleSelectNoParens = SimpleSelectNoParens <$> simpleSelect
 {-|
 >>> test = testParser simpleSelect
 
->>> test "select id"
-
->>> test "select id from user where email = $1"
-
->>> test "select id :: int4 from user where email = $1 :: text"
-
 >>> test "select"
 NormalSimpleSelect Nothing Nothing Nothing Nothing Nothing Nothing Nothing
 
@@ -144,13 +138,23 @@ NormalSimpleSelect Nothing Nothing Nothing Nothing Nothing Nothing Nothing
 ...BinOpExpr "+" (PlaceholderExpr 1) (PlaceholderExpr 2)...
 
 >>> test "select a, b"
-...ExprTarget (QualifiedNameExpr (Ref Nothing (UnquotedName "a"))) Nothing :| [ExprTarget (QualifiedNameExpr (Ref Nothing (UnquotedName "b"))) Nothing]...
+...ExprTarget (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "a"))) Nothing :| [ExprTarget (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "b"))) Nothing]...
 
 >>> test "select $1 :: text"
 ...TypecastExpr (PlaceholderExpr 1) (Type "text" False 0 False)...
 
 >>> test "select 1"
 ...ExprTarget (LiteralExpr (IntLiteral 1))...
+
+>>> test "select id"
+...ExprTarget (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "id"))) Nothing...
+
+>>> test "select id from user"
+1:20:
+  |
+1 | select id from user
+  |                    ^
+Reserved keyword "user" used as an identifier. Wrap it in quotes.
 -}
 {-
 simple_select:
