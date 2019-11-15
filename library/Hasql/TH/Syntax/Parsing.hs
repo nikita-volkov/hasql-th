@@ -197,8 +197,8 @@ targeting = distinct <?|> all <?|> normal <?> "targeting" where
     return (AllTargeting _optTargetList)
   distinct = do
     string' "distinct"
+    _optOn <- optional (try (space1 *> onExpressionsClause))
     space1
-    _optOn <- optional (try (onExpressionsClause <* space1))
     _targetList <- targetList
     return (DistinctTargeting _optOn _targetList)
 
