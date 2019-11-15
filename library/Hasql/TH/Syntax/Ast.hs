@@ -540,7 +540,7 @@ func_application:
   |  func_name '(' DISTINCT func_arg_list opt_sort_clause ')'
   |  func_name '(' '*' ')'
 -}
-data FuncApplication = FuncApplication Name (Maybe FuncApplicationParams)
+data FuncApplication = FuncApplication QualifiedName (Maybe FuncApplicationParams)
   deriving (Show, Eq, Ord)
 
 {-

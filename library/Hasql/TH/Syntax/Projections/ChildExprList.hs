@@ -151,7 +151,7 @@ whenClause :: WhenClause -> [Expr]
 whenClause (WhenClause a b) = [a, b]
 
 funcApplication :: FuncApplication -> [Expr]
-funcApplication (FuncApplication _ a) = foldable funcApplicationParams a
+funcApplication (FuncApplication a b) = qualifiedName a <> foldable funcApplicationParams b
 
 funcApplicationParams :: FuncApplicationParams -> [Expr]
 funcApplicationParams = \ case

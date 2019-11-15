@@ -306,7 +306,7 @@ caseDefault a = "ELSE " <> expr a
 
 funcApplication :: FuncApplication -> Builder
 funcApplication (FuncApplication a b) =
-  name a <> "(" <> foldMap funcApplicationParams b <> ")"
+  qualifiedName a <> "(" <> foldMap funcApplicationParams b <> ")"
 
 funcApplicationParams :: FuncApplicationParams -> Builder
 funcApplicationParams = \ case

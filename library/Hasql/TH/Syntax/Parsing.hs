@@ -481,7 +481,7 @@ funcExpr = FuncExpr <$> funcApplication
 
 funcApplication :: Parser FuncApplication
 funcApplication = try $ do
-  _name <- name
+  _name <- funcName
   space
   _params <- inParens (optional (try funcApplicationParams))
   return (FuncApplication _name _params)
@@ -649,16 +649,6 @@ type_ = try $ do
 -- * References & Names
 -------------------------
 
-name :: Parser Name
-name = label "name" $ unquotedName <|> quotedName
-
-unquotedName :: Parser Name
-unquotedName = label "unquoted name" $ try $ do
-  _name <- keyword
-  if Predicate.reservedKeyword _name
-    then fail "Reserved keyword. You have to put it in quotes"
-    else return (UnquotedName _name)
-
 quotedName :: Parser Name
 quotedName = label "quoted name" $ try $ do
   _contents <- quotedString '"'
@@ -695,10 +685,17 @@ colLabel =
   ident <|>
   fmap UnquotedName (filter "Not keyword" Predicate.keyword keyword)
 
+{-
+qualified_name:
+  | ColId
+  | ColId indirection
+-}
 qualifiedName :: Parser QualifiedName
-qualifiedName = simple <|> indirected where
-  simple = try (SimpleQualifiedName <$> name)
-  indirected = try (IndirectedQualifiedName <$> name <*> (space *> indirection))
+qualifiedName = simpleQualifiedName <|> indirectedQualifiedName
+
+simpleQualifiedName = SimpleQualifiedName <$> colId
+
+indirectedQualifiedName = try (IndirectedQualifiedName <$> colId <*> (space *> indirection))
 
 {-
 columnref:
@@ -706,6 +703,20 @@ columnref:
   | ColId indirection
 -}
 columnRef = qualifiedName
+
+{-
+func_name:
+  | type_function_name
+  | ColId indirection
+type_function_name:
+  | IDENT
+  | unreserved_keyword
+  | type_func_name_keyword
+-}
+funcName =
+  SimpleQualifiedName <$> ident <|>
+  SimpleQualifiedName <$> nameFromSet (HashSet.unreservedKeyword <> HashSet.typeFuncNameKeyword) <|>
+  indirectedQualifiedName
 
 {-
 indirection:
@@ -747,6 +758,9 @@ attr_name:
   | ColLabel
 -}
 attrName = colLabel
+
+nameFromSet :: HashSet Text -> Parser Name
+nameFromSet _set = UnquotedName <$> filter "Keyword is not in set" (Predicate.inSet _set) keyword
 
 keyword :: Parser Text
 keyword = label "keyword" $ try $ do
