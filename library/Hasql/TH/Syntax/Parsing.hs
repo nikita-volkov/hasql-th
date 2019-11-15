@@ -630,7 +630,10 @@ quotedName = label "quoted name" $ try $ do
 ident :: Parser Name
 ident =
   quotedName <|>
-  fmap UnquotedName (filter "Keyword" (not . Predicate.keyword) keyword)
+  fmap UnquotedName (filter
+    "Reserved keyword used as identifier. Wrap it in double quotes."
+    (not . Predicate.keyword)
+    keyword)
 
 {-
 ColId:
@@ -641,7 +644,10 @@ ColId:
 colId :: Parser Name
 colId =
   ident <|>
-  fmap UnquotedName (filter "Not unreserved or col name" (Predicate.oneOf [Predicate.unreservedKeyword, Predicate.colNameKeyword]) keyword)
+  fmap UnquotedName (filter
+    "Reserved keyword used as identifier. Wrap it in double quotes."
+    (Predicate.oneOf [Predicate.unreservedKeyword, Predicate.colNameKeyword])
+    keyword)
 
 {-
 ColLabel:
