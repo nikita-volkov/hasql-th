@@ -95,7 +95,7 @@ optTempTableName (OptTempTableName a b c) =
     [
       if a then Just "TEMP" else Nothing,
       if b then Just "UNLOGGED" else Nothing,
-      Just (ref c)
+      Just (qualifiedName c)
     ]
 
 
@@ -129,7 +129,7 @@ relationExpr (RelationExpr a b c) =
   optLexemes
     [
       if a then Just "ONLY" else Nothing,
-      Just (ref b),
+      Just (qualifiedName b),
       if c then Just "*" else Nothing
     ]
 
@@ -357,9 +357,6 @@ literal = \ case
 
 -- * Names and refs
 -------------------------
-
-ref :: Ref -> Builder
-ref (Ref a b) = foldMap (\ c -> name c <> ".") a <> name b
 
 name :: Name -> Builder
 name = \ case

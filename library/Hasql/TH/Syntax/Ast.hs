@@ -176,7 +176,7 @@ OptTempTableName:
   |  qualified_name
 @
 -}
-data OptTempTableName = OptTempTableName Bool Bool Ref
+data OptTempTableName = OptTempTableName Bool Bool QualifiedName
   deriving (Show, Eq, Ord)
 
 type FromClause = NonEmpty TableRef
@@ -411,7 +411,7 @@ data TableRef =
 | ONLY qualified_name
 | ONLY '(' qualified_name ')'
 -}
-data RelationExpr = RelationExpr Bool Ref Bool
+data RelationExpr = RelationExpr Bool QualifiedName Bool
   deriving (Show, Eq, Ord)
 
 {-
@@ -617,9 +617,6 @@ data Type = Type Text Bool Int Bool
 
 -- * Names & References
 -------------------------
-
-data Ref = Ref (Maybe Name) Name
-  deriving (Show, Eq, Ord)
 
 data Name = QuotedName Text | UnquotedName Text
   deriving (Show, Eq, Ord)

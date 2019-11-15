@@ -315,12 +315,18 @@ relationExprTableRef = label "table reference" $ try $ do
   _optAliasClause <- optional $ try $ space1 *> aliasClause
   return (RelationExprTableRef _relationExpr _optAliasClause)
 
+{-
+| qualified_name
+| qualified_name '*'
+| ONLY qualified_name
+| ONLY '(' qualified_name ')'
+-}
 relationExpr :: Parser RelationExpr
 relationExpr = label "relation expression" $ try $ do
   _only <- option False $ try $ True <$ string' "only" <* space1
-  _ref <- ref
+  _name <- qualifiedName
   _asterisk <- option False $ try $ True <$ space1 <* char '*'
-  return (RelationExpr _only _ref _asterisk)
+  return (RelationExpr _only _name _asterisk)
 
 {-
 alias_clause:
@@ -640,33 +646,6 @@ type_ = try $ do
 -- * References & Names
 -------------------------
 
-{-|
->>> testParser ref "a"
-Ref Nothing (UnquotedName "a")
-
->>> testParser ref "a.b"
-Ref (Just (UnquotedName "a")) (UnquotedName "b")
-
->>> testParser ref "a.\"b\""
-Ref (Just (UnquotedName "a")) (QuotedName "b")
-
->>> testParser ref "user"
-1:5:
-  |
-1 | user
-  |     ^
-Reserved keyword. You have to put it in quotes
--}
-ref :: Parser Ref
-ref = try $ do
-  _a <- name
-  _dot <- option False (try dotSeparator $> True)
-  if _dot
-    then do
-      _b <- name
-      return (Ref (Just _a) _b)
-    else return (Ref Nothing _a)
-
 name :: Parser Name
 name = label "name" $ unquotedName <|> quotedName
 
@@ -713,15 +692,17 @@ colLabel =
   ident <|>
   fmap UnquotedName (filter "Not keyword" Predicate.keyword keyword)
 
+qualifiedName :: Parser QualifiedName
+qualifiedName = simple <|> indirected where
+  simple = try (SimpleQualifiedName <$> name)
+  indirected = try (IndirectedQualifiedName <$> name <*> (space *> indirection))
+
 {-
 columnref:
   | ColId
   | ColId indirection
 -}
-columnRef :: Parser QualifiedName
-columnRef = simple <|> indirected where
-  simple = try (SimpleQualifiedName <$> name)
-  indirected = try (IndirectedQualifiedName <$> name <*> (space *> indirection))
+columnRef = qualifiedName
 
 {-
 indirection:
