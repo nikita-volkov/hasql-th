@@ -29,6 +29,9 @@ unreservedKeyword = inSet HashSet.unreservedKeyword
 colNameKeyword :: Text -> Bool
 colNameKeyword = inSet HashSet.colNameKeyword
 
+typeFuncNameKeyword :: Text -> Bool
+typeFuncNameKeyword = inSet HashSet.typeFuncNameKeyword
+
 reservedKeyword :: Text -> Bool
 reservedKeyword = inSet HashSet.reservedKeyword
 
@@ -37,3 +40,17 @@ inSet = flip HashSet.member
 
 symbolicBinOpChar :: Char -> Bool
 symbolicBinOpChar = inSet HashSet.symbolicBinOpChars
+
+{-|
+>>> test = oneOf [(==3), (==7), (==3), (==5)]
+>>> test 1
+False
+
+>>> test 3
+True
+
+>>> test 5
+True
+-}
+oneOf :: [a -> Bool] -> a -> Bool
+oneOf = foldr (\ a b c -> a c || b c) (const False)

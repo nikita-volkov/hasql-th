@@ -50,12 +50,6 @@ type Parser = Parsec Void Text
 -- * Helpers
 -------------------------
 
-{-|
-Consume a keyword, ignoring case and types of spaces between words.
--}
-keyword :: Text -> Parser Text
-keyword a = Text.words a & fmap (void . string') & intersperse space1 & sequence_ & fmap (const a) & label ("keyword " <> Text.unpack a)
-
 commaSeparator :: Parser ()
 commaSeparator = space *> char ',' *> space
 
@@ -211,10 +205,22 @@ targeting = distinct <?|> all <?|> normal <?> "targeting" where
 targetList :: Parser (NonEmpty Target)
 targetList = nonEmptyList target
 
+{-
+target_el:
+  |  a_expr AS ColLabel
+  |  a_expr IDENT
+  |  a_expr
+  |  '*'
+-}
 target :: Parser Target
-target =
-  AllTarget <$ char '*' <|>
-  ExprTarget <$> expr <*> optional (try (space1 *> asAliasClause name))
+target = try all <|> expr' <?> "target" where
+  all = AllTarget <$ char '*'
+  expr' = do
+    _expr <- expr
+    _optAlias <- optional $ try $ do
+      space1
+      try (string' "as" *> space1 *> colLabel) <|> quotedName
+    return (ExprTarget _expr _optAlias)
 
 asAliasClause :: Parser a -> Parser a
 asAliasClause name =
@@ -232,7 +238,7 @@ onExpressionsClause = do
 -------------------------
 
 clause :: Text -> Parser a -> Parser a
-clause name p = keyword name *> space1 *> p <?> Text.unpack name <> " clause"
+clause name p = keyphrase name *> space1 *> p <?> Text.unpack name <> " clause"
 
 intoClause :: Parser OptTempTableName
 intoClause = clause "into" optTempTableName
@@ -362,9 +368,7 @@ name = label "name" $ try unquotedName <|> quotedName
 
 unquotedName :: Parser Name
 unquotedName = label "unquoted name" $ do
-  _firstChar <- satisfy Predicate.firstIdentifierChar
-  _remainder <- takeWhileP Nothing Predicate.notFirstIdentifierChar
-  let _name = Text.cons _firstChar _remainder
+  _name <- keyword
   if Predicate.reservedKeyword _name
     then fail "Reserved keyword. You have to put it in quotes"
     else return (UnquotedName _name)
@@ -375,6 +379,31 @@ quotedName = label "quoted name" $ do
   if Text.null _contents
     then fail "Empty name"
     else return (QuotedName _contents)
+
+{-
+ColLabel:
+  |  IDENT
+  |  unreserved_keyword
+  |  col_name_keyword
+  |  type_func_name_keyword
+  |  reserved_keyword
+-}
+colLabel :: Parser Name
+colLabel =
+  try quotedName <|>
+  fmap UnquotedName (mfilter (Predicate.oneOf [Predicate.unreservedKeyword, Predicate.colNameKeyword, Predicate.typeFuncNameKeyword, Predicate.reservedKeyword]) keyword)
+
+keyword :: Parser Text
+keyword = label "keyword" $ do
+  _firstChar <- satisfy Predicate.firstIdentifierChar
+  _remainder <- takeWhileP Nothing Predicate.notFirstIdentifierChar
+  return (Text.cons _firstChar _remainder)
+
+{-|
+Consume a keyphrase, ignoring case and types of spaces between words.
+-}
+keyphrase :: Text -> Parser Text
+keyphrase a = Text.words a & fmap (void . string') & intersperse space1 & sequence_ & fmap (const a) & label ("keyphrase " <> Text.unpack a)
 
 
 -- * Expressions
@@ -442,14 +471,14 @@ symbolicBinOp = do
     else fail ("Unknown binary operator: " <> show _text)
 
 lexicalBinOp :: Parser Text
-lexicalBinOp = asum $ fmap (try . keyword) $ ["and", "or", "is distinct from", "is not distinct from"]
+lexicalBinOp = asum $ fmap (try . keyphrase) $ ["and", "or", "is distinct from", "is not distinct from"]
 
 escapableBinOpExpr :: Parser Expr
 escapableBinOpExpr = do
   _a <- nonLoopingExpr
   space1
   _not <- option False $ True <$ string' "not" <* space1
-  _op <- asum $ fmap (try . keyword) $ ["like", "ilike", "similar to"]
+  _op <- asum $ fmap (try . keyphrase) $ ["like", "ilike", "similar to"]
   space1
   _b <- expr
   _escaping <- optional $ try $ do
@@ -552,7 +581,7 @@ funcArgExpr = ExprFuncArgExpr <$> expr
 
 sortClause :: Parser (NonEmpty SortBy)
 sortClause = do
-  keyword "order by"
+  keyphrase "order by"
   space1
   nonEmptyList sortBy
 
