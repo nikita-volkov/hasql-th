@@ -157,6 +157,7 @@ NormalSimpleSelect Nothing Nothing Nothing Nothing Nothing Nothing Nothing
 Reserved keyword "user" used as an identifier. Wrap it in quotes.
 
 >>> test "select id :: int4 from \"user\""
+...TypecastExpr (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "id"))) (Type "int4" False 0 False)...
 -}
 {-
 simple_select:
@@ -618,7 +619,7 @@ type_ :: Parser Type
 type_ = try $ do
   _baseName <- fmap Text.toLower $ takeWhile1P Nothing isAlphaNum
   _baseNullable <- option False (try (True <$ space <* char '?'))
-  _arrayLevels <- fmap length $ many $ space *> char '[' *> space *> char ']'
+  _arrayLevels <- fmap length $ many $ try $ space *> char '[' *> space *> char ']'
   _arrayNullable <- option False (try (True <$ space <* char '?'))
   return (Type _baseName _baseNullable _arrayLevels _arrayNullable)
 
