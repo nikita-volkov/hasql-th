@@ -333,79 +333,6 @@ columnAliasList :: Parser (NonEmpty Name)
 columnAliasList = label "column alias list" $ inParens (nonEmptyList name)
 
 
--- * References & Names
--------------------------
-
-{-|
->>> testParser ref "a"
-Ref Nothing (UnquotedName "a")
-
->>> testParser ref "a.b"
-Ref (Just (UnquotedName "a")) (UnquotedName "b")
-
->>> testParser ref "a.\"b\""
-Ref (Just (UnquotedName "a")) (QuotedName "b")
-
->>> testParser ref "user"
-1:5:
-  |
-1 | user
-  |     ^
-Reserved keyword. You have to put it in quotes
--}
-ref :: Parser Ref
-ref = do
-  _a <- name
-  _dot <- option False (try dotSeparator $> True)
-  if _dot
-    then do
-      _b <- name
-      return (Ref (Just _a) _b)
-    else return (Ref Nothing _a)
-
-name :: Parser Name
-name = label "name" $ try unquotedName <|> quotedName
-
-unquotedName :: Parser Name
-unquotedName = label "unquoted name" $ do
-  _name <- keyword
-  if Predicate.reservedKeyword _name
-    then fail "Reserved keyword. You have to put it in quotes"
-    else return (UnquotedName _name)
-
-quotedName :: Parser Name
-quotedName = label "quoted name" $ do
-  _contents <- quotedString '"'
-  if Text.null _contents
-    then fail "Empty name"
-    else return (QuotedName _contents)
-
-{-
-ColLabel:
-  |  IDENT
-  |  unreserved_keyword
-  |  col_name_keyword
-  |  type_func_name_keyword
-  |  reserved_keyword
--}
-colLabel :: Parser Name
-colLabel =
-  try quotedName <|>
-  fmap UnquotedName (mfilter (Predicate.oneOf [Predicate.unreservedKeyword, Predicate.colNameKeyword, Predicate.typeFuncNameKeyword, Predicate.reservedKeyword]) keyword)
-
-keyword :: Parser Text
-keyword = label "keyword" $ do
-  _firstChar <- satisfy Predicate.firstIdentifierChar
-  _remainder <- takeWhileP Nothing Predicate.notFirstIdentifierChar
-  return (Text.cons _firstChar _remainder)
-
-{-|
-Consume a keyphrase, ignoring case and types of spaces between words.
--}
-keyphrase :: Text -> Parser Text
-keyphrase a = Text.words a & fmap (void . string') & intersperse space1 & sequence_ & fmap (const a) & label ("keyphrase " <> Text.unpack a)
-
-
 -- * Expressions
 -------------------------
 
@@ -700,3 +627,76 @@ type_ = do
   _arrayLevels <- fmap length $ many $ space *> char '[' *> space *> char ']'
   _arrayNullable <- option False (try (True <$ space <* char '?'))
   return (Type _baseName _baseNullable _arrayLevels _arrayNullable)
+
+
+-- * References & Names
+-------------------------
+
+{-|
+>>> testParser ref "a"
+Ref Nothing (UnquotedName "a")
+
+>>> testParser ref "a.b"
+Ref (Just (UnquotedName "a")) (UnquotedName "b")
+
+>>> testParser ref "a.\"b\""
+Ref (Just (UnquotedName "a")) (QuotedName "b")
+
+>>> testParser ref "user"
+1:5:
+  |
+1 | user
+  |     ^
+Reserved keyword. You have to put it in quotes
+-}
+ref :: Parser Ref
+ref = do
+  _a <- name
+  _dot <- option False (try dotSeparator $> True)
+  if _dot
+    then do
+      _b <- name
+      return (Ref (Just _a) _b)
+    else return (Ref Nothing _a)
+
+name :: Parser Name
+name = label "name" $ try unquotedName <|> quotedName
+
+unquotedName :: Parser Name
+unquotedName = label "unquoted name" $ do
+  _name <- keyword
+  if Predicate.reservedKeyword _name
+    then fail "Reserved keyword. You have to put it in quotes"
+    else return (UnquotedName _name)
+
+quotedName :: Parser Name
+quotedName = label "quoted name" $ do
+  _contents <- quotedString '"'
+  if Text.null _contents
+    then fail "Empty name"
+    else return (QuotedName _contents)
+
+{-
+ColLabel:
+  |  IDENT
+  |  unreserved_keyword
+  |  col_name_keyword
+  |  type_func_name_keyword
+  |  reserved_keyword
+-}
+colLabel :: Parser Name
+colLabel =
+  try quotedName <|>
+  fmap UnquotedName (mfilter (Predicate.oneOf [Predicate.unreservedKeyword, Predicate.colNameKeyword, Predicate.typeFuncNameKeyword, Predicate.reservedKeyword]) keyword)
+
+keyword :: Parser Text
+keyword = label "keyword" $ do
+  _firstChar <- satisfy Predicate.firstIdentifierChar
+  _remainder <- takeWhileP Nothing Predicate.notFirstIdentifierChar
+  return (Text.cons _firstChar _remainder)
+
+{-|
+Consume a keyphrase, ignoring case and types of spaces between words.
+-}
+keyphrase :: Text -> Parser Text
+keyphrase a = Text.words a & fmap (void . string') & intersperse space1 & sequence_ & fmap (const a) & label ("keyphrase " <> Text.unpack a)
