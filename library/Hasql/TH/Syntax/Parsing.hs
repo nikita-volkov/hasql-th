@@ -125,7 +125,13 @@ simpleSelectNoParens :: Parser SelectNoParens
 simpleSelectNoParens = SimpleSelectNoParens <$> simpleSelect
 
 {-|
->>> test = testParser simpleSelect
+>>> test = testParser (quasiQuote simpleSelect)
+
+>>> test "select id "
+
+>>> test "select id from user where email = $1"
+
+>>> test "select id :: int4 from user where email = $1 :: text"
 
 >>> test "select"
 NormalSimpleSelect Nothing Nothing Nothing Nothing Nothing Nothing Nothing
