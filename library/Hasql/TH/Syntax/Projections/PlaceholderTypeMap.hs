@@ -27,6 +27,6 @@ expr = \ case
 castedExpr :: Type -> Expr -> Either Text (IntMap Type)
 castedExpr _type = \ case
   PlaceholderExpr _index -> Right $ IntMap.singleton _index _type
-  TypecastExpr _expr _ -> castedExpr _type _expr
+  TypecastExpr _expr _type' -> castedExpr _type' _expr
   InParensExpr _expr -> castedExpr _type _expr
-  _ -> Right $ IntMap.empty
+  _expr -> exprList (ChildExprList.expr _expr)

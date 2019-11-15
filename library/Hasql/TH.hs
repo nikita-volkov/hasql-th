@@ -143,3 +143,13 @@ E.g.,
 -}
 uncheckedSqlFile :: QuasiQuoter
 uncheckedSqlFile = quoteFile uncheckedSql
+
+
+-- * Tests
+-------------------------
+
+{- $
+>>> :t [maybeStatement| select (password = $2 :: bytea) :: bool, id :: int4 from "user" where "email" = $1 :: text |]
+[maybeStatement| select (password = $2 :: bytea) :: bool, id :: int4 from "user" where "email" = $1 :: text |]
+  :: Statement (Text, ByteString) (Maybe (Bool, Int32))
+-}
