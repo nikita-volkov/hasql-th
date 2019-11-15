@@ -225,13 +225,8 @@ target = try all <|> expr' <?> "target" where
     _expr <- expr
     _optAlias <- optional $ try $ do
       space1
-      try (string' "as" *> space1 *> colLabel) <|> quotedName
+      try (string' "as" *> space1 *> colLabel) <|> ident
     return (ExprTarget _expr _optAlias)
-
-asAliasClause :: Parser a -> Parser a
-asAliasClause name =
-  string' "as" *> space1 *> name <?|>
-  name
 
 onExpressionsClause :: Parser (NonEmpty Expr)
 onExpressionsClause = do
@@ -329,14 +324,23 @@ relationExpr = label "relation expression" $ do
   _asterisk <- option False $ try $ True <$ space1 <* char '*'
   return (RelationExpr _only _ref _asterisk)
 
+{-
+alias_clause:
+  |  AS ColId '(' name_list ')'
+  |  AS ColId
+  |  ColId '(' name_list ')'
+  |  ColId
+name_list:
+  |  name
+  |  name_list ',' name
+name:
+  |  ColId
+-}
 aliasClause :: Parser AliasClause
 aliasClause = do
-  _alias <- asAliasClause name
-  _columnAliases <- optional $ try $ space1 *> columnAliasList
+  _alias <- string' "as" *> space1 *> colId <?|> colId
+  _columnAliases <- optional $ try $ space1 *> inParens (nonEmptyList colId)
   return (AliasClause _alias _columnAliases)
-
-columnAliasList :: Parser (NonEmpty Name)
-columnAliasList = label "column alias list" $ inParens (nonEmptyList name)
 
 
 -- * Expressions
@@ -686,6 +690,17 @@ ident :: Parser Name
 ident =
   try quotedName <|>
   fmap UnquotedName (mfilter (not . Predicate.keyword) keyword)
+
+{-
+ColId:
+  |  IDENT
+  |  unreserved_keyword
+  |  col_name_keyword
+-}
+colId :: Parser Name
+colId =
+  try ident <|>
+  fmap UnquotedName (mfilter (Predicate.oneOf [Predicate.unreservedKeyword, Predicate.colNameKeyword]) keyword)
 
 {-
 ColLabel:
