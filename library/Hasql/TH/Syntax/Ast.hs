@@ -504,7 +504,7 @@ data Expr =
   DefaultExpr |
   QualifiedNameExpr QualifiedName |
   LiteralExpr Literal |
-  InParensExpr Expr |
+  InParensExpr Expr (Maybe Indirection) |
   {-
   case_expr:
     |  CASE case_arg when_clause_list case_default END_P

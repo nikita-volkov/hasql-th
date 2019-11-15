@@ -139,7 +139,7 @@ expr = \ case
   DefaultExpr -> []
   QualifiedNameExpr a -> qualifiedName a
   LiteralExpr _ -> []
-  InParensExpr a -> [a]
+  InParensExpr a b -> [a] <> foldable indirection b
   CaseExpr a b c -> maybeToList a <> foldable whenClause b <> maybeToList c
   FuncExpr a -> funcApplication a
   SelectExpr a -> selectNoParens a

@@ -367,7 +367,7 @@ placeholderExpr :: Parser Expr
 placeholderExpr = PlaceholderExpr <$> (try (char '$') *> Lex.decimal)
 
 inParensExpr :: Parser Expr
-inParensExpr = fmap InParensExpr (inParens expr)
+inParensExpr = InParensExpr <$> inParens expr <*> optional (try (space1 *> indirection))
 
 typecastExpr :: Parser Expr
 typecastExpr = try $ do
@@ -517,7 +517,7 @@ order :: Parser Order
 order = string' "asc" $> AscOrder <|> string' "desc" $> DescOrder
 
 selectExpr :: Parser Expr
-selectExpr = SelectExpr <$> inParens selectNoParens
+selectExpr = InParensExpr <$> (SelectExpr <$> inParens selectNoParens) <*> optional (try (space1 *> indirection))
 
 existsSelectExpr :: Parser Expr
 existsSelectExpr = try $ do

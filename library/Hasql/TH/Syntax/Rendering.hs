@@ -278,7 +278,7 @@ expr = \ case
   BinOpExpr a b c -> expr b <> " " <> text a <> " " <> expr c
   QualifiedNameExpr a -> qualifiedName a
   LiteralExpr a -> literal a
-  InParensExpr a -> "(" <> expr a <> ")"
+  InParensExpr a b -> "(" <> expr a <> ")" <> foldMap (mappend " " . indirection) b
   CaseExpr a b c ->
     optLexemes [
       Just "CASE",
