@@ -437,14 +437,19 @@ Composite on the left:
 
 -}
 expr :: Parser Expr
-expr =
-  asum
+expr = do
+  _left <- nonLoopingExpr
+  loopingExpr _left <|> pure _left
+
+loopingExpr :: Expr -> Parser Expr
+loopingExpr _left = do
+  _expr <- asum
     [
-      typecastExpr,
-      binOpExpr,
-      escapableBinOpExpr,
-      nonLoopingExpr
+      typecastExpr _left,
+      binOpExpr _left,
+      escapableBinOpExpr _left
     ]
+  loopingExpr _expr <|> pure _expr
 
 nonLoopingExpr :: Parser Expr
 nonLoopingExpr =
@@ -463,30 +468,24 @@ nonLoopingExpr =
       groupingExpr
     ]
 
-
 placeholderExpr :: Parser Expr
 placeholderExpr = PlaceholderExpr <$> (try (char '$') *> Lex.decimal)
 
 inParensExpr :: Parser Expr
 inParensExpr = InParensExpr <$> inParens expr <*> optional (try (space1 *> indirection))
 
-typecastExpr :: Parser Expr
-typecastExpr = do
-  _a <- try $ do
-    _a <- nonLoopingExpr
+typecastExpr :: Expr -> Parser Expr
+typecastExpr _left = do
+  try $ do
     space
     string "::"
-    return _a
   space
   _type <- type_
-  return (TypecastExpr _a _type)
+  return (TypecastExpr _left _type)
 
-binOpExpr :: Parser Expr
-binOpExpr = do
-  (_a, _binOp) <- try $ do
-    _a <- nonLoopingExpr
-    _binOp <- try (space *> symbolicBinOp <* space) <|> (space1 *> lexicalBinOp <* space1)
-    return (_a, _binOp)
+binOpExpr :: Expr -> Parser Expr
+binOpExpr _a = do
+  _binOp <- try (space *> symbolicBinOp <* space) <|> try (space1 *> lexicalBinOp <* space1)
   _b <- expr
   return (BinOpExpr _binOp _a _b)
 
@@ -500,14 +499,13 @@ symbolicBinOp = try $ do
 lexicalBinOp :: Parser Text
 lexicalBinOp = asum $ fmap keyphrase $ ["and", "or", "is distinct from", "is not distinct from"]
 
-escapableBinOpExpr :: Parser Expr
-escapableBinOpExpr = do
-  (_a, _not, _op) <- try $ do
-    _a <- nonLoopingExpr
+escapableBinOpExpr :: Expr -> Parser Expr
+escapableBinOpExpr _a = do
+  (_not, _op) <- try $ do
     space1
     _not <- option False $ try $ True <$ string' "not" <* space1
     _op <- asum $ fmap keyphrase $ ["like", "ilike", "similar to"]
-    return (_a, _not, _op)
+    return (_not, _op)
   space1
   _b <- expr
   _escaping <- optional $ try $ do
