@@ -427,6 +427,15 @@ b_expr:
 
 -}
 
+{-|
+Composite on the right:
+>>> testParser expr "$1 = $2 :: int4"
+BinOpExpr "=" (PlaceholderExpr 1) (TypecastExpr (PlaceholderExpr 2) (Type "int4" False 0 False))
+
+Composite on the left:
+>>> testParser expr "a = b :: int4 and c"
+
+-}
 expr :: Parser Expr
 expr =
   asum
