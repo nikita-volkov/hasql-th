@@ -180,9 +180,9 @@ simpleSelect = normal where
     _targeting <- optional (try (space1 *> targeting))
     _intoClause <- optional (try (space1 *> string' "into" *> space1) *> optTempTableName)
     _fromClause <- optional (try (space1 *> string' "from" *> space1) *> nonEmptyList tableRef)
-    _whereClause <- optional (try (space1 *> string' "where" *> space1) *> aExpr)
+    _whereClause <- optional (try (space1 *> string' "where" *> space1) *> expr)
     _groupClause <- optional (try (space1 *> keyphrase "group by" *> space1) *> nonEmptyList groupByItem)
-    _havingClause <- optional (try (space1 *> string' "having" *> space1) *> aExpr)
+    _havingClause <- optional (try (space1 *> string' "having" *> space1) *> expr)
     _windowClause <- optional (try (space1 *> string' "window" *> space1) *> nonEmptyList windowDefinition)
     return (NormalSimpleSelect _targeting _intoClause _fromClause _whereClause _groupClause _havingClause _windowClause)
 
@@ -227,7 +227,7 @@ target :: Parser Target
 target = allCase <|> exprCase <?> "target" where
   allCase = AllTarget <$ char '*'
   exprCase = try $ do
-    _expr <- aExpr
+    _expr <- expr
     _optAlias <- optional $ try $ do
       space1
       try (string' "as" *> space1 *> colLabel) <|> ident
@@ -237,7 +237,7 @@ onExpressionsClause :: Parser (NonEmpty Expr)
 onExpressionsClause = try $ do
   string' "on"
   space1
-  nonEmptyList aExpr
+  nonEmptyList expr
 
 
 -- * Into clause details
@@ -427,39 +427,21 @@ b_expr:
 
 -}
 
-aExpr :: Parser Expr
-aExpr =
+expr :: Parser Expr
+expr =
   asum
     [
-      cExpr,
       typecastExpr,
       binOpExpr,
-      defaultExpr
+      escapableBinOpExpr,
+      nonLoopingExpr
     ]
 
-{-
-c_expr:
-  | columnref
-  | AexprConst
-  | PARAM opt_indirection
-  | '(' a_expr ')' opt_indirection
-  | case_expr
-  | func_expr
-  | select_with_parens
-  | select_with_parens indirection
-  | EXISTS select_with_parens
-  | ARRAY select_with_parens
-  | ARRAY array_expr
-  | explicit_row
-  | implicit_row
-  | GROUPING '(' expr_list ')'
-
-TODO: Add missing cases.
--}
-cExpr :: Parser Expr
-cExpr =
+nonLoopingExpr :: Parser Expr
+nonLoopingExpr =
   asum
     [
+      defaultExpr,
       placeholderExpr,
       columnRefExpr,
       literalExpr,
@@ -472,26 +454,31 @@ cExpr =
       groupingExpr
     ]
 
+
 placeholderExpr :: Parser Expr
 placeholderExpr = PlaceholderExpr <$> (try (char '$') *> Lex.decimal)
 
 inParensExpr :: Parser Expr
-inParensExpr = InParensExpr <$> inParens aExpr <*> optional (try (space1 *> indirection))
+inParensExpr = InParensExpr <$> inParens expr <*> optional (try (space1 *> indirection))
 
 typecastExpr :: Parser Expr
-typecastExpr = try $ do
-  _a <- aExpr
-  space
-  string "::"
+typecastExpr = do
+  _a <- try $ do
+    _a <- nonLoopingExpr
+    space
+    string "::"
+    return _a
   space
   _type <- type_
   return (TypecastExpr _a _type)
 
 binOpExpr :: Parser Expr
 binOpExpr = do
-  _a <- aExpr
-  _binOp <- try (space *> symbolicBinOp <* space) <|> (space1 *> lexicalBinOp <* space1)
-  _b <- aExpr
+  (_a, _binOp) <- try $ do
+    _a <- nonLoopingExpr
+    _binOp <- try (space *> symbolicBinOp <* space) <|> (space1 *> lexicalBinOp <* space1)
+    return (_a, _binOp)
+  _b <- expr
   return (BinOpExpr _binOp _a _b)
 
 symbolicBinOp :: Parser Text
@@ -507,17 +494,17 @@ lexicalBinOp = asum $ fmap keyphrase $ ["and", "or", "is distinct from", "is not
 escapableBinOpExpr :: Parser Expr
 escapableBinOpExpr = do
   (_a, _not, _op) <- try $ do
-    _a <- aExpr
+    _a <- nonLoopingExpr
     space1
     _not <- option False $ try $ True <$ string' "not" <* space1
     _op <- asum $ fmap keyphrase $ ["like", "ilike", "similar to"]
     return (_a, _not, _op)
   space1
-  _b <- aExpr
+  _b <- expr
   _escaping <- optional $ try $ do
     string' "escape"
     space1
-    aExpr
+    expr
   return (EscapableBinOpExpr _not _op _a _b _escaping)
 
 defaultExpr :: Parser Expr
@@ -546,11 +533,11 @@ caseExpr = label "case expression" $ try $ do
   space1
   (_arg, _whenClauses) <-
     (Nothing,) <$> sepEndBy1 whenClause space1 <|>
-    (,) <$> (Just <$> aExpr <* space1) <*> sepEndBy1 whenClause space1
+    (,) <$> (Just <$> expr <* space1) <*> sepEndBy1 whenClause space1
   _default <- optional $ try $ do
     string' "else"
     space1
-    aExpr <* space1
+    expr <* space1
   string' "end"
   return $ CaseExpr _arg _whenClauses _default
 
@@ -558,11 +545,11 @@ whenClause :: Parser WhenClause
 whenClause = try $ do
   string' "when"
   space1
-  _a <- aExpr
+  _a <- expr
   space1
   string' "then"
   space1
-  _b <- aExpr
+  _b <- expr
   return (WhenClause _a _b)
 
 funcExpr :: Parser Expr
@@ -610,7 +597,7 @@ listVariadicFuncApplicationParams = try $ do
   return (VariadicFuncApplicationParams (Just _argList) _arg _optSortClause)
 
 funcArgExpr :: Parser FuncArgExpr
-funcArgExpr = ExprFuncArgExpr <$> aExpr
+funcArgExpr = ExprFuncArgExpr <$> expr
 
 sortClause :: Parser (NonEmpty SortBy)
 sortClause = try $ do
@@ -620,7 +607,7 @@ sortClause = try $ do
 
 sortBy :: Parser SortBy
 sortBy = try $ do
-  _expr <- aExpr
+  _expr <- expr
   _optOrder <- optional (space1 *> order)
   return (SortBy _expr _optOrder)
 
@@ -646,7 +633,7 @@ groupingExpr :: Parser Expr
 groupingExpr = try $ do
   string' "grouping"
   space
-  GroupingExpr <$> inParens (nonEmptyList aExpr)
+  GroupingExpr <$> inParens (nonEmptyList expr)
 
 
 -- * Literals
@@ -822,17 +809,17 @@ opt_slice_bound:
 -}
 indirectionEl :: Parser IndirectionEl
 indirectionEl = asum [attrNameCase, allCase, exprCase, sliceCase] <?> "indirection element" where
-  attrNameCase = try $ AttrNameIndirectionEl <$> (char '.' *> space *> attrName)
+  attrNameCase = AttrNameIndirectionEl <$> (char '.' *> space *> attrName)
   allCase = try $ AllIndirectionEl <$ (char '.' *> space *> char '*')
-  exprCase = try $ ExprIndirectionEl <$> (char '[' *> space *> aExpr <* space <* char ']')
+  exprCase = try $ ExprIndirectionEl <$> (char '[' *> space *> expr <* space <* char ']')
   sliceCase = try $ do
     char '['
     space
-    _a <- optional (try aExpr)
+    _a <- optional (try expr)
     space
     char ':'
     space
-    _b <- optional (try aExpr)
+    _b <- optional (try expr)
     space
     char ']'
     return (SliceIndirectionEl _a _b)
