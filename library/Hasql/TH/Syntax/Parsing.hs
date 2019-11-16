@@ -180,9 +180,9 @@ simpleSelect = normal where
     _targeting <- optional (try (space1 *> targeting))
     _intoClause <- optional (try (space1 *> string' "into" *> space1) *> optTempTableName)
     _fromClause <- optional (try (space1 *> string' "from" *> space1) *> nonEmptyList tableRef)
-    _whereClause <- optional (try (space1 *> string' "where" *> space1) *> expr)
+    _whereClause <- optional (try (space1 *> string' "where" *> space1) *> aExpr)
     _groupClause <- optional (try (space1 *> keyphrase "group by" *> space1) *> nonEmptyList groupByItem)
-    _havingClause <- optional (try (space1 *> string' "having" *> space1) *> expr)
+    _havingClause <- optional (try (space1 *> string' "having" *> space1) *> aExpr)
     _windowClause <- optional (try (space1 *> string' "window" *> space1) *> nonEmptyList windowDefinition)
     return (NormalSimpleSelect _targeting _intoClause _fromClause _whereClause _groupClause _havingClause _windowClause)
 
@@ -227,7 +227,7 @@ target :: Parser Target
 target = allCase <|> exprCase <?> "target" where
   allCase = AllTarget <$ char '*'
   exprCase = try $ do
-    _expr <- expr
+    _expr <- aExpr
     _optAlias <- optional $ try $ do
       space1
       try (string' "as" *> space1 *> colLabel) <|> ident
@@ -237,7 +237,7 @@ onExpressionsClause :: Parser (NonEmpty Expr)
 onExpressionsClause = try $ do
   string' "on"
   space1
-  nonEmptyList expr
+  nonEmptyList aExpr
 
 
 -- * Into clause details
@@ -330,19 +330,137 @@ aliasClause = try $ do
 
 -- * Expressions
 -------------------------
+{-
 
-expr :: Parser Expr
-expr = loopingExpr <|> nonLoopingExpr
+a_expr:
+  | c_expr
+  | a_expr TYPECAST Typename
+  | a_expr COLLATE any_name
+  | a_expr AT TIME ZONE a_expr
+  | '+' a_expr
+  | '-' a_expr
+  | a_expr '+' a_expr
+  | a_expr '-' a_expr
+  | a_expr '*' a_expr
+  | a_expr '/' a_expr
+  | a_expr '%' a_expr
+  | a_expr '^' a_expr
+  | a_expr '<' a_expr
+  | a_expr '>' a_expr
+  | a_expr '=' a_expr
+  | a_expr LESS_EQUALS a_expr
+  | a_expr GREATER_EQUALS a_expr
+  | a_expr NOT_EQUALS a_expr
+  | a_expr qual_Op a_expr
+  | qual_Op a_expr
+  | a_expr qual_Op
+  | a_expr AND a_expr
+  | a_expr OR a_expr
+  | NOT a_expr
+  | NOT_LA a_expr
+  | a_expr LIKE a_expr
+  | a_expr LIKE a_expr ESCAPE a_expr
+  | a_expr NOT_LA LIKE a_expr
+  | a_expr NOT_LA LIKE a_expr ESCAPE a_expr
+  | a_expr ILIKE a_expr
+  | a_expr ILIKE a_expr ESCAPE a_expr
+  | a_expr NOT_LA ILIKE a_expr
+  | a_expr NOT_LA ILIKE a_expr ESCAPE a_expr
+  | a_expr SIMILAR TO a_expr
+  | a_expr SIMILAR TO a_expr ESCAPE a_expr
+  | a_expr NOT_LA SIMILAR TO a_expr
+  | a_expr NOT_LA SIMILAR TO a_expr ESCAPE a_expr
+  | a_expr IS NULL_P
+  | a_expr ISNULL
+  | a_expr IS NOT NULL_P
+  | a_expr NOTNULL
+  | row OVERLAPS row
+  | a_expr IS TRUE_P
+  | a_expr IS NOT TRUE_P
+  | a_expr IS FALSE_P
+  | a_expr IS NOT FALSE_P
+  | a_expr IS UNKNOWN
+  | a_expr IS NOT UNKNOWN
+  | a_expr IS DISTINCT FROM a_expr
+  | a_expr IS NOT DISTINCT FROM a_expr
+  | a_expr IS OF '(' type_list ')'
+  | a_expr IS NOT OF '(' type_list ')'
+  | a_expr BETWEEN opt_asymmetric b_expr AND a_expr
+  | a_expr NOT_LA BETWEEN opt_asymmetric b_expr AND a_expr
+  | a_expr BETWEEN SYMMETRIC b_expr AND a_expr
+  | a_expr NOT_LA BETWEEN SYMMETRIC b_expr AND a_expr
+  | a_expr IN_P in_expr
+  | a_expr NOT_LA IN_P in_expr
+  | a_expr subquery_Op sub_type select_with_parens
+  | a_expr subquery_Op sub_type '(' a_expr ')'
+  | UNIQUE select_with_parens
+  | a_expr IS DOCUMENT_P
+  | a_expr IS NOT DOCUMENT_P
+  | DEFAULT
 
-{-|
-Expr, which does not start with another expression.
+b_expr:
+  | c_expr
+  | b_expr TYPECAST Typename
+  | '+' b_expr
+  | '-' b_expr
+  | b_expr '+' b_expr
+  | b_expr '-' b_expr
+  | b_expr '*' b_expr
+  | b_expr '/' b_expr
+  | b_expr '%' b_expr
+  | b_expr '^' b_expr
+  | b_expr '<' b_expr
+  | b_expr '>' b_expr
+  | b_expr '=' b_expr
+  | b_expr LESS_EQUALS b_expr
+  | b_expr GREATER_EQUALS b_expr
+  | b_expr NOT_EQUALS b_expr
+  | b_expr qual_Op b_expr
+  | qual_Op b_expr
+  | b_expr qual_Op
+  | b_expr IS DISTINCT FROM b_expr
+  | b_expr IS NOT DISTINCT FROM b_expr
+  | b_expr IS OF '(' type_list ')'
+  | b_expr IS NOT OF '(' type_list ')'
+  | b_expr IS DOCUMENT_P
+  | b_expr IS NOT DOCUMENT_P
+
 -}
-nonLoopingExpr :: Parser Expr
-nonLoopingExpr = 
+
+aExpr :: Parser Expr
+aExpr =
+  asum
+    [
+      cExpr,
+      typecastExpr,
+      binOpExpr,
+      defaultExpr
+    ]
+
+{-
+c_expr:
+  | columnref
+  | AexprConst
+  | PARAM opt_indirection
+  | '(' a_expr ')' opt_indirection
+  | case_expr
+  | func_expr
+  | select_with_parens
+  | select_with_parens indirection
+  | EXISTS select_with_parens
+  | ARRAY select_with_parens
+  | ARRAY array_expr
+  | explicit_row
+  | implicit_row
+  | GROUPING '(' expr_list ')'
+
+TODO: Add missing cases.
+-}
+cExpr :: Parser Expr
+cExpr =
   asum
     [
       placeholderExpr,
-      defaultExpr,
       columnRefExpr,
       literalExpr,
       inParensExpr,
@@ -354,24 +472,15 @@ nonLoopingExpr =
       groupingExpr
     ]
 
-loopingExpr :: Parser Expr
-loopingExpr = 
-  asum
-    [
-      typecastExpr,
-      escapableBinOpExpr,
-      binOpExpr
-    ]
-
 placeholderExpr :: Parser Expr
 placeholderExpr = PlaceholderExpr <$> (try (char '$') *> Lex.decimal)
 
 inParensExpr :: Parser Expr
-inParensExpr = InParensExpr <$> inParens expr <*> optional (try (space1 *> indirection))
+inParensExpr = InParensExpr <$> inParens aExpr <*> optional (try (space1 *> indirection))
 
 typecastExpr :: Parser Expr
 typecastExpr = try $ do
-  _a <- nonLoopingExpr
+  _a <- aExpr
   space
   string "::"
   space
@@ -379,10 +488,10 @@ typecastExpr = try $ do
   return (TypecastExpr _a _type)
 
 binOpExpr :: Parser Expr
-binOpExpr = try $ do
-  _a <- nonLoopingExpr
+binOpExpr = do
+  _a <- aExpr
   _binOp <- try (space *> symbolicBinOp <* space) <|> (space1 *> lexicalBinOp <* space1)
-  _b <- expr
+  _b <- aExpr
   return (BinOpExpr _binOp _a _b)
 
 symbolicBinOp :: Parser Text
@@ -398,17 +507,17 @@ lexicalBinOp = asum $ fmap keyphrase $ ["and", "or", "is distinct from", "is not
 escapableBinOpExpr :: Parser Expr
 escapableBinOpExpr = do
   (_a, _not, _op) <- try $ do
-    _a <- nonLoopingExpr
+    _a <- aExpr
     space1
     _not <- option False $ try $ True <$ string' "not" <* space1
     _op <- asum $ fmap keyphrase $ ["like", "ilike", "similar to"]
     return (_a, _not, _op)
   space1
-  _b <- expr
+  _b <- aExpr
   _escaping <- optional $ try $ do
     string' "escape"
     space1
-    expr
+    aExpr
   return (EscapableBinOpExpr _not _op _a _b _escaping)
 
 defaultExpr :: Parser Expr
@@ -437,11 +546,11 @@ caseExpr = label "case expression" $ try $ do
   space1
   (_arg, _whenClauses) <-
     (Nothing,) <$> sepEndBy1 whenClause space1 <|>
-    (,) <$> (Just <$> expr <* space1) <*> sepEndBy1 whenClause space1
+    (,) <$> (Just <$> aExpr <* space1) <*> sepEndBy1 whenClause space1
   _default <- optional $ try $ do
     string' "else"
     space1
-    expr <* space1
+    aExpr <* space1
   string' "end"
   return $ CaseExpr _arg _whenClauses _default
 
@@ -449,11 +558,11 @@ whenClause :: Parser WhenClause
 whenClause = try $ do
   string' "when"
   space1
-  _a <- expr
+  _a <- aExpr
   space1
   string' "then"
   space1
-  _b <- expr
+  _b <- aExpr
   return (WhenClause _a _b)
 
 funcExpr :: Parser Expr
@@ -501,7 +610,7 @@ listVariadicFuncApplicationParams = try $ do
   return (VariadicFuncApplicationParams (Just _argList) _arg _optSortClause)
 
 funcArgExpr :: Parser FuncArgExpr
-funcArgExpr = ExprFuncArgExpr <$> expr
+funcArgExpr = ExprFuncArgExpr <$> aExpr
 
 sortClause :: Parser (NonEmpty SortBy)
 sortClause = try $ do
@@ -511,7 +620,7 @@ sortClause = try $ do
 
 sortBy :: Parser SortBy
 sortBy = try $ do
-  _expr <- expr
+  _expr <- aExpr
   _optOrder <- optional (space1 *> order)
   return (SortBy _expr _optOrder)
 
@@ -537,7 +646,7 @@ groupingExpr :: Parser Expr
 groupingExpr = try $ do
   string' "grouping"
   space
-  GroupingExpr <$> inParens (nonEmptyList expr)
+  GroupingExpr <$> inParens (nonEmptyList aExpr)
 
 
 -- * Literals
@@ -715,15 +824,15 @@ indirectionEl :: Parser IndirectionEl
 indirectionEl = asum [attrNameCase, allCase, exprCase, sliceCase] <?> "indirection element" where
   attrNameCase = try $ AttrNameIndirectionEl <$> (char '.' *> space *> attrName)
   allCase = try $ AllIndirectionEl <$ (char '.' *> space *> char '*')
-  exprCase = try $ ExprIndirectionEl <$> (char '[' *> space *> expr <* space <* char ']')
+  exprCase = try $ ExprIndirectionEl <$> (char '[' *> space *> aExpr <* space <* char ']')
   sliceCase = try $ do
     char '['
     space
-    _a <- optional (try expr)
+    _a <- optional (try aExpr)
     space
     char ':'
     space
-    _b <- optional (try expr)
+    _b <- optional (try aExpr)
     space
     char ']'
     return (SliceIndirectionEl _a _b)
