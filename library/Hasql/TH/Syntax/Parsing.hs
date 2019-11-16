@@ -428,6 +428,11 @@ b_expr:
 -}
 
 {-|
+Notice that the tree constructed by this parser does not reflect
+the precedence order of Postgres.
+For the purposes of this library it simply doesn't matter,
+so we're not bothering with that.
+
 Composite on the right:
 >>> testParser expr "$1 = $2 :: int4"
 BinOpExpr "=" (PlaceholderExpr 1) (TypecastExpr (PlaceholderExpr 2) (Type "int4" False 0 False))
