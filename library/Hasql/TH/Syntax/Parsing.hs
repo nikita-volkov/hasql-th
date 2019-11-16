@@ -171,7 +171,7 @@ NormalSimpleSelect Nothing Nothing Nothing Nothing Nothing Nothing Nothing
   |
 1 | select id from user
   |                    ^
-Reserved keyword "user" used as an identifier. Wrap it in quotes.
+Reserved keyword "user" used as an identifier. If that's what you intend, you have to wrap it in double quotes.
 
 >>> test "select id :: int4 from \"user\""
 ...TypecastExpr (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "id"))) (Type "int4" False 0 False)...
@@ -898,7 +898,7 @@ keywordNameByPredicate _predicate = try $ do
   _keyword <- keyword
   if _predicate _keyword
     then return (UnquotedName _keyword)
-    else fail ("Reserved keyword " <> show _keyword <> " used as an identifier. Wrap it in quotes.")
+    else fail ("Reserved keyword " <> show _keyword <> " used as an identifier. If that's what you intend, you have to wrap it in double quotes.")
 
 keyword :: Parser Text
 keyword = label "keyword" $ try $ do
