@@ -413,7 +413,7 @@ data TableRef =
 -}
 data RelationExpr =
   SimpleRelationExpr QualifiedName Bool |
-  OnlyRelationExpr QualifiedName
+  OnlyRelationExpr QualifiedName Bool
   deriving (Show, Eq, Ord)
 
 {-

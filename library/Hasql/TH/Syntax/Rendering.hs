@@ -127,7 +127,7 @@ tableRef = \ case
 relationExpr :: RelationExpr -> Builder
 relationExpr = \ case
   SimpleRelationExpr a b -> qualifiedName a <> bool "" " *" b
-  OnlyRelationExpr a -> "ONLY " <> qualifiedName a
+  OnlyRelationExpr a b -> "ONLY " <> bool qualifiedName (inParens . qualifiedName) b a
 
 aliasClause :: AliasClause -> Builder
 aliasClause (AliasClause a b) =

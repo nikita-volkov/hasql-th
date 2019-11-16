@@ -27,7 +27,7 @@ Here's the essence of how the original parser is implemented, citing from
 -}
 module Hasql.TH.Syntax.Parsing where
 
-import Hasql.TH.Prelude hiding (expr, try, option, many, sortBy, filter)
+import Hasql.TH.Prelude hiding (expr, try, option, some, many, sortBy, filter)
 import Text.Megaparsec hiding (some, endBy1, someTill, sepBy1, sepEndBy1)
 import Text.Megaparsec.Char
 import Control.Applicative.Combinators.NonEmpty
@@ -64,18 +64,35 @@ dotSeparator :: Parser ()
 dotSeparator = try $ space *> char '.' *> space
 
 inParens :: Parser a -> Parser a
-inParens p = try $ char '(' *> space *> p <* space <* char ')'
+inParens p = try (char '(' *> space) *> p <* space <* char ')'
+
+inParensWithLabel :: (label -> content -> result) -> Parser label -> Parser content -> Parser result
+inParensWithLabel _result _labelParser _contentParser = do
+  _label <- try $ _labelParser <* space <* char '('
+  _content <- _contentParser
+  space
+  char ')'
+  return (_result _label _content)
+
+inParensWithClause :: Parser clause -> Parser content -> Parser content
+inParensWithClause = inParensWithLabel (const id)
 
 nonEmptyList :: Parser a -> Parser (NonEmpty a)
 nonEmptyList p = sepBy1 p commaSeparator
+
+sepWithSpace1 :: Parser a -> Parser (NonEmpty a)
+sepWithSpace1 _parser = do
+  _head <- _parser
+  _tail <- many $ try (space1 *> _parser)
+  return (_head :| _tail)
 
 {-|
 >>> testParser (quotedString '\'') "'abc''d'"
 "abc'd"
 -}
 quotedString :: Char -> Parser Text
-quotedString q = try $ do
-  char q
+quotedString q = do
+  try $ char q
   let
     collectChunks !bdr = do
       chunk <- takeWhileP Nothing (/= q)
@@ -174,17 +191,21 @@ simple_select:
   |  select_clause EXCEPT all_or_distinct select_clause
 -}
 simpleSelect :: Parser SimpleSelect
-simpleSelect = normal where
-  normal = try $ do
-    string' "select"
-    _targeting <- optional (try (space1 *> targeting))
-    _intoClause <- optional (try (space1 *> string' "into" *> space1) *> optTempTableName)
-    _fromClause <- optional (try (space1 *> string' "from" *> space1) *> nonEmptyList tableRef)
-    _whereClause <- optional (try (space1 *> string' "where" *> space1) *> expr)
-    _groupClause <- optional (try (space1 *> keyphrase "group by" *> space1) *> nonEmptyList groupByItem)
-    _havingClause <- optional (try (space1 *> string' "having" *> space1) *> expr)
-    _windowClause <- optional (try (space1 *> string' "window" *> space1) *> nonEmptyList windowDefinition)
-    return (NormalSimpleSelect _targeting _intoClause _fromClause _whereClause _groupClause _havingClause _windowClause)
+simpleSelect = asum
+  [
+    do
+      try $ do
+        string' "select"
+        notFollowedBy $ satisfy $ isAlphaNum
+      _targeting <- optional (try (space1 *> targeting))
+      _intoClause <- optional (try (space1 *> string' "into" *> space1) *> optTempTableName)
+      _fromClause <- optional (try (space1 *> string' "from" *> space1) *> nonEmptyList tableRef)
+      _whereClause <- optional (try (space1 *> string' "where" *> space1) *> expr)
+      _groupClause <- optional (try (space1 *> keyphrase "group by" *> space1) *> nonEmptyList groupByItem)
+      _havingClause <- optional (try (space1 *> string' "having" *> space1) *> expr)
+      _windowClause <- optional (try (space1 *> string' "window" *> space1) *> nonEmptyList windowDefinition)
+      return (NormalSimpleSelect _targeting _intoClause _fromClause _whereClause _groupClause _havingClause _windowClause)
+  ]
 
 {-
 simple_select:
@@ -200,16 +221,19 @@ distinct_clause:
   |  DISTINCT ON '(' expr_list ')'
 -}
 targeting :: Parser Targeting
-targeting = distinct <|> all <|> normal <?> "targeting" where
+targeting = distinct <|> allWithTargetList <|> all <|> normal <?> "targeting" where
   normal = NormalTargeting <$> targetList
-  all = try $ do
-    string' "all"
-    _optTargetList <- optional (try (space1 *> targetList))
-    return (AllTargeting _optTargetList)
-  distinct = try $ do
-    string' "distinct"
-    _optOn <- optional (try (space1 *> onExpressionsClause))
-    space1
+  allWithTargetList = do
+    try $ do
+      string' "all"
+      space1
+    AllTargeting <$> Just <$> targetList
+  all = try $ string' "all" $> AllTargeting Nothing
+  distinct = do
+    try $ do
+      string' "distinct"
+      space1
+    _optOn <- optional (try (onExpressionsClause <* space1))
     _targetList <- targetList
     return (DistinctTargeting _optOn _targetList)
 
@@ -226,17 +250,18 @@ target_el:
 target :: Parser Target
 target = allCase <|> exprCase <?> "target" where
   allCase = AllTarget <$ char '*'
-  exprCase = try $ do
-    _expr <- expr
+  exprCase = do
+    _expr <- try $ expr
     _optAlias <- optional $ try $ do
       space1
       try (string' "as" *> space1 *> colLabel) <|> ident
     return (ExprTarget _expr _optAlias)
 
 onExpressionsClause :: Parser (NonEmpty Expr)
-onExpressionsClause = try $ do
-  string' "on"
-  space1
+onExpressionsClause = do
+  try $ do
+    string' "on"
+    space1
   nonEmptyList expr
 
 
@@ -288,8 +313,8 @@ tableRef = label "table reference" $ relationExprTableRef
 TODO: Add support for TABLESAMPLE.
 -}
 relationExprTableRef :: Parser TableRef
-relationExprTableRef = try $ do
-  _relationExpr <- relationExpr
+relationExprTableRef = do
+  _relationExpr <- try $ relationExpr
   _optAliasClause <- optional $ try $ space1 *> aliasClause
   return (RelationExprTableRef _relationExpr _optAliasClause)
 
@@ -303,10 +328,23 @@ relationExpr :: Parser RelationExpr
 relationExpr =
   asum
     [
-      SimpleRelationExpr <$> qualifiedName <*> pure False,
-      try $ SimpleRelationExpr <$> qualifiedName <*> (space1 *> char '*' $> True),
-      try $ OnlyRelationExpr <$> (string' "only" *> space1 *> qualifiedName),
-      try $ OnlyRelationExpr <$> (string' "only" *> space *> inParens qualifiedName)
+      do
+        _name <- qualifiedName
+        _asterisk <- asum
+          [
+            True <$ try (space1 *> char '*'),
+            pure False
+          ]
+        return (SimpleRelationExpr _name _asterisk)
+      ,
+      inParensWithClause (string' "only") qualifiedName <&> \ a -> OnlyRelationExpr a True
+      ,
+      do
+        try $ do
+          string' "only"
+          space1
+        _name <- qualifiedName
+        return (OnlyRelationExpr _name False) 
     ]
 
 {-
@@ -322,8 +360,8 @@ name:
   |  ColId
 -}
 aliasClause :: Parser AliasClause
-aliasClause = try $ do
-  _alias <- try (string' "as" *> space1 *> colId) <|> colId
+aliasClause = do
+  _alias <- (try (string' "as" *> space1) *> colId) <|> try colId
   _columnAliases <- optional $ try $ space1 *> inParens (nonEmptyList colId)
   return (AliasClause _alias _columnAliases)
 
@@ -540,23 +578,27 @@ Implicit argument:
 CaseExpr (Just (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "a")))) (WhenClause (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "b"))) (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "c"))) :| []) (Just (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "d"))))
 -}
 caseExpr :: Parser Expr
-caseExpr = label "case expression" $ try $ do
-  string' "case"
-  space1
-  (_arg, _whenClauses) <-
-    (Nothing,) <$> sepEndBy1 whenClause space1 <|>
-    (,) <$> (Just <$> expr <* space1) <*> sepEndBy1 whenClause space1
-  _default <- optional $ try $ do
-    string' "else"
+caseExpr = label "case expression" $ do
+  try $ do
+    string' "case"
     space1
+  (_arg, _whenClauses) <-
+    (Nothing,) <$> sepWithSpace1 whenClause <|>
+    (,) <$> (Just <$> expr <* space1) <*> sepWithSpace1 whenClause
+  space1
+  _default <- optional $ do
+    try $ do
+      string' "else"
+      space1
     expr <* space1
   string' "end"
   return $ CaseExpr _arg _whenClauses _default
 
 whenClause :: Parser WhenClause
-whenClause = try $ do
-  string' "when"
-  space1
+whenClause = do
+  try $ do
+    string' "when"
+    space1
   _a <- expr
   space1
   string' "then"
@@ -568,11 +610,7 @@ funcExpr :: Parser Expr
 funcExpr = FuncExpr <$> funcApplication
 
 funcApplication :: Parser FuncApplication
-funcApplication = try $ do
-  _name <- funcName
-  space
-  _params <- inParens (optional (try funcApplicationParams))
-  return (FuncApplication _name _params)
+funcApplication = inParensWithLabel FuncApplication funcName (optional (try funcApplicationParams))
 
 funcApplicationParams :: Parser FuncApplicationParams
 funcApplicationParams =
@@ -612,15 +650,16 @@ funcArgExpr :: Parser FuncArgExpr
 funcArgExpr = ExprFuncArgExpr <$> expr
 
 sortClause :: Parser (NonEmpty SortBy)
-sortClause = try $ do
-  keyphrase "order by"
-  space1
+sortClause = do
+  try $ do
+    keyphrase "order by"
+    space1
   nonEmptyList sortBy
 
 sortBy :: Parser SortBy
-sortBy = try $ do
-  _expr <- expr
-  _optOrder <- optional (space1 *> order)
+sortBy = do
+  _expr <- try expr
+  _optOrder <- optional (try (space1 *> order))
   return (SortBy _expr _optOrder)
 
 order :: Parser Order
@@ -630,22 +669,13 @@ selectExpr :: Parser Expr
 selectExpr = InParensExpr <$> (SelectExpr <$> inParens selectNoParens) <*> optional (try (space1 *> indirection))
 
 existsSelectExpr :: Parser Expr
-existsSelectExpr = try $ do
-  string' "exists"
-  space
-  ExistsSelectExpr <$> inParens selectNoParens
+existsSelectExpr = inParensWithClause (string' "array") (ExistsSelectExpr <$> selectNoParens)
 
 arraySelectExpr :: Parser Expr
-arraySelectExpr = try $ do
-  string' "array"
-  space
-  ExistsSelectExpr <$> inParens selectNoParens
+arraySelectExpr = inParensWithClause (string' "array") (ArraySelectExpr <$> selectNoParens)
 
 groupingExpr :: Parser Expr
-groupingExpr = try $ do
-  string' "grouping"
-  space
-  GroupingExpr <$> inParens (nonEmptyList expr)
+groupingExpr = inParensWithClause (string' "grouping") (GroupingExpr <$> nonEmptyList expr)
 
 
 -- * Literals
@@ -726,10 +756,10 @@ Type "int4" False 2 True
 Type "int4" True 2 False
 -}
 type_ :: Parser Type
-type_ = try $ do
-  _baseName <- fmap Text.toLower $ takeWhile1P Nothing isAlphaNum
+type_ = do
+  _baseName <- try $ fmap Text.toLower $ takeWhile1P Nothing isAlphaNum
   _baseNullable <- option False (try (True <$ space <* char '?'))
-  _arrayLevels <- fmap length $ many $ try $ space *> char '[' *> space *> char ']'
+  _arrayLevels <- fmap length $ many $ try (space *> char '[' *> space) *> char ']'
   _arrayNullable <- option False (try (True <$ space <* char '?'))
   return (Type _baseName _baseNullable _arrayLevels _arrayNullable)
 
@@ -774,11 +804,17 @@ qualified_name:
   | ColId indirection
 -}
 qualifiedName :: Parser QualifiedName
-qualifiedName = simpleQualifiedName <|> indirectedQualifiedName
-
-simpleQualifiedName = SimpleQualifiedName <$> colId
-
-indirectedQualifiedName = try (IndirectedQualifiedName <$> colId <*> (space *> indirection))
+qualifiedName = do
+  _a <- try colId
+  asum
+    [
+      try $ do
+        space
+        _b <- indirection
+        return (IndirectedQualifiedName _a _b)
+      ,
+      pure (SimpleQualifiedName _a)
+    ]
 
 {-
 columnref:
@@ -799,7 +835,7 @@ type_function_name:
 funcName =
   SimpleQualifiedName <$> ident <|>
   SimpleQualifiedName <$> keywordNameFromSet (HashSet.unreservedKeyword <> HashSet.typeFuncNameKeyword) <|>
-  indirectedQualifiedName
+  IndirectedQualifiedName <$> try colId <*> (space *> indirection)
 
 {-
 indirection:
@@ -820,21 +856,33 @@ opt_slice_bound:
   | EMPTY
 -}
 indirectionEl :: Parser IndirectionEl
-indirectionEl = asum [attrNameCase, allCase, exprCase, sliceCase] <?> "indirection element" where
-  attrNameCase = AttrNameIndirectionEl <$> (char '.' *> space *> attrName)
-  allCase = try $ AllIndirectionEl <$ (char '.' *> space *> char '*')
-  exprCase = try $ ExprIndirectionEl <$> (char '[' *> space *> expr <* space <* char ']')
-  sliceCase = try $ do
-    char '['
-    space
-    _a <- optional (try expr)
-    space
-    char ':'
-    space
-    _b <- optional (try expr)
-    space
-    char ']'
-    return (SliceIndirectionEl _a _b)
+indirectionEl =
+  asum
+    [
+      do
+        try (char '.' *> space)
+        AllIndirectionEl <$ char '*' <|> AttrNameIndirectionEl <$> attrName
+      ,
+      do
+        try (char '[' *> space)
+        _a <-
+          asum
+            [
+              do
+                _a <- optional (try expr)
+                space
+                char ':'
+                space
+                _b <- optional (try expr)
+                return (SliceIndirectionEl _a _b)
+              ,
+              ExprIndirectionEl <$> expr
+            ]
+        space
+        char ']'
+        return _a
+    ]
+    <?> "indirection element"
 
 {-
 attr_name:

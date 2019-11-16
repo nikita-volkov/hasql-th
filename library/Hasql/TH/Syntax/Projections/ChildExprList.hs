@@ -111,7 +111,7 @@ tableRef = \ case
 
 relationExpr = \ case
   SimpleRelationExpr a _ -> qualifiedName a
-  OnlyRelationExpr a -> qualifiedName a
+  OnlyRelationExpr a _ -> qualifiedName a
 
 joinedTable :: JoinedTable -> [Expr]
 joinedTable = \ case
