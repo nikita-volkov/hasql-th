@@ -433,8 +433,8 @@ Composite on the right:
 BinOpExpr "=" (PlaceholderExpr 1) (TypecastExpr (PlaceholderExpr 2) (Type "int4" False 0 False))
 
 Composite on the left:
->>> testParser expr "a = b :: int4 and c"
-
+>>> testParser expr "$1 = $2 :: int4 and $3"
+BinOpExpr "=" (PlaceholderExpr 1) (BinOpExpr "and" (TypecastExpr (PlaceholderExpr 2) (Type "int4" False 0 False)) (PlaceholderExpr 3))
 -}
 expr :: Parser Expr
 expr = do

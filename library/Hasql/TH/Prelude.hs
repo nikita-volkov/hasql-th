@@ -114,6 +114,10 @@ import Data.Scientific as Exports (Scientific)
 -------------------------
 import Control.Foldl as Exports (Fold(..))
 
+-- uuid
+-------------------------
+import Data.UUID as Exports (UUID)
+
 
 {-|
 >>> intersperseFoldMap1 ", " id (fromList ["a"])
