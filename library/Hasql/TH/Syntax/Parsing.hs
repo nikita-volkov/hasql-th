@@ -330,19 +330,133 @@ aliasClause = try $ do
 
 -- * Expressions
 -------------------------
+{-
 
-expr :: Parser Expr
-expr = loopingExpr <|> nonLoopingExpr
+a_expr:
+  | c_expr
+  | a_expr TYPECAST Typename
+  | a_expr COLLATE any_name
+  | a_expr AT TIME ZONE a_expr
+  | '+' a_expr
+  | '-' a_expr
+  | a_expr '+' a_expr
+  | a_expr '-' a_expr
+  | a_expr '*' a_expr
+  | a_expr '/' a_expr
+  | a_expr '%' a_expr
+  | a_expr '^' a_expr
+  | a_expr '<' a_expr
+  | a_expr '>' a_expr
+  | a_expr '=' a_expr
+  | a_expr LESS_EQUALS a_expr
+  | a_expr GREATER_EQUALS a_expr
+  | a_expr NOT_EQUALS a_expr
+  | a_expr qual_Op a_expr
+  | qual_Op a_expr
+  | a_expr qual_Op
+  | a_expr AND a_expr
+  | a_expr OR a_expr
+  | NOT a_expr
+  | NOT_LA a_expr
+  | a_expr LIKE a_expr
+  | a_expr LIKE a_expr ESCAPE a_expr
+  | a_expr NOT_LA LIKE a_expr
+  | a_expr NOT_LA LIKE a_expr ESCAPE a_expr
+  | a_expr ILIKE a_expr
+  | a_expr ILIKE a_expr ESCAPE a_expr
+  | a_expr NOT_LA ILIKE a_expr
+  | a_expr NOT_LA ILIKE a_expr ESCAPE a_expr
+  | a_expr SIMILAR TO a_expr
+  | a_expr SIMILAR TO a_expr ESCAPE a_expr
+  | a_expr NOT_LA SIMILAR TO a_expr
+  | a_expr NOT_LA SIMILAR TO a_expr ESCAPE a_expr
+  | a_expr IS NULL_P
+  | a_expr ISNULL
+  | a_expr IS NOT NULL_P
+  | a_expr NOTNULL
+  | row OVERLAPS row
+  | a_expr IS TRUE_P
+  | a_expr IS NOT TRUE_P
+  | a_expr IS FALSE_P
+  | a_expr IS NOT FALSE_P
+  | a_expr IS UNKNOWN
+  | a_expr IS NOT UNKNOWN
+  | a_expr IS DISTINCT FROM a_expr
+  | a_expr IS NOT DISTINCT FROM a_expr
+  | a_expr IS OF '(' type_list ')'
+  | a_expr IS NOT OF '(' type_list ')'
+  | a_expr BETWEEN opt_asymmetric b_expr AND a_expr
+  | a_expr NOT_LA BETWEEN opt_asymmetric b_expr AND a_expr
+  | a_expr BETWEEN SYMMETRIC b_expr AND a_expr
+  | a_expr NOT_LA BETWEEN SYMMETRIC b_expr AND a_expr
+  | a_expr IN_P in_expr
+  | a_expr NOT_LA IN_P in_expr
+  | a_expr subquery_Op sub_type select_with_parens
+  | a_expr subquery_Op sub_type '(' a_expr ')'
+  | UNIQUE select_with_parens
+  | a_expr IS DOCUMENT_P
+  | a_expr IS NOT DOCUMENT_P
+  | DEFAULT
+
+b_expr:
+  | c_expr
+  | b_expr TYPECAST Typename
+  | '+' b_expr
+  | '-' b_expr
+  | b_expr '+' b_expr
+  | b_expr '-' b_expr
+  | b_expr '*' b_expr
+  | b_expr '/' b_expr
+  | b_expr '%' b_expr
+  | b_expr '^' b_expr
+  | b_expr '<' b_expr
+  | b_expr '>' b_expr
+  | b_expr '=' b_expr
+  | b_expr LESS_EQUALS b_expr
+  | b_expr GREATER_EQUALS b_expr
+  | b_expr NOT_EQUALS b_expr
+  | b_expr qual_Op b_expr
+  | qual_Op b_expr
+  | b_expr qual_Op
+  | b_expr IS DISTINCT FROM b_expr
+  | b_expr IS NOT DISTINCT FROM b_expr
+  | b_expr IS OF '(' type_list ')'
+  | b_expr IS NOT OF '(' type_list ')'
+  | b_expr IS DOCUMENT_P
+  | b_expr IS NOT DOCUMENT_P
+
+-}
 
 {-|
-Expr, which does not start with another expression.
+Composite on the right:
+>>> testParser expr "$1 = $2 :: int4"
+BinOpExpr "=" (PlaceholderExpr 1) (TypecastExpr (PlaceholderExpr 2) (Type "int4" False 0 False))
+
+Composite on the left:
+>>> testParser expr "$1 = $2 :: int4 and $3"
+BinOpExpr "=" (PlaceholderExpr 1) (BinOpExpr "and" (TypecastExpr (PlaceholderExpr 2) (Type "int4" False 0 False)) (PlaceholderExpr 3))
 -}
+expr :: Parser Expr
+expr = do
+  _left <- nonLoopingExpr
+  loopingExpr _left <|> pure _left
+
+loopingExpr :: Expr -> Parser Expr
+loopingExpr _left = do
+  _expr <- asum
+    [
+      typecastExpr _left,
+      binOpExpr _left,
+      escapableBinOpExpr _left
+    ]
+  loopingExpr _expr <|> pure _expr
+
 nonLoopingExpr :: Parser Expr
-nonLoopingExpr = 
+nonLoopingExpr =
   asum
     [
-      placeholderExpr,
       defaultExpr,
+      placeholderExpr,
       columnRefExpr,
       literalExpr,
       inParensExpr,
@@ -354,34 +468,24 @@ nonLoopingExpr =
       groupingExpr
     ]
 
-loopingExpr :: Parser Expr
-loopingExpr = 
-  asum
-    [
-      typecastExpr,
-      escapableBinOpExpr,
-      binOpExpr
-    ]
-
 placeholderExpr :: Parser Expr
 placeholderExpr = PlaceholderExpr <$> (try (char '$') *> Lex.decimal)
 
 inParensExpr :: Parser Expr
 inParensExpr = InParensExpr <$> inParens expr <*> optional (try (space1 *> indirection))
 
-typecastExpr :: Parser Expr
-typecastExpr = try $ do
-  _a <- nonLoopingExpr
-  space
-  string "::"
+typecastExpr :: Expr -> Parser Expr
+typecastExpr _left = do
+  try $ do
+    space
+    string "::"
   space
   _type <- type_
-  return (TypecastExpr _a _type)
+  return (TypecastExpr _left _type)
 
-binOpExpr :: Parser Expr
-binOpExpr = try $ do
-  _a <- nonLoopingExpr
-  _binOp <- try (space *> symbolicBinOp <* space) <|> (space1 *> lexicalBinOp <* space1)
+binOpExpr :: Expr -> Parser Expr
+binOpExpr _a = do
+  _binOp <- try (space *> symbolicBinOp <* space) <|> try (space1 *> lexicalBinOp <* space1)
   _b <- expr
   return (BinOpExpr _binOp _a _b)
 
@@ -395,14 +499,13 @@ symbolicBinOp = try $ do
 lexicalBinOp :: Parser Text
 lexicalBinOp = asum $ fmap keyphrase $ ["and", "or", "is distinct from", "is not distinct from"]
 
-escapableBinOpExpr :: Parser Expr
-escapableBinOpExpr = do
-  (_a, _not, _op) <- try $ do
-    _a <- nonLoopingExpr
+escapableBinOpExpr :: Expr -> Parser Expr
+escapableBinOpExpr _a = do
+  (_not, _op) <- try $ do
     space1
     _not <- option False $ try $ True <$ string' "not" <* space1
     _op <- asum $ fmap keyphrase $ ["like", "ilike", "similar to"]
-    return (_a, _not, _op)
+    return (_not, _op)
   space1
   _b <- expr
   _escaping <- optional $ try $ do
@@ -713,7 +816,7 @@ opt_slice_bound:
 -}
 indirectionEl :: Parser IndirectionEl
 indirectionEl = asum [attrNameCase, allCase, exprCase, sliceCase] <?> "indirection element" where
-  attrNameCase = try $ AttrNameIndirectionEl <$> (char '.' *> space *> attrName)
+  attrNameCase = AttrNameIndirectionEl <$> (char '.' *> space *> attrName)
   allCase = try $ AllIndirectionEl <$ (char '.' *> space *> char '*')
   exprCase = try $ ExprIndirectionEl <$> (char '[' *> space *> expr <* space <* char ']')
   sliceCase = try $ do
