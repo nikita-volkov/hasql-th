@@ -312,6 +312,10 @@ targeting = distinct <|> allWithTargetList <|> all <|> normal <?> "targeting" wh
 targetList :: Parser (NonEmpty Target)
 targetList = nonEmptyList target
 
+{-|
+>>> testParser target "a.b as c"
+ExprTarget (QualifiedNameExpr (IndirectedQualifiedName (UnquotedName "a") (AttrNameIndirectionEl (UnquotedName "b") :| []))) (Just (UnquotedName "c"))
+-}
 {-
 target_el:
   |  a_expr AS ColLabel
@@ -320,13 +324,21 @@ target_el:
   |  '*'
 -}
 target :: Parser Target
-target = allCase <|> exprCase <?> "target" where
-  allCase = AllTarget <$ char '*'
+target = exprCase <|> allCase <?> "target" where
+  allCase = AllTarget <$ try (char '*')
   exprCase = do
-    _expr <- try $ aExpr
-    _optAlias <- optional $ try $ do
-      space1
-      try (string' "as" *> space1 *> colLabel) <|> ident
+    _expr <- aExpr
+    _optAlias <- optional $ asum
+      [
+        do
+          try $ do
+            space1
+            string' "as"
+            space1
+          colLabel
+        ,
+        try (space1 *> ident)
+      ]
     return (ExprTarget _expr _optAlias)
 
 onExpressionsClause :: Parser (NonEmpty Expr)
@@ -1044,6 +1056,10 @@ ColLabel:
 colLabel :: Parser Name
 colLabel = ident <|> keywordNameFromSet HashSet.keyword
 
+{-|
+>>> testParser qualifiedName "a.b"
+IndirectedQualifiedName (UnquotedName "a") (AttrNameIndirectionEl (UnquotedName "b") :| [])
+-}
 {-
 qualified_name:
   | ColId
@@ -1054,8 +1070,7 @@ qualifiedName = do
   _a <- try colId
   asum
     [
-      try $ do
-        space
+      do
         _b <- indirection
         return (IndirectedQualifiedName _a _b)
       ,
@@ -1089,7 +1104,7 @@ indirection:
   | indirection indirection_el
 -}
 indirection :: Parser Indirection
-indirection = sepBy1 indirectionEl (try space)
+indirection = some indirectionEl
 
 {-
 indirection_el:
@@ -1106,11 +1121,11 @@ indirectionEl =
   asum
     [
       do
-        try (char '.' *> space)
+        try (space *> char '.' *> space)
         AllIndirectionEl <$ char '*' <|> AttrNameIndirectionEl <$> attrName
       ,
       do
-        try (char '[' *> space)
+        try (space *> char '[' *> space)
         _a <-
           asum
             [
