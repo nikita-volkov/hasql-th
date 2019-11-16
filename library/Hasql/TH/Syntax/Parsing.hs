@@ -1156,4 +1156,4 @@ keyword = label "keyword" $ try $ do
 Consume a keyphrase, ignoring case and types of spaces between words.
 -}
 keyphrase :: Text -> Parser Text
-keyphrase a = Text.words a & fmap (void . string') & intersperse space1 & sequence_ & fmap (const a) & try & label ("keyphrase " <> Text.unpack a)
+keyphrase a = Text.words a & fmap (void . string') & intersperse space1 & sequence_ & fmap (const a) & try & label (show a)
