@@ -17,8 +17,45 @@ selectStmt = \ case
   NoParensSelectStmt a -> selectNoParens a
 
 selectNoParens :: SelectNoParens -> [Expr]
-selectNoParens = \ case
-  SimpleSelectNoParens a -> simpleSelect a
+selectNoParens (SelectNoParens a b c d e) =
+  foldable withClause a <>
+  selectClause b <>
+  foldable sortClause c <>
+  foldable selectLimit d <>
+  foldable forLockingClause e
+
+withClause (WithClause _ a) = foldable commonTableExpr a
+
+commonTableExpr (CommonTableExpr a b c d) = preparableStmt d
+
+selectLimit = \ case
+  LimitOffsetSelectLimit a b -> limitClause a <> offsetClause b
+  OffsetLimitSelectLimit a b -> offsetClause a <> limitClause b
+  LimitSelectLimit a -> limitClause a
+  OffsetSelectLimit a -> offsetClause a
+
+limitClause = \ case
+  LimitLimitClause a b -> selectLimitValue a <> toList b
+  FetchOnlyLimitClause a b c -> foldable selectFetchFirstValue b
+
+offsetClause = \ case
+  ExprOffsetClause a -> [a]
+  FetchFirstOffsetClause a b -> selectFetchFirstValue a
+
+selectFetchFirstValue = \ case
+  ExprSelectFetchFirstValue a -> [a]
+  NumSelectFetchFirstValue _ _ -> []
+
+selectLimitValue = \ case
+  ExprSelectLimitValue a -> [a]
+  AllSelectLimitValue -> []
+
+forLockingClause = \ case
+  ItemsForLockingClause a -> foldable forLockingItem a
+  ReadOnlyForLockingClause -> []
+
+forLockingItem (ForLockingItem a b c) =
+  foldable (foldable qualifiedName) b
 
 selectClause :: SelectClause -> [Expr]
 selectClause = either simpleSelect selectNoParens

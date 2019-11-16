@@ -24,8 +24,7 @@ selectStmt = \ case
   NoParensSelectStmt a -> selectNoParens a
 
 selectNoParens :: SelectNoParens -> Either Text [Type]
-selectNoParens = \ case
-  SimpleSelectNoParens a -> simpleSelect a
+selectNoParens (SelectNoParens _ a _ _ _) = selectClause a
 
 selectClause :: SelectClause -> Either Text [Type]
 selectClause = either simpleSelect selectNoParens

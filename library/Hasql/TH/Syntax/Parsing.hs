@@ -27,7 +27,7 @@ Here's the essence of how the original parser is implemented, citing from
 -}
 module Hasql.TH.Syntax.Parsing where
 
-import Hasql.TH.Prelude hiding (expr, try, option, some, many, sortBy, filter)
+import Hasql.TH.Prelude hiding (aExpr, try, option, some, many, sortBy, filter)
 import Text.Megaparsec hiding (some, endBy1, someTill, sepBy1, sepEndBy1)
 import Text.Megaparsec.Char
 import Control.Applicative.Combinators.NonEmpty
@@ -133,11 +133,60 @@ inParensSelectStmt = inParens (InParensSelectStmt <$> selectStmt)
 noParensSelectStmt :: Parser SelectStmt
 noParensSelectStmt = NoParensSelectStmt <$> selectNoParens
 
-selectNoParens :: Parser SelectNoParens
-selectNoParens = simpleSelectNoParens
+selectWithParens = inParens (selectNoParens <|> selectWithParens)
 
-simpleSelectNoParens :: Parser SelectNoParens
-simpleSelectNoParens = SimpleSelectNoParens <$> simpleSelect
+selectNoParens :: Parser SelectNoParens
+selectNoParens = simpleSelectNoParens <|> withSelectNoParens
+
+sharedSelectNoParens _with = do
+  _select <- selectClause
+  asum
+    [
+      do
+        try space1
+        asum [sort _select, limit _select Nothing, forLocking _select Nothing Nothing]
+      ,
+      pure (SelectNoParens _with _select Nothing Nothing Nothing)
+    ]
+  where
+    sort _select = 
+      (do
+        _sort <- sortClause
+        limit _select (Just _sort)
+      ) <|>
+      limit _select Nothing
+    limit _select _optSorting =
+      (do
+        _limit <- selectLimit
+        forLocking _select _optSorting (Just _limit)
+      ) <|>
+      forLocking _select _optSorting Nothing
+    forLocking _select _optSorting _optLimit = do
+      _optForLocking <- optional (try (space1 *> forLockingClause))
+      return (SelectNoParens _with _select _optSorting _optLimit _optForLocking)
+
+{-|
+The one that doesn't start with \"WITH\".
+-}
+{-
+  | simple_select
+  | select_clause sort_clause
+  | select_clause opt_sort_clause for_locking_clause opt_select_limit
+  | select_clause opt_sort_clause select_limit opt_for_locking_clause
+-}
+simpleSelectNoParens = sharedSelectNoParens Nothing
+
+withSelectNoParens = do
+  _with <- withClause
+  space1
+  sharedSelectNoParens (Just _with)
+
+selectClause =
+  asum
+    [
+      Right <$> selectWithParens,
+      Left <$> simpleSelect
+    ]
 
 {-|
 >>> test = testParser simpleSelect
@@ -189,6 +238,8 @@ simple_select:
   |  select_clause UNION all_or_distinct select_clause
   |  select_clause INTERSECT all_or_distinct select_clause
   |  select_clause EXCEPT all_or_distinct select_clause
+
+TODO: handle remaining cases
 -}
 simpleSelect :: Parser SimpleSelect
 simpleSelect = asum
@@ -200,12 +251,33 @@ simpleSelect = asum
       _targeting <- optional (try (space1 *> targeting))
       _intoClause <- optional (try (space1 *> string' "into" *> space1) *> optTempTableName)
       _fromClause <- optional (try (space1 *> string' "from" *> space1) *> nonEmptyList tableRef)
-      _whereClause <- optional (try (space1 *> string' "where" *> space1) *> expr)
+      _whereClause <- optional (try (space1 *> string' "where" *> space1) *> aExpr)
       _groupClause <- optional (try (space1 *> keyphrase "group by" *> space1) *> nonEmptyList groupByItem)
-      _havingClause <- optional (try (space1 *> string' "having" *> space1) *> expr)
+      _havingClause <- optional (try (space1 *> string' "having" *> space1) *> aExpr)
       _windowClause <- optional (try (space1 *> string' "window" *> space1) *> nonEmptyList windowDefinition)
       return (NormalSimpleSelect _targeting _intoClause _fromClause _whereClause _groupClause _havingClause _windowClause)
   ]
+
+withClause = label "with clause" $ do
+  try $ do
+    string' "with"
+    space1
+  _recursive <- option False (True <$ try (string' "recursive" <* space1))
+  _cteList <- nonEmptyList commonTableExpr
+  return (WithClause _recursive _cteList)
+
+commonTableExpr = label "common table expression" $ do
+  _name <- try (colId <* space)
+  _nameList <- optional (inParens (nonEmptyList colId) <* space1)
+  string' "as"
+  space1
+  _materialized <- optional (materialized <* space1)
+  _stmt <- inParens preparableStmt
+  return (CommonTableExpr _name _nameList _materialized _stmt)
+
+materialized = label "materialization" $
+  True <$ try (string' "materialized") <|>
+  False <$ try (keyphrase "not materialized")
 
 {-
 simple_select:
@@ -251,7 +323,7 @@ target :: Parser Target
 target = allCase <|> exprCase <?> "target" where
   allCase = AllTarget <$ char '*'
   exprCase = do
-    _expr <- try $ expr
+    _expr <- try $ aExpr
     _optAlias <- optional $ try $ do
       space1
       try (string' "as" *> space1 *> colLabel) <|> ident
@@ -262,7 +334,7 @@ onExpressionsClause = do
   try $ do
     string' "on"
     space1
-  nonEmptyList expr
+  nonEmptyList aExpr
 
 
 -- * Into clause details
@@ -472,17 +544,52 @@ For the purposes of this library it simply doesn't matter,
 so we're not bothering with that.
 
 Composite on the right:
->>> testParser expr "$1 = $2 :: int4"
+>>> testParser aExpr "$1 = $2 :: int4"
 BinOpExpr "=" (PlaceholderExpr 1) (TypecastExpr (PlaceholderExpr 2) (Type "int4" False 0 False))
 
 Composite on the left:
->>> testParser expr "$1 = $2 :: int4 and $3"
+>>> testParser aExpr "$1 = $2 :: int4 and $3"
 BinOpExpr "=" (PlaceholderExpr 1) (BinOpExpr "and" (TypecastExpr (PlaceholderExpr 2) (Type "int4" False 0 False)) (PlaceholderExpr 3))
 -}
-expr :: Parser Expr
-expr = do
+aExpr :: Parser Expr
+aExpr = do
   _left <- nonLoopingExpr
   loopingExpr _left <|> pure _left
+
+{-
+c_expr:
+  | columnref
+  | AexprConst
+  | PARAM opt_indirection
+  | '(' a_expr ')' opt_indirection
+  | case_expr
+  | func_expr
+  | select_with_parens
+  | select_with_parens indirection
+  | EXISTS select_with_parens
+  | ARRAY select_with_parens
+  | ARRAY array_expr
+  | explicit_row
+  | implicit_row
+  | GROUPING '(' expr_list ')'
+
+TODO: Add missing cases.
+-}
+cExpr :: Parser Expr
+cExpr =
+  asum
+    [
+      placeholderExpr,
+      columnRefExpr,
+      literalExpr,
+      inParensExpr,
+      caseExpr,
+      funcExpr,
+      selectExpr,
+      existsSelectExpr,
+      arraySelectExpr,
+      groupingExpr
+    ]
 
 loopingExpr :: Expr -> Parser Expr
 loopingExpr _left = do
@@ -515,7 +622,7 @@ placeholderExpr :: Parser Expr
 placeholderExpr = PlaceholderExpr <$> (try (char '$') *> Lex.decimal)
 
 inParensExpr :: Parser Expr
-inParensExpr = InParensExpr <$> inParens expr <*> optional (try (space1 *> indirection))
+inParensExpr = InParensExpr <$> inParens aExpr <*> optional (try (space1 *> indirection))
 
 typecastExpr :: Expr -> Parser Expr
 typecastExpr _left = do
@@ -529,7 +636,7 @@ typecastExpr _left = do
 binOpExpr :: Expr -> Parser Expr
 binOpExpr _a = do
   _binOp <- try (space *> symbolicBinOp <* space) <|> try (space1 *> lexicalBinOp <* space1)
-  _b <- expr
+  _b <- aExpr
   return (BinOpExpr _binOp _a _b)
 
 symbolicBinOp :: Parser Text
@@ -550,11 +657,11 @@ escapableBinOpExpr _a = do
     _op <- asum $ fmap keyphrase $ ["like", "ilike", "similar to"]
     return (_not, _op)
   space1
-  _b <- expr
+  _b <- aExpr
   _escaping <- optional $ try $ do
     string' "escape"
     space1
-    expr
+    aExpr
   return (EscapableBinOpExpr _not _op _a _b _escaping)
 
 defaultExpr :: Parser Expr
@@ -584,13 +691,13 @@ caseExpr = label "case expression" $ do
     space1
   (_arg, _whenClauses) <-
     (Nothing,) <$> sepWithSpace1 whenClause <|>
-    (,) <$> (Just <$> expr <* space1) <*> sepWithSpace1 whenClause
+    (,) <$> (Just <$> aExpr <* space1) <*> sepWithSpace1 whenClause
   space1
   _default <- optional $ do
     try $ do
       string' "else"
       space1
-    expr <* space1
+    aExpr <* space1
   string' "end"
   return $ CaseExpr _arg _whenClauses _default
 
@@ -599,11 +706,11 @@ whenClause = do
   try $ do
     string' "when"
     space1
-  _a <- expr
+  _a <- aExpr
   space1
   string' "then"
   space1
-  _b <- expr
+  _b <- aExpr
   return (WhenClause _a _b)
 
 funcExpr :: Parser Expr
@@ -647,7 +754,7 @@ listVariadicFuncApplicationParams = try $ do
   return (VariadicFuncApplicationParams (Just _argList) _arg _optSortClause)
 
 funcArgExpr :: Parser FuncArgExpr
-funcArgExpr = ExprFuncArgExpr <$> expr
+funcArgExpr = ExprFuncArgExpr <$> aExpr
 
 sortClause :: Parser (NonEmpty SortBy)
 sortClause = do
@@ -658,7 +765,7 @@ sortClause = do
 
 sortBy :: Parser SortBy
 sortBy = do
-  _expr <- try expr
+  _expr <- try aExpr
   _optOrder <- optional (try (space1 *> order))
   return (SortBy _expr _optOrder)
 
@@ -675,7 +782,7 @@ arraySelectExpr :: Parser Expr
 arraySelectExpr = inParensWithClause (string' "array") (ArraySelectExpr <$> selectNoParens)
 
 groupingExpr :: Parser Expr
-groupingExpr = inParensWithClause (string' "grouping") (GroupingExpr <$> nonEmptyList expr)
+groupingExpr = inParensWithClause (string' "grouping") (GroupingExpr <$> nonEmptyList aExpr)
 
 
 -- * Literals
@@ -717,11 +824,7 @@ literal :: Parser Literal
 literal = label "literal" $ asum [numericLiteral, stringLiteral, boolLiteral, nullLiteral]
 
 numericLiteral :: Parser Literal
-numericLiteral = label "numeric literal" $ try $ do
-  (_input, _scientific) <- match $ Lex.signed space Lex.scientific
-  case parseMaybe (Lex.signed space Lex.decimal <* eof :: Parser Integer) _input of
-    Just _int -> return (IntLiteral _int)
-    Nothing -> return (FloatLiteral _scientific)
+numericLiteral = label "numeric literal" $ fmap (either IntLiteral FloatLiteral) $ intOrFloat
 
 stringLiteral :: Parser Literal
 stringLiteral = quotedString '\'' <&> StringLiteral <?> "string literal"
@@ -731,6 +834,12 @@ boolLiteral = BoolLiteral True <$ string' "true" <|> BoolLiteral False <$ string
 
 nullLiteral :: Parser Literal
 nullLiteral = NullLiteral <$ string' "null" <?> "null literal"
+
+intOrFloat = label "int or float" $ try $ do
+  (_input, _scientific) <- match $ Lex.signed space Lex.scientific
+  case parseMaybe (Lex.signed space Lex.decimal <* eof :: Parser Integer) _input of
+    Just _int -> return (Left _int)
+    Nothing -> return (Right _scientific)
 
 
 -- * Types
@@ -762,6 +871,143 @@ type_ = do
   _arrayLevels <- fmap length $ many $ try (space *> char '[' *> space) *> char ']'
   _arrayNullable <- option False (try (True <$ space <* char '?'))
   return (Type _baseName _baseNullable _arrayLevels _arrayNullable)
+
+
+-- * Clauses
+-------------------------
+
+{-
+select_limit:
+  | limit_clause offset_clause
+  | offset_clause limit_clause
+  | limit_clause
+  | offset_clause
+-}
+selectLimit =
+  asum
+    [
+      do
+        _a <- limitClause
+        LimitOffsetSelectLimit _a <$> try (space1 *> offsetClause) <|> pure (LimitSelectLimit _a)
+      ,
+      do
+        _a <- offsetClause
+        OffsetLimitSelectLimit _a <$> try (space1 *> limitClause) <|> pure (OffsetSelectLimit _a)
+    ]
+
+{-
+limit_clause:
+  | LIMIT select_limit_value
+  | LIMIT select_limit_value ',' select_offset_value
+  | FETCH first_or_next select_fetch_first_value row_or_rows ONLY
+  | FETCH first_or_next row_or_rows ONLY
+-}
+limitClause =
+  (do
+    try $ do
+      string' "limit"
+      space1
+    _a <- selectLimitValue
+    _b <- optional $ do
+      commaSeparator
+      aExpr
+    return (LimitLimitClause _a _b)
+  ) <|>
+  (do
+    try $ do
+      string' "fetch"
+      space1
+    _a <- firstOrNext
+    space1
+    _b <- optional (selectFetchFirstValue <* space1)
+    _c <- rowOrRows
+    space1
+    string' "only"
+    return (FetchOnlyLimitClause _a _b _c)
+  )
+
+offsetClause = do
+  try $ do
+    string' "offset"
+    space1
+  offsetClauseParams
+
+offsetClauseParams =
+  ExprOffsetClause <$> aExpr <|>
+  FetchFirstOffsetClause <$> selectFetchFirstValue <*> (space1 *> rowOrRows)
+
+{-
+select_limit_value:
+  | a_expr
+  | ALL
+-}
+selectLimitValue =
+  ExprSelectLimitValue <$> aExpr <|>
+  AllSelectLimitValue <$ string' "all"
+
+rowOrRows =
+  True <$ try (string' "rows") <|>
+  False <$ try (string' "row")
+
+firstOrNext =
+  False <$ try (string' "first") <|>
+  True <$ try (string' "next")
+
+selectFetchFirstValue =
+  ExprSelectFetchFirstValue <$> cExpr <|>
+  NumSelectFetchFirstValue <$> try (plusOrMinus <* space) <*> intOrFloat
+
+plusOrMinus = try $ False <$ char '+' <|> True <$ char '-'
+
+
+-- * For Locking
+-------------------------
+
+{-
+for_locking_clause:
+  | for_locking_items
+  | FOR READ ONLY
+for_locking_items:
+  | for_locking_item
+  | for_locking_items for_locking_item
+-}
+forLockingClause = readOnly <|> items where
+  readOnly = ReadOnlyForLockingClause <$ keyphrase "for read only"
+  items = ItemsForLockingClause <$> sepWithSpace1 forLockingItem
+
+{-
+for_locking_item:
+  | for_locking_strength locked_rels_list opt_nowait_or_skip
+locked_rels_list:
+  | OF qualified_name_list
+  | EMPTY
+opt_nowait_or_skip:
+  | NOWAIT
+  | SKIP LOCKED
+  | EMPTY
+-}
+forLockingItem = do
+  _strength <- forLockingStrength
+  _rels <- optional $ do
+    try $ space1 *> string' "of" *> space1
+    nonEmptyList qualifiedName
+  _nowaitOrSkip <- optional $ try $ do
+    space1
+    False <$ string' "nowait" <|> True <$ keyphrase "skip locked"
+  return (ForLockingItem _strength _rels _nowaitOrSkip)
+
+{-
+for_locking_strength:
+  | FOR UPDATE
+  | FOR NO KEY UPDATE
+  | FOR SHARE
+  | FOR KEY SHARE
+-}
+forLockingStrength =
+  UpdateForLockingStrength <$ try (string' "for update") <|>
+  NoKeyUpdateForLockingStrength <$ try (string' "for no key update") <|>
+  ShareForLockingStrength <$ try (string' "for share") <|>
+  KeyForLockingStrength <$ try (string' "for key share")
 
 
 -- * References & Names
@@ -869,14 +1115,14 @@ indirectionEl =
           asum
             [
               do
-                _a <- optional (try expr)
+                _a <- optional (try aExpr)
                 space
                 char ':'
                 space
-                _b <- optional (try expr)
+                _b <- optional (try aExpr)
                 return (SliceIndirectionEl _a _b)
               ,
-              ExprIndirectionEl <$> expr
+              ExprIndirectionEl <$> aExpr
             ]
         space
         char ']'

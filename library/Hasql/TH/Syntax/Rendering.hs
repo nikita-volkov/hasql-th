@@ -45,8 +45,88 @@ selectStmt = \ case
   NoParensSelectStmt a -> selectNoParens a
 
 selectNoParens :: SelectNoParens -> Builder
-selectNoParens = \ case
-  SimpleSelectNoParens a -> simpleSelect a
+selectNoParens (SelectNoParens a b c d e) =
+  optLexemes
+    [
+      fmap withClause a,
+      Just (selectClause b),
+      fmap sortClause c,
+      fmap selectLimit d,
+      fmap forLockingClause e
+    ]
+
+withClause (WithClause a b) =
+  "WITH " <> bool "" "RECURSIVE " a <> nonEmptyList commonTableExpr b
+
+commonTableExpr (CommonTableExpr a b c d) =
+  optLexemes
+    [
+      Just (name a),
+      fmap (nonEmptyList name) b,
+      Just "AS",
+      fmap materialization c,
+      Just (inParens (preparableStmt d))
+    ]
+
+materialization = bool "NOT MATERIALIZED" "MATERIALIZED"
+
+selectLimit = \ case
+  LimitOffsetSelectLimit a b -> lexemes [limitClause a, offsetClause b]
+  OffsetLimitSelectLimit a b -> lexemes [offsetClause a, limitClause b]
+  LimitSelectLimit a -> limitClause a
+  OffsetSelectLimit a -> offsetClause a
+
+limitClause = \ case
+  LimitLimitClause a b -> optLexemes [Just (selectLimitValue a), fmap expr b]
+  FetchOnlyLimitClause a b c ->
+    optLexemes
+      [
+        Just "FETCH",
+        Just (firstOrNext a),
+        fmap selectFetchFirstValue b,
+        Just (rowOrRows c),
+        Just "ONLY"
+      ]
+
+firstOrNext = bool "FIRST" "NEXT"
+
+rowOrRows = bool "ROW" "ROWS"
+
+selectFetchFirstValue = \ case
+  ExprSelectFetchFirstValue a -> expr a
+  NumSelectFetchFirstValue a b -> bool "+" "-" a <> intOrFloat b
+
+intOrFloat = either integerDec scientific
+
+selectLimitValue = \ case
+  ExprSelectLimitValue a -> expr a
+  AllSelectLimitValue -> "ALL"
+
+offsetClause = \ case
+  ExprOffsetClause a -> "OFFSET " <> expr a
+  FetchFirstOffsetClause a b -> "OFFSET " <> selectFetchFirstValue a <> " " <> rowOrRows b
+
+forLockingClause = \ case
+  ItemsForLockingClause a -> nonEmptyList forLockingItem a
+  ReadOnlyForLockingClause -> "FOR READ ONLY"
+
+forLockingItem (ForLockingItem a b c) =
+  optLexemes
+    [
+      Just (forLockingStrength a),
+      fmap lockedRelsList b,
+      fmap nowaitOrSkip c
+    ]
+
+forLockingStrength = \ case
+  UpdateForLockingStrength -> "FOR UPDATE"
+  NoKeyUpdateForLockingStrength -> "FOR NO KEY UPDATE"
+  ShareForLockingStrength -> "FOR SHARE"
+  KeyForLockingStrength -> "FOR KEY SHARE"
+
+lockedRelsList a = "OF " <> nonEmptyList qualifiedName a
+
+nowaitOrSkip = bool "NOWAIT" "SKIP LOCKED"
 
 selectClause :: SelectClause -> Builder
 selectClause = either simpleSelect selectNoParens

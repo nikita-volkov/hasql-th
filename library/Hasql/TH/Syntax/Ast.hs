@@ -61,7 +61,7 @@ select_no_parens:
 @
 -}
 data SelectNoParens =
-  SimpleSelectNoParens SimpleSelect
+  SelectNoParens (Maybe WithClause) SelectClause (Maybe SortClause) (Maybe SelectLimit) (Maybe ForLockingClause)
   deriving (Show, Eq, Ord)
 
 {-|
@@ -147,6 +147,10 @@ data WithClause = WithClause Bool (NonEmpty CommonTableExpr)
 {-
 common_table_expr:
   |  name opt_name_list AS opt_materialized '(' PreparableStmt ')'
+opt_materialized:
+  | MATERIALIZED
+  | NOT MATERIALIZED
+  | EMPTY
 -}
 data CommonTableExpr = CommonTableExpr Name (Maybe (NonEmpty Name)) (Maybe Bool) PreparableStmt
   deriving (Show, Eq, Ord)
@@ -367,6 +371,121 @@ data SortBy = SortBy Expr (Maybe Order)
   deriving (Show, Eq, Ord)
 
 data Order = AscOrder | DescOrder
+  deriving (Show, Eq, Ord)
+
+{-
+select_limit:
+  | limit_clause offset_clause
+  | offset_clause limit_clause
+  | limit_clause
+  | offset_clause
+-}
+data SelectLimit =
+  LimitOffsetSelectLimit LimitClause OffsetClause |
+  OffsetLimitSelectLimit OffsetClause LimitClause |
+  LimitSelectLimit LimitClause |
+  OffsetSelectLimit OffsetClause
+  deriving (Show, Eq, Ord)
+
+{-
+limit_clause:
+  | LIMIT select_limit_value
+  | LIMIT select_limit_value ',' select_offset_value
+  | FETCH first_or_next select_fetch_first_value row_or_rows ONLY
+  | FETCH first_or_next row_or_rows ONLY
+select_offset_value:
+  | a_expr
+first_or_next:
+  | FIRST_P
+  | NEXT
+row_or_rows:
+  | ROW
+  | ROWS
+-}
+data LimitClause =
+  LimitLimitClause SelectLimitValue (Maybe Expr) |
+  FetchOnlyLimitClause Bool (Maybe SelectFetchFirstValue) Bool
+  deriving (Show, Eq, Ord)
+
+{-
+select_fetch_first_value:
+  | c_expr
+  | '+' I_or_F_const
+  | '-' I_or_F_const
+-}
+data SelectFetchFirstValue =
+  ExprSelectFetchFirstValue Expr |
+  NumSelectFetchFirstValue Bool (Either Integer Scientific)
+  deriving (Show, Eq, Ord)
+
+{-
+select_limit_value:
+  | a_expr
+  | ALL
+-}
+data SelectLimitValue =
+  ExprSelectLimitValue Expr |
+  AllSelectLimitValue
+  deriving (Show, Eq, Ord)
+
+{-
+offset_clause:
+  | OFFSET select_offset_value
+  | OFFSET select_fetch_first_value row_or_rows
+select_offset_value:
+  | a_expr
+row_or_rows:
+  | ROW
+  | ROWS
+-}
+data OffsetClause =
+  ExprOffsetClause Expr |
+  FetchFirstOffsetClause SelectFetchFirstValue Bool
+  deriving (Show, Eq, Ord)
+
+
+-- * For Locking
+-------------------------
+
+{-
+for_locking_clause:
+  | for_locking_items
+  | FOR READ ONLY
+for_locking_items:
+  | for_locking_item
+  | for_locking_items for_locking_item
+-}
+data ForLockingClause =
+  ItemsForLockingClause (NonEmpty ForLockingItem) |
+  ReadOnlyForLockingClause
+  deriving (Show, Eq, Ord)
+
+{-
+for_locking_item:
+  | for_locking_strength locked_rels_list opt_nowait_or_skip
+locked_rels_list:
+  | OF qualified_name_list
+  | EMPTY
+opt_nowait_or_skip:
+  | NOWAIT
+  | SKIP LOCKED
+  | EMPTY
+-}
+data ForLockingItem = ForLockingItem ForLockingStrength (Maybe (NonEmpty QualifiedName)) (Maybe Bool)
+  deriving (Show, Eq, Ord)
+
+{-
+for_locking_strength:
+  | FOR UPDATE
+  | FOR NO KEY UPDATE
+  | FOR SHARE
+  | FOR KEY SHARE
+-}
+data ForLockingStrength =
+  UpdateForLockingStrength |
+  NoKeyUpdateForLockingStrength |
+  ShareForLockingStrength |
+  KeyForLockingStrength
   deriving (Show, Eq, Ord)
 
 
