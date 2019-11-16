@@ -152,4 +152,6 @@ uncheckedSqlFile = quoteFile uncheckedSql
 >>> :t [maybeStatement| select (password = $2 :: bytea) :: bool, id :: int4 from "user" where "email" = $1 :: text |]
 [maybeStatement| select (password = $2 :: bytea) :: bool, id :: int4 from "user" where "email" = $1 :: text |]
   :: Statement (Text, ByteString) (Maybe (Bool, Int32))
+
+>>> :t [maybeStatement| select id :: int4 from application where pub_key = $1 :: uuid and sec_key_pt1 = $2 :: int8 and sec_key_pt2 = $4 |]
 -}
