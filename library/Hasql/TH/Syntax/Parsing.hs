@@ -1268,7 +1268,6 @@ indirectionEl =
         char ']'
         return _a
     ]
-    <?> "indirection element"
 
 {-
 attr_name:
