@@ -373,6 +373,15 @@ windowDefinition = error "TODO"
 -- * Table refs
 -------------------------
 
+{-|
+>>> testParser tableRef "a left join b "
+...
+expecting "on", "using", or white space
+
+>>> testParser tableRef "a left join b on (a.i = b.i)"
+JoinTableRef (MethJoinedTable (QualJoinMeth...
+
+-}
 {-
 | relation_expr opt_alias_clause
 | relation_expr opt_alias_clause tablesample_clause
@@ -385,22 +394,61 @@ windowDefinition = error "TODO"
 | joined_table
 | '(' joined_table ')' alias_clause
 
-TODO: Add support for joins, inner selects and ctes.
+TODO: Add support for missing cases.
 -}
 tableRef :: Parser TableRef
-tableRef = label "table reference" $ relationExprTableRef
+tableRef = label "table reference" $ do
+  _tr <- nonTrailingTableRef
+  trailingTableRef _tr <|> pure _tr
+  where
+    
+    nonTrailingTableRef = asum [
+        relationExprTableRef <|>
+        lateralTableRef <|> nonLateralTableRef <|>
+        inParensJoinedTableTableRef <|>
+        joinedTableWithAliasTableRef
+      ]
+      where
+        
+        {-
+        | relation_expr opt_alias_clause
+        | relation_expr opt_alias_clause tablesample_clause
 
-{-
-| relation_expr opt_alias_clause
-| relation_expr opt_alias_clause tablesample_clause
+        TODO: Add support for TABLESAMPLE.
+        -}
+        relationExprTableRef = do
+          _relationExpr <- try $ relationExpr
+          _optAliasClause <- optional $ try $ space1 *> aliasClause
+          return (RelationExprTableRef _relationExpr _optAliasClause)
 
-TODO: Add support for TABLESAMPLE.
--}
-relationExprTableRef :: Parser TableRef
-relationExprTableRef = do
-  _relationExpr <- try $ relationExpr
-  _optAliasClause <- optional $ try $ space1 *> aliasClause
-  return (RelationExprTableRef _relationExpr _optAliasClause)
+        {-
+        | LATERAL_P func_table func_alias_clause
+        | LATERAL_P xmltable opt_alias_clause
+        | LATERAL_P select_with_parens opt_alias_clause
+        -}
+        lateralTableRef = do
+          try $ do
+            string' "lateral"
+            space1
+          selectWithParensTableRef True
+
+        nonLateralTableRef = selectWithParensTableRef False
+
+        selectWithParensTableRef _lateral = do
+          _select <- selectWithParens
+          _optAliasClause <- optional $ try $ space1 *> aliasClause
+          return (SelectTableRef _lateral _select _optAliasClause)
+
+        inParensJoinedTableTableRef = JoinTableRef <$> inParensJoinedTable <*> pure Nothing
+
+        joinedTableWithAliasTableRef = do
+          _joinedTable <- inParens joinedTable
+          space1
+          _alias <- aliasClause
+          return (JoinTableRef _joinedTable (Just _alias))
+
+    trailingTableRef _tableRef =
+      JoinTableRef <$> tableRefJoinedTableAfterSpace _tableRef <*> pure Nothing
 
 {-
 | qualified_name
@@ -410,6 +458,7 @@ relationExprTableRef = do
 -}
 relationExpr :: Parser RelationExpr
 relationExpr =
+  label "relation expression" $
   asum
     [
       do
@@ -430,6 +479,82 @@ relationExpr =
         _name <- qualifiedName
         return (OnlyRelationExpr _name False) 
     ]
+
+joinedTable =
+  asum [
+      inParensJoinedTable,
+      do
+        _tr1 <- tableRef
+        tableRefJoinedTableAfterSpace _tr1
+    ]
+
+{-
+  | '(' joined_table ')'
+-}
+inParensJoinedTable = InParensJoinedTable <$> inParens joinedTable
+
+{-
+  | table_ref CROSS JOIN table_ref
+  | table_ref join_type JOIN table_ref join_qual
+  | table_ref JOIN table_ref join_qual
+  | table_ref NATURAL join_type JOIN table_ref
+  | table_ref NATURAL JOIN table_ref
+-}
+tableRefJoinedTableAfterSpace _tr1 = asum $
+  [
+    do
+      try $ space1 *> keyphrase "cross join"
+      space1
+      _tr2 <- tableRef
+      return (MethJoinedTable CrossJoinMeth _tr1 _tr2)
+    ,
+    do
+      _jt <- joinTypedJoinAfterSpace
+      space1
+      _tr2 <- tableRef
+      space1
+      _jq <- joinQual
+      return (MethJoinedTable (QualJoinMeth _jt _jq) _tr1 _tr2)
+    ,
+    do
+      try $ space1 *> string' "natural"
+      _jt <- joinTypedJoinAfterSpace
+      space1
+      _tr2 <- tableRef
+      return (MethJoinedTable (NaturalJoinMeth _jt) _tr1 _tr2)
+  ]
+  where
+    joinTypedJoinAfterSpace =
+      Just <$> (try (space1 *> joinType <* space1) <* string' "join") <|>
+      Nothing <$ try (space1 *> string' "join")
+
+joinType = asum [
+    do
+      string' "full"
+      _outer <- outerAfterSpace
+      return (FullJoinType _outer)
+    ,
+    do
+      string' "left"
+      _outer <- outerAfterSpace
+      return (LeftJoinType _outer)
+    ,
+    do
+      string' "right"
+      _outer <- outerAfterSpace
+      return (RightJoinType _outer)
+    ,
+    string' "inner" $> InnerJoinType
+  ]
+  where
+    outerAfterSpace = try (space1 *> string' "outer") $> True <|> pure False
+
+joinQual = asum
+  [
+    string' "using" *> space1 *> inParens (nonEmptyList colId) <&> UsingJoinQual
+    ,
+    string' "on" *> space1 *> aExpr <&> OnJoinQual
+  ]
 
 {-
 alias_clause:
