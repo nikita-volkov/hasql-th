@@ -1255,11 +1255,9 @@ indirectionEl =
           asum
             [
               do
-                _a <- optional (try aExpr)
+                _a <- try (optional aExpr <* space <* char ':')
                 space
-                char ':'
-                space
-                _b <- optional (try aExpr)
+                _b <- optional aExpr
                 return (SliceIndirectionEl _a _b)
               ,
               ExprIndirectionEl <$> aExpr
