@@ -689,7 +689,7 @@ Composite on the left:
 BinOpExpr "=" (PlaceholderExpr 1) (BinOpExpr "and" (TypecastExpr (PlaceholderExpr 2) (Type "int4" False 0 False)) (PlaceholderExpr 3))
 -}
 aExpr :: Parser Expr
-aExpr = do
+aExpr = label "expression" $ do
   _left <- nonLoopingExpr
   loopingExpr _left <|> pure _left
 
