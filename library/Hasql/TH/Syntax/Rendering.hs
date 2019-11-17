@@ -5,9 +5,20 @@ import Hasql.TH.Syntax.Ast
 import Data.ByteString.FastBuilder
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text
 import qualified Data.ByteString.Builder.Scientific as Scientific
 import qualified Data.ByteString.Builder as BsBuilder
 import qualified Data.ByteString.Lazy as LazyBs
+
+
+-- * Execution
+-------------------------
+
+toByteString :: Builder -> ByteString
+toByteString = toStrictByteString
+
+toText :: Builder -> Text
+toText = Text.decodeUtf8 . toByteString
 
 
 -- * Helpers

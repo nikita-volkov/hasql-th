@@ -9,7 +9,6 @@ import qualified Hasql.TH.Syntax.Projections.OutputTypeList as OutputTypeList
 import qualified Hasql.TH.Syntax.Rendering as Rendering
 import qualified Hasql.Encoders as Encoders
 import qualified Hasql.Decoders as Decoders
-import qualified Data.ByteString.FastBuilder as FastBuilder
 import qualified Text.Megaparsec as Megaparsec
 
 
@@ -26,7 +25,7 @@ statement _quote = do
   _outputTypeList <- OutputTypeList.preparableStmt _preparableStmt
   _encoderList <- traverse encoder _inputTypeList
   _decoderList <- traverse decoder _outputTypeList
-  let _sql = FastBuilder.toStrictByteString (Rendering.preparableStmt _preparableStmt)
+  let _sql = Rendering.toByteString (Rendering.preparableStmt _preparableStmt)
   return (Statement _sql _encoderList _decoderList)
 
 rowlessStatement :: Text -> Either Text Statement
@@ -34,7 +33,7 @@ rowlessStatement _quote = do
   _preparableStmt <- ast _quote
   _inputTypeList <- InputTypeList.preparableStmt _preparableStmt
   _encoderList <- traverse encoder _inputTypeList
-  let _sql = FastBuilder.toStrictByteString (Rendering.preparableStmt _preparableStmt)
+  let _sql = Rendering.toByteString (Rendering.preparableStmt _preparableStmt)
   return (Statement _sql _encoderList [])
 
 ast :: Text -> Either Text PreparableStmt
