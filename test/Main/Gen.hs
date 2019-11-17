@@ -254,7 +254,6 @@ expr = choice [
     TypecastExpr <$> expr <*> type_,
     BinOpExpr <$> binOp <*> expr <*> expr,
     EscapableBinOpExpr <$> bool <*> escapableBinOp <*> expr <*> expr <*> maybe expr,
-    BetweenExpr <$> bool <*> expr <*> expr,
     pure DefaultExpr,
     QualifiedNameExpr <$> qualifiedName,
     LiteralExpr <$> literal,

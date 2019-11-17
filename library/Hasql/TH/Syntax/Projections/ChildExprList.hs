@@ -172,7 +172,6 @@ expr = \ case
   TypecastExpr a _ -> [a]
   BinOpExpr _ a b -> [a, b]
   EscapableBinOpExpr _ _ a b c -> [a, b] <> maybeToList c
-  BetweenExpr _ a b -> [a, b]
   DefaultExpr -> []
   QualifiedNameExpr a -> qualifiedName a
   LiteralExpr a -> literal a

@@ -367,11 +367,18 @@ expr = \ case
   PlaceholderExpr a -> "$" <> intDec a
   TypecastExpr a b -> expr a <> " :: " <> type_ b
   BinOpExpr a b c -> expr b <> " " <> text a <> " " <> expr c
+  EscapableBinOpExpr a b c d e -> optLexemes [
+      Just (expr c),
+      if a then Just "NOT" else Nothing,
+      Just (text b),
+      Just (expr d),
+      fmap (mappend "ESCAPE " . expr) e
+    ]
+  DefaultExpr -> "DEFAULT"
   QualifiedNameExpr a -> qualifiedName a
   LiteralExpr a -> literal a
   InParensExpr a b -> "(" <> expr a <> ")" <> foldMap (mappend " " . indirection) b
-  CaseExpr a b c ->
-    optLexemes [
+  CaseExpr a b c -> optLexemes [
       Just "CASE",
       fmap expr a,
       Just (nonEmptyList whenClause b),

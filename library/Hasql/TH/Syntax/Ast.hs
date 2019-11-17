@@ -619,7 +619,6 @@ data Expr =
   TypecastExpr Expr Type |
   BinOpExpr Text Expr Expr |
   EscapableBinOpExpr Bool Text Expr Expr (Maybe Expr) |
-  BetweenExpr Bool Expr Expr |
   DefaultExpr |
   QualifiedNameExpr QualifiedName |
   LiteralExpr Literal |
