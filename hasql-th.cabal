@@ -54,3 +54,43 @@ library
     unordered-containers >=0.2.10 && <0.3,
     uuid >=1.3 && <2,
     vector >=0.12 && <0.13
+
+test-suite test
+  type: exitcode-stdio-1.0
+  hs-source-dirs: test, library
+  default-extensions: Arrows, BangPatterns, ConstraintKinds, DataKinds, DefaultSignatures, DeriveDataTypeable, DeriveFoldable, DeriveFunctor, DeriveGeneric, DeriveTraversable, DuplicateRecordFields, EmptyDataDecls, FlexibleContexts, FlexibleInstances, FunctionalDependencies, GADTs, GeneralizedNewtypeDeriving, LambdaCase, LiberalTypeSynonyms, MagicHash, MultiParamTypeClasses, MultiWayIf, NoImplicitPrelude, NoMonomorphismRestriction, OverloadedStrings, PatternGuards, ParallelListComp, QuasiQuotes, RankNTypes, RecordWildCards, ScopedTypeVariables, StandaloneDeriving, TemplateHaskell, TupleSections, TypeFamilies, TypeOperators, UnboxedTuples
+  default-language: Haskell2010
+  main-is: Main.hs
+  other-modules:
+    Hasql.TH.Prelude
+    Hasql.TH.Syntax.Ast
+    Hasql.TH.Syntax.HashSet
+    Hasql.TH.Syntax.Extraction
+    Hasql.TH.Syntax.Parsing
+    Hasql.TH.Syntax.Predicate
+    Hasql.TH.Syntax.Projections.ChildExprList
+    Hasql.TH.Syntax.Projections.InputTypeList
+    Hasql.TH.Syntax.Projections.OutputTypeList
+    Hasql.TH.Syntax.Projections.PlaceholderTypeMap
+    Hasql.TH.Syntax.Rendering
+    Main.Gen
+  build-depends:
+    base,
+    bytestring,
+    containers,
+    contravariant,
+    fast-builder,
+    foldl,
+    hashable,
+    hasql,
+    hedgehog >=1.0.1 && <2,
+    megaparsec,
+    parser-combinators,
+    scientific,
+    template-haskell,
+    text,
+    text-builder,
+    tuple-th,
+    unordered-containers,
+    uuid,
+    vector

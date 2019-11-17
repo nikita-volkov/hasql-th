@@ -47,6 +47,13 @@ import qualified Text.Builder as TextBuilder
 type Parser = Parsec Void Text
 
 
+-- * Executors
+-------------------------
+
+parse :: Parser a -> Text -> Either Text a
+parse p = first (fromString . errorBundlePretty) . runParser (p <* eof) ""
+
+
 -- * Helpers
 -------------------------
 

@@ -9,7 +9,6 @@ import qualified Hasql.TH.Syntax.Projections.OutputTypeList as OutputTypeList
 import qualified Hasql.TH.Syntax.Rendering as Rendering
 import qualified Hasql.Encoders as Encoders
 import qualified Hasql.Decoders as Decoders
-import qualified Text.Megaparsec as Megaparsec
 
 
 data Statement = Statement ByteString [Encoder] [Decoder]
@@ -37,7 +36,7 @@ rowlessStatement _quote = do
   return (Statement _sql _encoderList [])
 
 ast :: Text -> Either Text PreparableStmt
-ast = first (fromString . Megaparsec.errorBundlePretty) . Megaparsec.runParser (Parsing.quasiQuote Parsing.preparableStmt) ""
+ast = Parsing.parse (Parsing.quasiQuote Parsing.preparableStmt)
 
 encoder :: Type -> Either Text Encoder
 encoder (Type _name _nullable _dimensions _arrayNullable) =
