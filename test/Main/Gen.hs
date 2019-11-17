@@ -378,7 +378,9 @@ floatLiteral = realFrac_ (Range.linearFracFrom 0 (-97234095729345740293579345) 3
 -- * Types
 -------------------------
 
-type_ = Type <$> typeName <*> bool <*> arrayDimensionsAmount <*> bool
+type_ = Type <$> typeName <*> nullable <*> arrayDimensionsAmount <*> nullable
+
+nullable = pure False
 
 arrayDimensionsAmount = int (Range.exponential 0 4)
 
