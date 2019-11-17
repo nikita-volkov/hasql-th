@@ -1184,6 +1184,14 @@ colLabel = ident <|> keywordNameFromSet HashSet.keyword
 {-|
 >>> testParser qualifiedName "a.b"
 IndirectedQualifiedName (UnquotedName "a") (AttrNameIndirectionEl (UnquotedName "b") :| [])
+
+>>> testParser qualifiedName "a-"
+...
+expecting '.', '[', or end of input
+
+>>> testParser qualifiedName "a.-"
+...
+expecting '*', keyword, quoted name, or white space
 -}
 {-
 qualified_name:
@@ -1246,11 +1254,13 @@ indirectionEl =
   asum
     [
       do
-        try (space *> char '.' *> space)
+        char '.'
+        space
         AllIndirectionEl <$ char '*' <|> AttrNameIndirectionEl <$> attrName
       ,
       do
-        try (space *> char '[' *> space)
+        char '['
+        space
         _a <-
           asum
             [
