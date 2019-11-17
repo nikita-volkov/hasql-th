@@ -706,20 +706,48 @@ data Literal =
   FloatLiteral Scientific |
   StringLiteral Text |
   BitLiteral Text |
-  NamedLiteral Text Text |
-  IntervalLiteral Interval |
+  NamedLiteral Name Text |
+  StringIntervalLiteral Text (Maybe Interval) |
+  IntIntervalLiteral Integer Text |
   BoolLiteral Bool |
   NullLiteral
   deriving (Show, Generic, Eq, Ord)
 
 {-
-| ConstInterval Sconst opt_interval
-| ConstInterval '(' Iconst ')' Sconst
+opt_interval:
+  | YEAR_P
+  | MONTH_P
+  | DAY_P
+  | HOUR_P
+  | MINUTE_P
+  | interval_second
+  | YEAR_P TO MONTH_P
+  | DAY_P TO HOUR_P
+  | DAY_P TO MINUTE_P
+  | DAY_P TO interval_second
+  | HOUR_P TO MINUTE_P
+  | HOUR_P TO interval_second
+  | MINUTE_P TO interval_second
+  | EMPTY
 -}
 data Interval =
-  StringInterval Text (Maybe Text) |
-  IntInterval Integer Text
+  YearInterval | MonthInterval | DayInterval | HourInterval | MinuteInterval |
+  SecondInterval IntervalSecond |
+  YearToMonthInterval |
+  DayToHourInterval |
+  DayToMinuteInterval |
+  DayToSecondInterval IntervalSecond |
+  HourToMinuteInterval |
+  HourToSecondInterval IntervalSecond |
+  MinuteToSecondInterval IntervalSecond
   deriving (Show, Generic, Eq, Ord)
+
+{-
+interval_second:
+  | SECOND_P
+  | SECOND_P '(' Iconst ')'
+-}
+type IntervalSecond = Maybe Integer
 
 
 -- * Type

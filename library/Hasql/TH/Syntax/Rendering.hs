@@ -437,9 +437,37 @@ literal :: Literal -> Builder
 literal = \ case
   IntLiteral a -> integerDec a
   FloatLiteral a -> scientific a
-  StringLiteral a -> "'" <> text (Text.replace "'" "''" a) <> "'"
+  StringLiteral a -> stringLiteral a
+  BitLiteral a -> "B'" <> text a <> "'"
+  NamedLiteral a b -> name a <> " " <> stringLiteral b
+  StringIntervalLiteral a b -> "INTERVAL " <> stringLiteral a <> foldMap (mappend " " . interval) b
+  IntIntervalLiteral a b -> "INTERVAL " <> inParens (integerDec a) <> " " <> stringLiteral b
   BoolLiteral a -> if a then "TRUE" else "FALSE"
   NullLiteral -> "NULL"
+
+stringLiteral :: Text -> Builder
+stringLiteral a = "'" <> text (Text.replace "'" "''" a) <> "'"
+
+interval :: Interval -> Builder
+interval = \ case
+  YearInterval -> "YEAR"
+  MonthInterval -> "MONTH"
+  DayInterval -> "DAY"
+  HourInterval -> "HOUR"
+  MinuteInterval -> "MINUTE"
+  SecondInterval a -> intervalSecond a
+  YearToMonthInterval -> "YEAR TO MONTH"
+  DayToHourInterval -> "DAY TO HOUR"
+  DayToMinuteInterval -> "DAY TO MINUTE"
+  DayToSecondInterval a -> "DAY TO " <> intervalSecond a
+  HourToMinuteInterval -> "HOUR TO MINUTE"
+  HourToSecondInterval a -> "HOUR TO " <> intervalSecond a
+  MinuteToSecondInterval a -> "MINUTE TO " <> intervalSecond a
+
+intervalSecond :: IntervalSecond -> Builder
+intervalSecond = \ case
+  Nothing -> "SECOND" 
+  Just a -> "SECOND " <> inParens (integerDec a)
 
 
 -- * Names and refs

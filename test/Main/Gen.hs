@@ -214,7 +214,7 @@ limitClause = choice [
 
 selectFetchFirstValue = choice [
     ExprSelectFetchFirstValue <$> expr,
-    NumSelectFetchFirstValue <$> bool <*> intOrFloat
+    NumSelectFetchFirstValue <$> bool <*> intOrFloatLiteral
   ]
 
 selectLimitValue = choice [
@@ -296,25 +296,41 @@ funcArgExpr = choice [
 
 {- TODO: Add missing cases -}
 literal = choice [
-    IntLiteral <$> int_,
-    FloatLiteral <$> float_,
-    StringLiteral <$> text (Range.exponential 0 1000) unicode,
+    IntLiteral <$> intLiteral,
+    FloatLiteral <$> floatLiteral,
+    StringLiteral <$> stringLiteral,
     BitLiteral <$> text (Range.exponential 1 100) (element "01"),
-    IntervalLiteral <$> interval,
+    StringIntervalLiteral <$> stringLiteral <*> maybe interval,
+    IntIntervalLiteral <$> integral (Range.exponential 0 2309482309483029) <*> stringLiteral,
     BoolLiteral <$> bool,
     pure NullLiteral
   ]
 
 interval = choice [
-    StringInterval <$> identifier <*> maybe identifier,
-    IntInterval <$> integral (Range.exponential 0 2309482309483029) <*> identifier
+    pure YearInterval,
+    pure MonthInterval,
+    pure DayInterval,
+    pure HourInterval,
+    pure MinuteInterval,
+    SecondInterval <$> intervalSecond,
+    pure YearToMonthInterval,
+    pure DayToHourInterval,
+    pure DayToMinuteInterval,
+    DayToSecondInterval <$> intervalSecond,
+    pure HourToMinuteInterval,
+    HourToSecondInterval <$> intervalSecond,
+    MinuteToSecondInterval <$> intervalSecond
   ]
 
-intOrFloat = choice [Left <$> int_ <|> Right <$> float_]
+intervalSecond = maybe intLiteral
 
-int_ = integral (Range.exponentialFrom 0 (-97234095729345740293579345) 309457394857984375983475943)
+stringLiteral = text (Range.exponential 0 1000) unicode
 
-float_ = realFrac_ (Range.linearFracFrom 0 (-97234095729345740293579345) 309457394857984375983475943)
+intOrFloatLiteral = choice [Left <$> intLiteral <|> Right <$> floatLiteral]
+
+intLiteral = integral (Range.exponentialFrom 0 (-97234095729345740293579345) 309457394857984375983475943)
+
+floatLiteral = realFrac_ (Range.linearFracFrom 0 (-97234095729345740293579345) 309457394857984375983475943)
 
 
 -- * Types
