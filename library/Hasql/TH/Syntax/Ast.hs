@@ -21,7 +21,7 @@ PreparableStmt:
 -}
 data PreparableStmt = 
   SelectPreparableStmt SelectStmt
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 
 -- * Select
@@ -43,7 +43,7 @@ select_with_parens:
 data SelectStmt =
   InParensSelectStmt SelectStmt |
   NoParensSelectStmt SelectNoParens
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-|
 Covers the following cases:
@@ -62,7 +62,7 @@ select_no_parens:
 -}
 data SelectNoParens =
   SelectNoParens (Maybe WithClause) SelectClause (Maybe SortClause) (Maybe SelectLimit) (Maybe ForLockingClause)
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-|
 @
@@ -93,7 +93,7 @@ data SimpleSelect =
   NormalSimpleSelect (Maybe Targeting) (Maybe IntoClause) (Maybe FromClause) (Maybe WhereClause) (Maybe GroupClause) (Maybe HavingClause) (Maybe WindowClause) |
   ValuesSimpleSelect ValuesClause |
   BinSimpleSelect SelectBinOp SelectClause AllOrDistinct SelectClause
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-|
 Covers these parts of spec:
@@ -116,7 +116,7 @@ data Targeting =
   NormalTargeting (NonEmpty Target) |
   AllTargeting (Maybe (NonEmpty Target)) |
   DistinctTargeting (Maybe (NonEmpty Expr)) (NonEmpty Target)
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-|
 @
@@ -130,10 +130,10 @@ target_el:
 data Target =
   AllTarget |
   ExprTarget Expr (Maybe Name)
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 data SelectBinOp = UnionSelectBinOp | IntersectSelectBinOp | ExceptSelectBinOp
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-
 with_clause:
@@ -142,7 +142,7 @@ with_clause:
   |  WITH RECURSIVE cte_list
 -}
 data WithClause = WithClause Bool (NonEmpty CommonTableExpr)
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-
 common_table_expr:
@@ -153,7 +153,7 @@ opt_materialized:
   | EMPTY
 -}
 data CommonTableExpr = CommonTableExpr Name (Maybe (NonEmpty Name)) (Maybe Bool) PreparableStmt
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 type IntoClause = OptTempTableName
 
@@ -181,7 +181,7 @@ OptTempTableName:
 @
 -}
 data OptTempTableName = OptTempTableName Bool Bool QualifiedName
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 type FromClause = NonEmpty TableRef
 
@@ -213,7 +213,7 @@ data GroupByItem =
   RollupGroupByItem (NonEmpty Expr) |
   CubeGroupByItem (NonEmpty Expr) |
   GroupingSetsGroupByItem (NonEmpty GroupByItem)
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-|
 @
@@ -244,7 +244,7 @@ window_definition:
 @
 -}
 data WindowDefinition = WindowDefinition Name WindowSpecification
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-|
 @
@@ -262,7 +262,7 @@ opt_partition_clause:
 @
 -}
 data WindowSpecification = WindowSpecification (Maybe Name) (Maybe (NonEmpty Expr)) (Maybe SortClause) (Maybe FrameClause)
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-|
 @
@@ -274,7 +274,7 @@ opt_frame_clause:
 @
 -}
 data FrameClause = FrameClause FrameClauseMode FrameExtent (Maybe WindowExclusionClause)
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-|
 @
@@ -286,7 +286,7 @@ opt_frame_clause:
 @
 -}
 data FrameClauseMode = RangeFrameClauseMode | RowsFrameClauseMode | GroupsFrameClauseMode
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-|
 @
@@ -296,7 +296,7 @@ frame_extent:
 @
 -}
 data FrameExtent = SingularFrameExtent FrameBound | BetweenFrameExtent FrameBound FrameBound
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-|
 @
@@ -314,7 +314,7 @@ data FrameBound =
   CurrentRowFrameBound |
   PrecedingFrameBound Expr |
   FollowingFrameBound Expr
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-|
 @
@@ -331,7 +331,7 @@ data WindowExclusionClause =
   GroupWindowExclusionClause |
   TiesWindowExclusionClause |
   NoOthersWindowExclusionClause
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-|
 @
@@ -355,7 +355,7 @@ sortby_list:
 type SortClause = NonEmpty SortBy
 
 data AllOrDistinct = AllAllOrDistinct | DistinctAllOrDistinct
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-|
 @
@@ -368,10 +368,10 @@ TODO: Add qual_all_Op support
 TODO: Add opt_nulls_order support
 -}
 data SortBy = SortBy Expr (Maybe Order)
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 data Order = AscOrder | DescOrder
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-
 select_limit:
@@ -385,7 +385,7 @@ data SelectLimit =
   OffsetLimitSelectLimit OffsetClause LimitClause |
   LimitSelectLimit LimitClause |
   OffsetSelectLimit OffsetClause
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-
 limit_clause:
@@ -405,7 +405,7 @@ row_or_rows:
 data LimitClause =
   LimitLimitClause SelectLimitValue (Maybe Expr) |
   FetchOnlyLimitClause Bool (Maybe SelectFetchFirstValue) Bool
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-
 select_fetch_first_value:
@@ -416,7 +416,7 @@ select_fetch_first_value:
 data SelectFetchFirstValue =
   ExprSelectFetchFirstValue Expr |
   NumSelectFetchFirstValue Bool (Either Integer Scientific)
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-
 select_limit_value:
@@ -426,7 +426,7 @@ select_limit_value:
 data SelectLimitValue =
   ExprSelectLimitValue Expr |
   AllSelectLimitValue
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-
 offset_clause:
@@ -441,7 +441,7 @@ row_or_rows:
 data OffsetClause =
   ExprOffsetClause Expr |
   FetchFirstOffsetClause SelectFetchFirstValue Bool
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 
 -- * For Locking
@@ -458,7 +458,7 @@ for_locking_items:
 data ForLockingClause =
   ItemsForLockingClause (NonEmpty ForLockingItem) |
   ReadOnlyForLockingClause
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-
 for_locking_item:
@@ -472,7 +472,7 @@ opt_nowait_or_skip:
   | EMPTY
 -}
 data ForLockingItem = ForLockingItem ForLockingStrength (Maybe (NonEmpty QualifiedName)) (Maybe Bool)
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-
 for_locking_strength:
@@ -486,7 +486,7 @@ data ForLockingStrength =
   NoKeyUpdateForLockingStrength |
   ShareForLockingStrength |
   KeyForLockingStrength
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 
 -- * Table references and joining
@@ -522,7 +522,7 @@ data TableRef =
   | '(' joined_table ')' alias_clause
   -}
   JoinTableRef JoinedTable (Maybe AliasClause)
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-
 | qualified_name
@@ -533,7 +533,7 @@ data TableRef =
 data RelationExpr =
   SimpleRelationExpr QualifiedName Bool |
   OnlyRelationExpr QualifiedName Bool
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-
 alias_clause:
@@ -543,7 +543,7 @@ alias_clause:
   |  ColId
 -}
 data AliasClause = AliasClause Name (Maybe (NonEmpty Name))
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-
 | '(' joined_table ')'
@@ -558,7 +558,7 @@ The options are covered by the `JoinMeth` type.
 data JoinedTable =
   InParensJoinedTable JoinedTable |
   MethJoinedTable JoinMeth TableRef TableRef
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-
 | table_ref CROSS JOIN table_ref
@@ -571,7 +571,7 @@ data JoinMeth =
   CrossJoinMeth |
   QualJoinMeth (Maybe JoinType) JoinQual |
   NaturalJoinMeth (Maybe JoinType)
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-
 | FULL join_outer
@@ -584,7 +584,7 @@ data JoinType =
   LeftJoinType Bool |
   RightJoinType Bool |
   InnerJoinType
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-
 join_qual:
@@ -594,7 +594,7 @@ join_qual:
 data JoinQual =
   UsingJoinQual (NonEmpty Name) |
   OnJoinQual Expr
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 
 -- * Where
@@ -608,7 +608,7 @@ type WhereClause = Expr
 | /*EMPTY*/
 -}
 newtype WhereOrCurrentClause = WhereOrCurrentClause (Maybe (Either Expr Name))
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 
 -- * Expression
@@ -640,14 +640,14 @@ data Expr =
   ExistsSelectExpr SelectNoParens |
   ArraySelectExpr SelectNoParens |
   GroupingExpr (NonEmpty Expr)
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-
 when_clause:
   |  WHEN a_expr THEN a_expr
 -}
 data WhenClause = WhenClause Expr Expr
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-
 func_application:
@@ -660,7 +660,7 @@ func_application:
   |  func_name '(' '*' ')'
 -}
 data FuncApplication = FuncApplication QualifiedName (Maybe FuncApplicationParams)
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-
 func_application:
@@ -676,13 +676,13 @@ data FuncApplicationParams =
   NormalFuncApplicationParams (Maybe AllOrDistinct) (NonEmpty FuncArgExpr) (Maybe SortClause) |
   VariadicFuncApplicationParams (Maybe (NonEmpty FuncArgExpr)) FuncArgExpr (Maybe SortClause) |
   StarFuncApplicationParams
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 data FuncArgExpr =
   ExprFuncArgExpr Expr |
   ColonEqualsFuncArgExpr Name Expr |
   EqualsGreaterFuncArgExpr Name Expr
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-|
 AexprConst:
@@ -709,7 +709,7 @@ data Literal =
   IntervalLiteral Interval |
   BoolLiteral Bool |
   NullLiteral
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-
 | ConstInterval Sconst opt_interval
@@ -718,7 +718,7 @@ data Literal =
 data Interval =
   StringInterval Text (Maybe Text) |
   IntInterval Integer Text
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 
 -- * Type
@@ -733,14 +733,14 @@ Consists of:
 - Array nullability marker
 -}
 data Type = Type Text Bool Int Bool
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 
 -- * Names & References
 -------------------------
 
 data Name = QuotedName Text | UnquotedName Text
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-
 columnref:
@@ -753,7 +753,7 @@ qualified_name:
 data QualifiedName =
   SimpleQualifiedName Name |
   IndirectedQualifiedName Name Indirection
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
 
 {-
 indirection:
@@ -777,4 +777,4 @@ data IndirectionEl =
   AllIndirectionEl |
   ExprIndirectionEl Expr |
   SliceIndirectionEl (Maybe Expr) (Maybe Expr)
-  deriving (Show, Eq, Ord)
+  deriving (Show, Generic, Eq, Ord)
