@@ -391,8 +391,8 @@ arrayDimensionsAmount = int (Range.exponential 0 4)
 typeName = identifier
 
 identifier = do
-  a <- element "abcdefghiklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
-  b <- text (Range.linear 1 29) (element "abcdefghiklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$_")
+  a <- element "abcdefghiklmnopqrstuvwxyz_"
+  b <- text (Range.linear 1 29) (element "abcdefghiklmnopqrstuvwxyz0123456789$_")
   return (Text.cons a b)
 
 name = choice [

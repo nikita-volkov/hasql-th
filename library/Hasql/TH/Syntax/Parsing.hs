@@ -1450,7 +1450,7 @@ keyword :: Parser Text
 keyword = label "keyword" $ try $ do
   _firstChar <- satisfy Predicate.firstIdentifierChar
   _remainder <- takeWhileP Nothing Predicate.notFirstIdentifierChar
-  return (Text.cons _firstChar _remainder)
+  return (Text.toLower (Text.cons _firstChar _remainder))
 
 {-|
 Consume a keyphrase, ignoring case and types of spaces between words.
