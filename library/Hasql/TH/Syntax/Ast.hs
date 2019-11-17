@@ -700,18 +700,145 @@ AexprConst:
   |  FALSE_P
   |  NULL_P
 -}
-{- TODO: Add missing cases -}
 data Literal =
   IntLiteral Integer |
   FloatLiteral Scientific |
   StringLiteral Text |
   BitLiteral Text |
-  NamedLiteral Name Text |
+  HexLiteral Text |
+  FuncLiteral QualifiedName (Maybe FuncLiteralArgList) Text |
+  ConstTypenameLiteral ConstTypename Text |
   StringIntervalLiteral Text (Maybe Interval) |
   IntIntervalLiteral Integer Text |
   BoolLiteral Bool |
   NullLiteral
   deriving (Show, Generic, Eq, Ord)
+
+data FuncLiteralArgList = FuncLiteralArgList (NonEmpty FuncArgExpr) (Maybe SortClause)
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+ConstTypename:
+  | Numeric
+  | ConstBit
+  | ConstCharacter
+  | ConstDatetime
+-}
+data ConstTypename =
+  NumericConstTypename Numeric |
+  ConstBitConstTypename ConstBit |
+  ConstCharacterConstTypename ConstCharacter |
+  ConstDatetimeConstTypename ConstDatetime
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+Numeric:
+  | INT_P
+  | INTEGER
+  | SMALLINT
+  | BIGINT
+  | REAL
+  | FLOAT_P opt_float
+  | DOUBLE_P PRECISION
+  | DECIMAL_P opt_type_modifiers
+  | DEC opt_type_modifiers
+  | NUMERIC opt_type_modifiers
+  | BOOLEAN_P
+opt_float:
+  | '(' Iconst ')'
+  | EMPTY
+opt_type_modifiers:
+  | '(' expr_list ')'
+  | EMPTY
+-}
+data Numeric =
+  IntNumeric |
+  IntegerNumeric |
+  SmallintNumeric |
+  BigintNumeric |
+  RealNumeric |
+  FloatNumeric (Maybe Integer) |
+  DoublePrecisionNumeric |
+  DecimalNumeric (Maybe (NonEmpty Expr)) |
+  DecNumeric (Maybe (NonEmpty Expr)) |
+  NumericNumeric (Maybe (NonEmpty Expr)) |
+  BooleanNumeric
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+Bit:
+  | BitWithLength
+  | BitWithoutLength
+ConstBit:
+  | BitWithLength
+  | BitWithoutLength
+BitWithLength:
+  | BIT opt_varying '(' expr_list ')'
+BitWithoutLength:
+  | BIT opt_varying
+-}
+data ConstBit = ConstBit OptVarying (Maybe (NonEmpty Expr))
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+opt_varying:
+  | VARYING
+  | EMPTY
+-}
+type OptVarying = Bool
+
+{-
+Character:
+  | CharacterWithLength
+  | CharacterWithoutLength
+ConstCharacter:
+  | CharacterWithLength
+  | CharacterWithoutLength
+CharacterWithLength:
+  | character '(' Iconst ')'
+CharacterWithoutLength:
+  | character
+-}
+data ConstCharacter = ConstCharacter Character (Maybe Integer)
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+character:
+  | CHARACTER opt_varying
+  | CHAR_P opt_varying
+  | VARCHAR
+  | NATIONAL CHARACTER opt_varying
+  | NATIONAL CHAR_P opt_varying
+  | NCHAR opt_varying
+-}
+data Character =
+  CharacterCharacter OptVarying |
+  CharCharacter OptVarying |
+  VarcharCharacter |
+  NationalCharacterCharacter OptVarying |
+  NationalCharCharacter OptVarying |
+  NcharCharacter OptVarying
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+ConstDatetime:
+  | TIMESTAMP '(' Iconst ')' opt_timezone
+  | TIMESTAMP opt_timezone
+  | TIME '(' Iconst ')' opt_timezone
+  | TIME opt_timezone
+-}
+data ConstDatetime =
+  TimestampConstDatetime (Maybe Integer) (Maybe Timezone) |
+  TimeConstDatetime (Maybe Integer) (Maybe Timezone)
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+opt_timezone:
+  | WITH_LA TIME ZONE
+  | WITHOUT TIME ZONE
+  | EMPTY
+-}
+type Timezone = Bool
 
 {-
 opt_interval:

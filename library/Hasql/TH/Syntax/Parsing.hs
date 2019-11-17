@@ -681,6 +681,9 @@ b_expr:
 
 -}
 
+
+exprListInParens = inParens (nonEmptyList aExpr)
+
 {-|
 Notice that the tree constructed by this parser does not reflect
 the precedence order of Postgres.
@@ -964,26 +967,169 @@ FloatLiteral -3.24234233243248732492739847923874e7
 >>> testParser literal "NULL"
 NullLiteral
 -}
+{- TODO: Add remaining cases -}
 literal :: Parser Literal
-literal = label "literal" $ asum [numericLiteral, stringLiteral, boolLiteral, nullLiteral]
-
-numericLiteral :: Parser Literal
-numericLiteral = label "numeric literal" $ fmap (either IntLiteral FloatLiteral) $ intOrFloat
-
-stringLiteral :: Parser Literal
-stringLiteral = quotedString '\'' <&> StringLiteral <?> "string literal"
-
-boolLiteral :: Parser Literal
-boolLiteral = BoolLiteral True <$ string' "true" <|> BoolLiteral False <$ string' "false" <?> "bool literal"
-
-nullLiteral :: Parser Literal
-nullLiteral = NullLiteral <$ string' "null" <?> "null literal"
+literal = label "literal" $ asum [
+    either IntLiteral FloatLiteral <$> intOrFloat
+    ,
+    StringLiteral <$> stringLiteral
+    ,
+    do
+      string' "b'"
+      a <- takeWhile1P (Just "0 or 1") (\ b -> b == '0' || b == '1')
+      char '\''
+      return (BitLiteral a)
+    ,
+    do
+      string' "x'"
+      a <- takeWhile1P (Just "Hex digit") (Predicate.inSet HashSet.hexDigitChars)
+      char '\''
+      return (HexLiteral a)
+    ,
+    do
+      a <- funcName
+      space1
+      asum [
+          FuncLiteral a Nothing <$> stringLiteral,
+          do
+            b <- inParens $ do
+              c <- nonEmptyList funcArgExpr
+              d <- optional (try space1 *> sortClause)
+              return (FuncLiteralArgList c d)
+            space1
+            c <- stringLiteral
+            return (FuncLiteral a (Just b) c)
+        ]
+    ,
+    do
+      a <- constTypename
+      space1
+      b <- stringLiteral
+      return (ConstTypenameLiteral a b)
+    ,
+    do
+      try $ do
+        string' "interval"
+        space1
+      asum [
+          do
+            a <- stringLiteral
+            b <- optional (try (space1 *> interval))
+            return (StringIntervalLiteral a b)
+          ,
+          do
+            a <- inParens intLiteral
+            space1
+            b <- stringLiteral
+            return (IntIntervalLiteral a b)
+        ]
+    ,
+    BoolLiteral True <$ string' "true"
+    ,
+    BoolLiteral False <$ string' "false"
+    ,
+    NullLiteral <$ string' "null"
+  ]
 
 intOrFloat = label "int or float" $ try $ do
   (_input, _scientific) <- match $ Lex.signed space Lex.scientific
   case parseMaybe (Lex.signed space Lex.decimal <* eof :: Parser Integer) _input of
     Just _int -> return (Left _int)
     Nothing -> return (Right _scientific)
+
+intLiteral = Lex.decimal
+
+stringLiteral = quotedString '\''
+
+constTypename = asum [
+    NumericConstTypename <$> numeric,
+    ConstBitConstTypename <$> constBit,
+    ConstCharacterConstTypename <$> constCharacter,
+    ConstDatetimeConstTypename <$> constDatetime
+  ]
+
+numeric = asum [
+    IntegerNumeric <$ string' "integer",
+    IntNumeric <$ string' "int",
+    SmallintNumeric <$ string' "smallint",
+    BigintNumeric <$ string' "bigint",
+    RealNumeric <$ string' "real",
+    FloatNumeric <$> (string' "float" *> optional (try (space *> inParens intLiteral))),
+    DoublePrecisionNumeric <$ keyphrase "double precision",
+    DecNumeric <$> (string' "dec" *> optional (try (space *> exprListInParens))),
+    DecimalNumeric <$> (string' "decimal" *> optional (try (space *> exprListInParens))),
+    NumericNumeric <$> (string' "numeric" *> optional (try (space *> exprListInParens))),
+    BooleanNumeric <$ string' "boolean"
+  ]
+
+constBit = asum [
+    do
+      try $ do
+        string' "bit"
+        space1
+        string' "varying"
+      a <- optional (try (space *> exprListInParens))
+      return (ConstBit True a)
+    ,
+    do
+      try $ string' "bit"
+      a <- optional (try (space1 *> exprListInParens))
+      return (ConstBit False a)
+  ]
+
+
+constCharacter = ConstCharacter <$> character <*> optional (try (space *> inParens intLiteral))
+
+character = asum [
+    CharacterCharacter <$> (string' "character" *> optVaryingAfterSpace),
+    CharCharacter <$> (string' "char" *> optVaryingAfterSpace),
+    VarcharCharacter <$ string' "varchar",
+    NationalCharacterCharacter <$> (keyphrase "national character" *> optVaryingAfterSpace),
+    NationalCharCharacter <$> (keyphrase "national char" *> optVaryingAfterSpace),
+    NcharCharacter <$> (string' "nchar" *> optVaryingAfterSpace)
+  ]
+  where
+    optVaryingAfterSpace = True <$ (space1 <* string' "varying") <|> pure False
+
+constDatetime = asum [
+    do
+      string' "timestamp"
+      a <- optional (try (space1 *> inParens intLiteral))
+      b <- optional (try (space1 *> timezone))
+      return (TimestampConstDatetime a b)
+    ,
+    do
+      string' "time"
+      a <- optional (try (space1 *> inParens intLiteral))
+      b <- optional (try (space1 *> timezone))
+      return (TimeConstDatetime a b)
+  ]
+
+timezone = asum [
+    False <$ keyphrase "with time zone",
+    True <$ keyphrase "without time zone"
+  ]
+
+interval = asum [
+    YearInterval <$ "year",
+    MonthInterval <$ "month",
+    DayInterval <$ "day",
+    HourInterval <$ "hour",
+    MinuteInterval <$ "minute",
+    SecondInterval <$> intervalSecond,
+    YearToMonthInterval <$ keyphrase "year to month",
+    DayToHourInterval <$ keyphrase "day to hour",
+    DayToMinuteInterval <$ keyphrase "day to minute",
+    DayToSecondInterval <$> (keyphrase "day to" *> space1 *> intervalSecond),
+    HourToMinuteInterval <$ keyphrase "hour to minute",
+    HourToSecondInterval <$> (keyphrase "hour to" *> space1 *> intervalSecond),
+    MinuteToSecondInterval <$> (keyphrase "minute to" *> space1 *> intervalSecond)
+  ]
+
+intervalSecond = do
+  string' "second"
+  a <- optional (try (space *> inParens intLiteral))
+  return a
 
 
 -- * Types

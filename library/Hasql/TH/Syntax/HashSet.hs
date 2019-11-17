@@ -36,3 +36,7 @@ lexicalBinOp = HashSet.fromList ["and", "or"]
 {-# NOINLINE symbolicBinOpChars #-}
 symbolicBinOpChars :: HashSet Char
 symbolicBinOpChars = symbolicBinOp & HashSet.toList & mconcat & Text.unpack & HashSet.fromList
+
+{-# NOINLINE hexDigitChars #-}
+hexDigitChars :: HashSet Char
+hexDigitChars = HashSet.fromList "0123456789abcdefABCDEF"

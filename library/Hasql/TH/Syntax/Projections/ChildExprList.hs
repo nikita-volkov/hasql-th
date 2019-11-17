@@ -175,7 +175,7 @@ expr = \ case
   BetweenExpr _ a b -> [a, b]
   DefaultExpr -> []
   QualifiedNameExpr a -> qualifiedName a
-  LiteralExpr _ -> []
+  LiteralExpr a -> literal a
   InParensExpr a b -> [a] <> foldable indirection b
   CaseExpr a b c -> maybeToList a <> foldable whenClause b <> maybeToList c
   FuncExpr a -> funcApplication a
@@ -201,6 +201,56 @@ funcArgExpr = \ case
   ExprFuncArgExpr a -> [a]
   ColonEqualsFuncArgExpr _ a -> [a]
   EqualsGreaterFuncArgExpr _ a -> [a]
+
+
+-- * Literals
+-------------------------
+
+literal = \ case
+  IntLiteral _ -> []
+  FloatLiteral _ -> []
+  StringLiteral _ -> []
+  BitLiteral _ -> []
+  HexLiteral _ -> []
+  FuncLiteral a b _ -> qualifiedName a <> foldable funcLiteralArgList b
+  ConstTypenameLiteral a _ -> constTypename a
+  StringIntervalLiteral _ a -> foldable interval a
+  IntIntervalLiteral _ _ -> []
+  BoolLiteral _ -> []
+  NullLiteral -> []
+
+funcLiteralArgList (FuncLiteralArgList a b) = foldable funcArgExpr a <> foldable sortClause b
+
+constTypename = \ case
+  NumericConstTypename a -> numeric a
+  ConstBitConstTypename a -> constBit a
+  ConstCharacterConstTypename a -> constCharacter a
+  ConstDatetimeConstTypename a -> constDatetime a
+
+numeric = \ case
+  IntNumeric -> []
+  IntegerNumeric -> []
+  SmallintNumeric -> []
+  BigintNumeric -> []
+  RealNumeric -> []
+  FloatNumeric _ -> []
+  DoublePrecisionNumeric -> []
+  DecimalNumeric a -> foldable toList a
+  DecNumeric a -> foldable toList a
+  NumericNumeric a -> foldable toList a
+  BooleanNumeric -> []
+
+constBit (ConstBit _ a) = foldable toList a
+
+constCharacter (ConstCharacter _ _) = []
+
+constDatetime _ = []
+
+interval _ = []
+
+
+-- * Names
+-------------------------
 
 qualifiedName :: QualifiedName -> [Expr]
 qualifiedName = \ case

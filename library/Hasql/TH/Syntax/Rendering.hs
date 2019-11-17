@@ -439,7 +439,9 @@ literal = \ case
   FloatLiteral a -> scientific a
   StringLiteral a -> stringLiteral a
   BitLiteral a -> "B'" <> text a <> "'"
-  NamedLiteral a b -> name a <> " " <> stringLiteral b
+  HexLiteral a -> "X'" <> text a <> "'"
+  FuncLiteral a b c -> qualifiedName a <> foldMap funcLiteralArgList b <> " " <> stringLiteral c
+  ConstTypenameLiteral a b -> constTypename a <> " " <> stringLiteral b
   StringIntervalLiteral a b -> "INTERVAL " <> stringLiteral a <> foldMap (mappend " " . interval) b
   IntIntervalLiteral a b -> "INTERVAL " <> inParens (integerDec a) <> " " <> stringLiteral b
   BoolLiteral a -> if a then "TRUE" else "FALSE"
@@ -447,6 +449,59 @@ literal = \ case
 
 stringLiteral :: Text -> Builder
 stringLiteral a = "'" <> text (Text.replace "'" "''" a) <> "'"
+
+funcLiteralArgList (FuncLiteralArgList a b) = nonEmptyList funcArgExpr a <> foldMap (mappend " " . sortClause) b
+
+constTypename = \ case
+  NumericConstTypename a -> numeric a
+  ConstBitConstTypename a -> constBit a
+  ConstCharacterConstTypename a -> constCharacter a
+  ConstDatetimeConstTypename a -> constDatetime a
+
+numeric = \ case
+  IntNumeric -> "INT"
+  IntegerNumeric -> "INTEGER"
+  SmallintNumeric -> "SMALLINT"
+  BigintNumeric -> "BIGINT"
+  RealNumeric -> "REAL"
+  FloatNumeric a -> "FLOAT" <> foldMap (mappend " " . inParens . integerDec) a
+  DoublePrecisionNumeric -> "DOUBLE PRECISION"
+  DecimalNumeric a -> "DECIMAL" <> foldMap (mappend " " . inParens . nonEmptyList expr) a
+  DecNumeric a -> "DEC" <> foldMap (mappend " " . inParens . nonEmptyList expr) a
+  NumericNumeric a -> "NUMERIC" <> foldMap (mappend " " . inParens . nonEmptyList expr) a
+  BooleanNumeric -> "BOOLEAN"
+
+constBit (ConstBit a b) = optLexemes [
+    Just "BIT",
+    bool Nothing (Just "VARYING") a,
+    fmap (inParens . nonEmptyList expr) b
+  ]
+
+constCharacter (ConstCharacter a b) = character a <> foldMap (mappend " " . inParens . integerDec) b
+
+character = \ case
+  CharacterCharacter a -> "CHARACTER" <> bool "" " VARYING" a
+  CharCharacter a -> "CHAR" <> bool "" " VARYING" a
+  VarcharCharacter -> "VARCHAR"
+  NationalCharacterCharacter a -> "NATIONAL CHARACTER" <> bool "" " VARYING" a
+  NationalCharCharacter a -> "NATIONAL CHAR" <> bool "" " VARYING" a
+  NcharCharacter a -> "NCHAR" <> bool "" " VARYING" a
+
+constDatetime = \ case
+  TimestampConstDatetime a b -> optLexemes [
+      Just "TIMESTAMP",
+      fmap (inParens . integerDec) a,
+      fmap timezone b
+    ]
+  TimeConstDatetime a b -> optLexemes [
+      Just "TIME",
+      fmap (inParens . integerDec) a,
+      fmap timezone b
+    ]
+
+timezone = \ case
+  False -> "WITH TIME ZONE"
+  True -> "WITHOUT TIME ZONE"
 
 interval :: Interval -> Builder
 interval = \ case

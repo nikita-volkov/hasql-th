@@ -294,16 +294,59 @@ funcArgExpr = choice [
 -- * Literals
 -------------------------
 
-{- TODO: Add missing cases -}
 literal = choice [
     IntLiteral <$> intLiteral,
     FloatLiteral <$> floatLiteral,
     StringLiteral <$> stringLiteral,
     BitLiteral <$> text (Range.exponential 1 100) (element "01"),
+    HexLiteral <$> text (Range.exponential 1 100) (element "0123456789abcdefABCDEF"),
+    FuncLiteral <$> qualifiedName <*> maybe funcLiteralArgList <*> stringLiteral,
+    ConstTypenameLiteral <$> constTypename <*> stringLiteral,
     StringIntervalLiteral <$> stringLiteral <*> maybe interval,
     IntIntervalLiteral <$> integral (Range.exponential 0 2309482309483029) <*> stringLiteral,
     BoolLiteral <$> bool,
     pure NullLiteral
+  ]
+
+funcLiteralArgList = FuncLiteralArgList <$> nonEmpty (Range.exponential 1 10) funcArgExpr <*> maybe sortClause
+
+constTypename = choice [
+    NumericConstTypename <$> numeric,
+    ConstBitConstTypename <$> constBit,
+    ConstCharacterConstTypename <$> constCharacter,
+    ConstDatetimeConstTypename <$> constDatetime
+  ]
+
+numeric = choice [
+    pure IntNumeric,
+    pure IntegerNumeric,
+    pure SmallintNumeric,
+    pure BigintNumeric,
+    pure RealNumeric,
+    FloatNumeric <$> maybe intLiteral,
+    pure DoublePrecisionNumeric,
+    DecimalNumeric <$> maybe (nonEmpty (Range.exponential 1 10) expr),
+    DecNumeric <$> maybe (nonEmpty (Range.exponential 1 10) expr),
+    NumericNumeric <$> maybe (nonEmpty (Range.exponential 1 10) expr),
+    pure BooleanNumeric
+  ]
+
+constBit = ConstBit <$> bool <*> maybe (nonEmpty (Range.exponential 1 10) expr)
+
+constCharacter = ConstCharacter <$> character <*> maybe intLiteral
+
+character = choice [
+    CharacterCharacter <$> bool,
+    CharCharacter <$> bool,
+    pure VarcharCharacter,
+    NationalCharacterCharacter <$> bool,
+    NationalCharCharacter <$> bool,
+    NcharCharacter <$> bool
+  ]
+
+constDatetime = choice [
+    TimestampConstDatetime <$> maybe intLiteral <*> maybe bool,
+    TimeConstDatetime <$> maybe intLiteral <*> maybe bool
   ]
 
 interval = choice [
