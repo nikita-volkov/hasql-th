@@ -970,6 +970,35 @@ NullLiteral
 {- TODO: Add remaining cases -}
 literal :: Parser Literal
 literal = label "literal" $ asum [
+    do
+      try $ do
+        string' "interval"
+        space1
+      asum [
+          do
+            a <- stringLiteral
+            b <- optional (try (space1 *> interval))
+            return (StringIntervalLiteral a b)
+          ,
+          do
+            a <- inParens intLiteral
+            space1
+            b <- stringLiteral
+            return (IntIntervalLiteral a b)
+        ]
+    ,
+    do
+      a <- constTypename
+      space1
+      b <- stringLiteral
+      return (ConstTypenameLiteral a b)
+    ,
+    BoolLiteral True <$ string' "true"
+    ,
+    BoolLiteral False <$ string' "false"
+    ,
+    NullLiteral <$ string' "null"
+    ,
     either IntLiteral FloatLiteral <$> intOrFloat
     ,
     StringLiteral <$> stringLiteral
@@ -1000,35 +1029,6 @@ literal = label "literal" $ asum [
             c <- stringLiteral
             return (FuncLiteral a (Just b) c)
         ]
-    ,
-    do
-      a <- constTypename
-      space1
-      b <- stringLiteral
-      return (ConstTypenameLiteral a b)
-    ,
-    do
-      try $ do
-        string' "interval"
-        space1
-      asum [
-          do
-            a <- stringLiteral
-            b <- optional (try (space1 *> interval))
-            return (StringIntervalLiteral a b)
-          ,
-          do
-            a <- inParens intLiteral
-            space1
-            b <- stringLiteral
-            return (IntIntervalLiteral a b)
-        ]
-    ,
-    BoolLiteral True <$ string' "true"
-    ,
-    BoolLiteral False <$ string' "false"
-    ,
-    NullLiteral <$ string' "null"
   ]
 
 intOrFloat = label "int or float" $ try $ do
