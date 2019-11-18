@@ -1380,7 +1380,7 @@ type_function_name:
   | type_func_name_keyword
 -}
 funcName =
-  IndirectedQualifiedName <$> try colId <*> (space *> indirection) <|>
+  try (IndirectedQualifiedName <$> colId <*> (space *> indirection)) <|>
   SimpleQualifiedName <$> ident <|>
   SimpleQualifiedName <$> keywordNameFromSet (HashSet.unreservedKeyword <> HashSet.typeFuncNameKeyword)
 
