@@ -447,7 +447,7 @@ literal = \ case
   StringLiteral a -> stringLiteral a
   BitLiteral a -> "B'" <> text a <> "'"
   HexLiteral a -> "X'" <> text a <> "'"
-  FuncLiteral a b c -> qualifiedName a <> foldMap funcLiteralArgList b <> " " <> stringLiteral c
+  FuncLiteral a b c -> qualifiedName a <> foldMap (inParens . funcLiteralArgList) b <> " " <> stringLiteral c
   ConstTypenameLiteral a b -> constTypename a <> " " <> stringLiteral b
   StringIntervalLiteral a b -> "INTERVAL " <> stringLiteral a <> foldMap (mappend " " . interval) b
   IntIntervalLiteral a b -> "INTERVAL " <> inParens (integerDec a) <> " " <> stringLiteral b
