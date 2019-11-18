@@ -806,6 +806,7 @@ escapableBinOpExpr _a = do
   space1
   _b <- aExpr
   _escaping <- optional $ try $ do
+    space1
     string' "escape"
     space1
     aExpr
