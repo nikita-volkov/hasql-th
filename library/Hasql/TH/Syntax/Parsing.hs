@@ -727,8 +727,8 @@ cExpr =
   asum
     [
       placeholderExpr,
-      columnRefExpr,
       literalExpr,
+      columnRefExpr,
       inParensExpr,
       caseExpr,
       funcExpr,
@@ -754,8 +754,8 @@ nonLoopingExpr =
     [
       defaultExpr,
       placeholderExpr,
-      columnRefExpr,
       literalExpr,
+      columnRefExpr,
       inParensExpr,
       caseExpr,
       funcExpr,
