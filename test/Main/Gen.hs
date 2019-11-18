@@ -1,6 +1,6 @@
 module Main.Gen where
 
-import Hasql.TH.Prelude hiding (maybe, bool, sortBy)
+import Hasql.TH.Prelude hiding (maybe, bool, sortBy, filter)
 import Hasql.TH.Syntax.Ast
 import Hedgehog.Gen
 import qualified Hedgehog.Range as Range
@@ -372,7 +372,7 @@ intOrFloatLiteral = choice [Left <$> intLiteral <|> Right <$> floatLiteral]
 
 intLiteral = integral (Range.exponentialFrom 0 (-97234095729345740293579345) 309457394857984375983475943)
 
-floatLiteral = realFrac_ (Range.linearFracFrom 0 (-97234095729345740293579345) 309457394857984375983475943)
+floatLiteral = realFrac_ (Range.linearFracFrom 0 (-97234095729) 3094573948579)
 
 
 -- * Types
@@ -396,7 +396,7 @@ identifier = do
   return (Text.cons a b)
 
 name = choice [
-    QuotedName <$> text (Range.linear 1 30) unicode,
+    QuotedName <$> text (Range.linear 1 30) quotedChar,
     UnquotedName <$> identifier
   ]
 
@@ -413,3 +413,5 @@ indirectionEl = choice [
     ExprIndirectionEl <$> expr,
     SliceIndirectionEl <$> maybe expr <*> maybe expr
   ]
+
+quotedChar = filter (not . isControl) unicode
