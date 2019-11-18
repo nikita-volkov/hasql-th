@@ -754,7 +754,7 @@ nonLoopingExpr =
     [
       defaultExpr,
       placeholderExpr,
-      literalExpr,
+      try literalExpr,
       columnRefExpr,
       inParensExpr,
       caseExpr,
