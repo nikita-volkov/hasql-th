@@ -106,10 +106,6 @@ import Data.HashMap.Strict as Exports (HashMap)
 -------------------------
 import Data.Hashable as Exports (Hashable)
 
--- scientific
--------------------------
-import Data.Scientific as Exports (Scientific)
-
 -- foldl
 -------------------------
 import Control.Foldl as Exports (Fold(..))

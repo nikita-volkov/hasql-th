@@ -1052,10 +1052,10 @@ literal = label "literal" $ asum [
   ]
 
 intOrFloat = label "int or float" $ try $ do
-  (_input, _scientific) <- match $ Lex.signed space Lex.scientific
-  case parseMaybe (Lex.signed space Lex.decimal <* eof :: Parser Integer) _input of
+  (_input, _float) <- match $ Lex.signed space Lex.float
+  case parseMaybe (Lex.signed space Lex.decimal <* eof :: Parser Int64) _input of
     Just _int -> return (Left _int)
-    Nothing -> return (Right _scientific)
+    Nothing -> return (Right _float)
 
 intLiteral = Lex.decimal
 

@@ -415,7 +415,7 @@ select_fetch_first_value:
 -}
 data SelectFetchFirstValue =
   ExprSelectFetchFirstValue Expr |
-  NumSelectFetchFirstValue Bool (Either Integer Scientific)
+  NumSelectFetchFirstValue Bool (Either Int64 Double)
   deriving (Show, Generic, Eq, Ord)
 
 {-
@@ -700,15 +700,15 @@ AexprConst:
   |  NULL_P
 -}
 data Literal =
-  IntLiteral Integer |
-  FloatLiteral Scientific |
+  IntLiteral Int64 |
+  FloatLiteral Double |
   StringLiteral Text |
   BitLiteral Text |
   HexLiteral Text |
   FuncLiteral QualifiedName (Maybe FuncLiteralArgList) Text |
   ConstTypenameLiteral ConstTypename Text |
   StringIntervalLiteral Text (Maybe Interval) |
-  IntIntervalLiteral Integer Text |
+  IntIntervalLiteral Int64 Text |
   BoolLiteral Bool |
   NullLiteral
   deriving (Show, Generic, Eq, Ord)
@@ -756,7 +756,7 @@ data Numeric =
   SmallintNumeric |
   BigintNumeric |
   RealNumeric |
-  FloatNumeric (Maybe Integer) |
+  FloatNumeric (Maybe Int64) |
   DoublePrecisionNumeric |
   DecimalNumeric (Maybe (NonEmpty Expr)) |
   DecNumeric (Maybe (NonEmpty Expr)) |
@@ -798,7 +798,7 @@ CharacterWithLength:
 CharacterWithoutLength:
   | character
 -}
-data ConstCharacter = ConstCharacter Character (Maybe Integer)
+data ConstCharacter = ConstCharacter Character (Maybe Int64)
   deriving (Show, Generic, Eq, Ord)
 
 {-
@@ -827,8 +827,8 @@ ConstDatetime:
   | TIME opt_timezone
 -}
 data ConstDatetime =
-  TimestampConstDatetime (Maybe Integer) (Maybe Timezone) |
-  TimeConstDatetime (Maybe Integer) (Maybe Timezone)
+  TimestampConstDatetime (Maybe Int64) (Maybe Timezone) |
+  TimeConstDatetime (Maybe Int64) (Maybe Timezone)
   deriving (Show, Generic, Eq, Ord)
 
 {-
@@ -873,7 +873,7 @@ interval_second:
   | SECOND_P
   | SECOND_P '(' Iconst ')'
 -}
-type IntervalSecond = Maybe Integer
+type IntervalSecond = Maybe Int64
 
 
 -- * Type

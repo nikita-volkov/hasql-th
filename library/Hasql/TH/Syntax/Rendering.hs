@@ -6,7 +6,6 @@ import Data.ByteString.FastBuilder
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
-import qualified Data.ByteString.Builder.Scientific as Scientific
 import qualified Data.ByteString.Builder as BsBuilder
 import qualified Data.ByteString.Lazy as LazyBs
 
@@ -23,9 +22,6 @@ toText = Text.decodeUtf8 . toByteString
 
 -- * Helpers
 -------------------------
-
-scientific :: Scientific -> Builder
-scientific a = Scientific.scientificBuilder a & BsBuilder.toLazyByteString & LazyBs.toStrict & byteString
 
 text :: Text -> Builder
 text = stringUtf8 . Text.unpack
@@ -107,7 +103,7 @@ selectFetchFirstValue = \ case
   ExprSelectFetchFirstValue a -> expr a
   NumSelectFetchFirstValue a b -> bool "+" "-" a <> intOrFloat b
 
-intOrFloat = either integerDec scientific
+intOrFloat = either int64Dec doubleDec
 
 selectLimitValue = \ case
   ExprSelectLimitValue a -> expr a
@@ -442,15 +438,15 @@ funcArgExpr = \ case
 
 literal :: Literal -> Builder
 literal = \ case
-  IntLiteral a -> integerDec a
-  FloatLiteral a -> scientific a
+  IntLiteral a -> int64Dec a
+  FloatLiteral a -> doubleDec a
   StringLiteral a -> stringLiteral a
   BitLiteral a -> "B'" <> text a <> "'"
   HexLiteral a -> "X'" <> text a <> "'"
   FuncLiteral a b c -> qualifiedName a <> foldMap (inParens . funcLiteralArgList) b <> " " <> stringLiteral c
   ConstTypenameLiteral a b -> constTypename a <> " " <> stringLiteral b
   StringIntervalLiteral a b -> "INTERVAL " <> stringLiteral a <> foldMap (mappend " " . interval) b
-  IntIntervalLiteral a b -> "INTERVAL " <> inParens (integerDec a) <> " " <> stringLiteral b
+  IntIntervalLiteral a b -> "INTERVAL " <> inParens (int64Dec a) <> " " <> stringLiteral b
   BoolLiteral a -> if a then "TRUE" else "FALSE"
   NullLiteral -> "NULL"
 
@@ -471,7 +467,7 @@ numeric = \ case
   SmallintNumeric -> "SMALLINT"
   BigintNumeric -> "BIGINT"
   RealNumeric -> "REAL"
-  FloatNumeric a -> "FLOAT" <> foldMap (mappend " " . inParens . integerDec) a
+  FloatNumeric a -> "FLOAT" <> foldMap (mappend " " . inParens . int64Dec) a
   DoublePrecisionNumeric -> "DOUBLE PRECISION"
   DecimalNumeric a -> "DECIMAL" <> foldMap (mappend " " . inParens . nonEmptyList expr) a
   DecNumeric a -> "DEC" <> foldMap (mappend " " . inParens . nonEmptyList expr) a
@@ -484,7 +480,7 @@ constBit (ConstBit a b) = optLexemes [
     fmap (inParens . nonEmptyList expr) b
   ]
 
-constCharacter (ConstCharacter a b) = character a <> foldMap (mappend " " . inParens . integerDec) b
+constCharacter (ConstCharacter a b) = character a <> foldMap (mappend " " . inParens . int64Dec) b
 
 character = \ case
   CharacterCharacter a -> "CHARACTER" <> bool "" " VARYING" a
@@ -497,12 +493,12 @@ character = \ case
 constDatetime = \ case
   TimestampConstDatetime a b -> optLexemes [
       Just "TIMESTAMP",
-      fmap (inParens . integerDec) a,
+      fmap (inParens . int64Dec) a,
       fmap timezone b
     ]
   TimeConstDatetime a b -> optLexemes [
       Just "TIME",
-      fmap (inParens . integerDec) a,
+      fmap (inParens . int64Dec) a,
       fmap timezone b
     ]
 
@@ -529,7 +525,7 @@ interval = \ case
 intervalSecond :: IntervalSecond -> Builder
 intervalSecond = \ case
   Nothing -> "SECOND" 
-  Just a -> "SECOND " <> inParens (integerDec a)
+  Just a -> "SECOND " <> inParens (int64Dec a)
 
 
 -- * Names and refs
