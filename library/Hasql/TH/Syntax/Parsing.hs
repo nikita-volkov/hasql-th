@@ -1021,13 +1021,13 @@ literal = asum [
     ,
     StringLiteral <$> stringLiteral
     ,
-    do
+    label "bit literal" $ do
       string' "b'"
       a <- takeWhile1P (Just "0 or 1") (\ b -> b == '0' || b == '1')
       char '\''
       return (BitLiteral a)
     ,
-    do
+    label "hex literal" $ do
       string' "x'"
       a <- takeWhile1P (Just "Hex digit") (Predicate.inSet HashSet.hexDigitChars)
       char '\''
