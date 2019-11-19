@@ -15,14 +15,17 @@ import qualified Data.Text as Text
 main = defaultMain [
     checkParallel $ Group "Parsing a rendered AST produces the same AST" $ let
       p _name _gen _parser _renderer =
-        (,) _name $ property $ do
+        (,) _name $ withTests 10000 $ property $ do
           ast <- forAll _gen
           let
             sql = Rendering.toText (_renderer ast)
-            parsing = Parsing.parse _parser sql
             in do
               footnote ("SQL: " <> Text.unpack sql)
-              Right ast === parsing
+              case Parsing.parse _parser sql of
+                Left err -> do
+                  footnote (Text.unpack err)
+                  failure
+                Right ast' -> ast === ast'
       in [
           p "literal" Gen.literal Parsing.literal Rendering.literal
           ,
