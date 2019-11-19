@@ -1051,11 +1051,9 @@ literal = label "literal" $ asum [
     FuncLiteral <$> try (funcName <* space1) <*> pure Nothing <*> stringLiteral
   ]
 
-intOrFloat = label "int or float" $ try $ do
-  (_input, _float) <- match $ Lex.signed space Lex.float
-  case parseMaybe (Lex.signed space Lex.decimal <* eof :: Parser Int64) _input of
-    Just _int -> return (Left _int)
-    Nothing -> return (Right _float)
+intOrFloat =
+  Right <$> try (Lex.signed space Lex.float) <|>
+  Left <$> try (Lex.signed space Lex.decimal)
 
 intLiteral = Lex.decimal
 
