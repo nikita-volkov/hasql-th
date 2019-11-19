@@ -1136,11 +1136,11 @@ timezone = asum [
   ]
 
 interval = asum [
-    YearInterval <$ "year",
-    MonthInterval <$ "month",
-    DayInterval <$ "day",
-    HourInterval <$ "hour",
-    MinuteInterval <$ "minute",
+    YearInterval <$ string' "year",
+    MonthInterval <$ string' "month",
+    DayInterval <$ string' "day",
+    HourInterval <$ string' "hour",
+    MinuteInterval <$ string' "minute",
     SecondInterval <$> intervalSecond,
     YearToMonthInterval <$ keyphrase "year to month",
     DayToHourInterval <$ keyphrase "day to hour",
