@@ -266,12 +266,12 @@ expr = choice [
     GroupingExpr <$> nonEmpty (Range.exponential 1 20) expr
   ]
 
-binOp = element (toList HashSet.symbolicBinOp <> ["and", "or", "is distinct from", "is not distinct from"])
+binOp = element (toList HashSet.symbolicBinOp <> ["AND", "OR", "IS DISTINCT FROM", "IS NOT DISTINCT FROM"])
 
 escapableBinOp = do
   a <- bool
-  b <- element ["like", "ilike", "similar to"]
-  return (if a then "not " <> b else b)
+  b <- element ["LIKE", "ILIKE", "SIMILAR TO"]
+  return (if a then "NOT " <> b else b)
 
 whenClause = WhenClause <$> expr <*> expr
 
