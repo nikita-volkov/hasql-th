@@ -27,10 +27,6 @@ main = defaultMain [
                   failure
                 Right ast' -> ast === ast'
       in [
-          p "literal" Gen.literal Parsing.literal Rendering.literal
-          ,
-          p "aExpr" Gen.expr Parsing.aExpr Rendering.expr
-          ,
           p "preparableStmt" Gen.preparableStmt Parsing.preparableStmt Rendering.preparableStmt
         ]
   ]
