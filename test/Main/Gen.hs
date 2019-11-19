@@ -271,24 +271,24 @@ expr = choice (terminalExprList <> nonTerminalExprList)
         ,
         LiteralExpr <$> literal
         ,
-        InParensExpr <$> expr <*> maybe indirection
+        InParensExpr <$> (small expr) <*> maybe indirection
         ,
-        CaseExpr <$> maybe expr <*> nonEmpty (Range.exponential 1 8) whenClause <*> maybe expr
+        CaseExpr <$> maybe (small expr) <*> nonEmpty (Range.exponential 1 8) whenClause <*> maybe (small expr)
         ,
         FuncExpr <$> funcApplication
         ,
-        SelectExpr <$> selectNoParens
+        SelectExpr <$> small selectNoParens
         ,
-        ExistsSelectExpr <$> selectNoParens
+        ExistsSelectExpr <$> small selectNoParens
         ,
-        ArraySelectExpr <$> selectNoParens
+        ArraySelectExpr <$> small selectNoParens
         ,
-        GroupingExpr <$> nonEmpty (Range.exponential 1 8) expr
+        GroupingExpr <$> nonEmpty (Range.exponential 1 8) (small expr)
       ]
     nonTerminalExprList = [
         TypecastExpr <$> terminalExpr <*> type_
         ,
-        BinOpExpr <$> binOp <*> terminalExpr <*> expr
+        BinOpExpr <$> binOp <*> terminalExpr <*> small expr
         ,
         EscapableBinOpExpr <$> bool <*> escapableBinOp <*> terminalExpr <*> terminalExpr <*> maybe terminalExpr
       ]
@@ -297,7 +297,7 @@ binOp = element (toList HashSet.symbolicBinOp <> ["AND", "OR", "IS DISTINCT FROM
 
 escapableBinOp = element ["LIKE", "ILIKE", "SIMILAR TO"]
 
-whenClause = WhenClause <$> expr <*> expr
+whenClause = WhenClause <$> small expr <*> small expr
 
 funcApplication = FuncApplication <$> qualifiedName <*> maybe funcApplicationParams
 
@@ -308,9 +308,9 @@ funcApplicationParams = choice [
   ]
 
 funcArgExpr = choice [
-    ExprFuncArgExpr <$> expr,
-    ColonEqualsFuncArgExpr <$> name <*> expr,
-    EqualsGreaterFuncArgExpr <$> name <*> expr
+    ExprFuncArgExpr <$> small expr,
+    ColonEqualsFuncArgExpr <$> name <*> small expr,
+    EqualsGreaterFuncArgExpr <$> name <*> small expr
   ]
 
 
@@ -348,13 +348,13 @@ numeric = choice [
     pure RealNumeric,
     FloatNumeric <$> maybe iconst,
     pure DoublePrecisionNumeric,
-    DecimalNumeric <$> maybe (nonEmpty (Range.exponential 1 7) expr),
-    DecNumeric <$> maybe (nonEmpty (Range.exponential 1 7) expr),
-    NumericNumeric <$> maybe (nonEmpty (Range.exponential 1 7) expr),
+    DecimalNumeric <$> maybe (nonEmpty (Range.exponential 1 7) (small expr)),
+    DecNumeric <$> maybe (nonEmpty (Range.exponential 1 7) (small expr)),
+    NumericNumeric <$> maybe (nonEmpty (Range.exponential 1 7) (small expr)),
     pure BooleanNumeric
   ]
 
-constBit = ConstBit <$> bool <*> maybe (nonEmpty (Range.exponential 1 7) expr)
+constBit = ConstBit <$> bool <*> maybe (nonEmpty (Range.exponential 1 7) (small expr))
 
 constCharacter = ConstCharacter <$> character <*> maybe iconst
 
@@ -443,8 +443,8 @@ indirection = nonEmpty (Range.linear 1 3) indirectionEl
 indirectionEl = choice [
     AttrNameIndirectionEl <$> name,
     pure AllIndirectionEl,
-    ExprIndirectionEl <$> expr,
-    SliceIndirectionEl <$> maybe expr <*> maybe expr
+    ExprIndirectionEl <$> (small expr),
+    SliceIndirectionEl <$> maybe (small expr) <*> maybe (small expr)
   ]
 
 quotedChar = filter (not . isControl) unicode
