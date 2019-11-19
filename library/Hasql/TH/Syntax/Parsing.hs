@@ -434,7 +434,13 @@ optTempTableName = asum [
 -------------------------
 
 groupByItem :: Parser GroupByItem
-groupByItem = error "TODO"
+groupByItem = asum [
+    ExprGroupByItem <$> aExpr,
+    EmptyGroupingSetGroupByItem <$ (try (char '(') *> space *> char ')'),
+    RollupGroupByItem <$> (try (string' "rollup" *> space) *> inParens (nonEmptyList aExpr)),
+    CubeGroupByItem <$> (try (string' "cube" *> space) *> inParens (nonEmptyList aExpr)),
+    GroupingSetsGroupByItem <$> (try (keyphrase "grouping sets" *> space) *> inParens (nonEmptyList groupByItem))
+  ]
 
 
 -- * Window clause details
