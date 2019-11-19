@@ -39,8 +39,9 @@ ast :: Text -> Either Text PreparableStmt
 ast = Parsing.parse (Parsing.quasiQuote Parsing.preparableStmt)
 
 encoder :: Type -> Either Text Encoder
-encoder (Type _name _nullable _dimensions _arrayNullable) =
-  encoderName _name <&> \ _name' ->
+encoder (Type _name _nullable _dimensions _arrayNullable) =do
+  _nameText <- nameText _name
+  encoderName _nameText <&> \ _name' ->
     Encoder _name' _nullable _dimensions _arrayNullable
 
 encoderName :: Text -> Either Text TH.Name
@@ -69,8 +70,9 @@ encoderName = \ case
   name -> Left ("No value encoder exists for type: " <> name)
 
 decoder :: Type -> Either Text Decoder
-decoder (Type _name _nullable _dimensions _arrayNullable) =
-  decoderName _name <&> \ _name' ->
+decoder (Type _name _nullable _dimensions _arrayNullable) = do
+  _nameText <- nameText _name
+  decoderName _nameText <&> \ _name' ->
     Decoder _name' _nullable _dimensions _arrayNullable
 
 decoderName :: Text -> Either Text TH.Name
@@ -97,3 +99,8 @@ decoderName = \ case
   "jsonb" -> Right 'Decoders.jsonb
   "enum" -> Right 'Decoders.enum
   name -> Left ("No value decoder exists for type: " <> name)
+
+nameText :: Name -> Either Text Text
+nameText = \ case
+  QuotedName a -> Right a
+  UnquotedName a -> Right a

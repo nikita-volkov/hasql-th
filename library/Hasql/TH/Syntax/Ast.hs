@@ -887,7 +887,7 @@ Consists of:
 - Array dimensions amount
 - Array nullability marker
 -}
-data Type = Type Text Bool Int Bool
+data Type = Type Name Bool Int Bool
   deriving (Show, Generic, Eq, Ord)
 
 

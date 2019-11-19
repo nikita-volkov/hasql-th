@@ -1180,8 +1180,8 @@ Type "int4" False 2 True
 Type "int4" True 2 False
 -}
 type_ :: Parser Type
-type_ = do
-  _baseName <- try $ fmap Text.toLower $ takeWhile1P Nothing isAlphaNum
+type_ = label "type" $ do
+  _baseName <- typeFuncName
   _baseNullable <- option False (try (True <$ space <* char '?'))
   _arrayLevels <- fmap length $ many $ try (space *> char '[' *> space) *> char ']'
   _arrayNullable <- option False (try (True <$ space <* char '?'))

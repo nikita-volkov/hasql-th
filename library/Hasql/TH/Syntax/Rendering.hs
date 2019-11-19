@@ -389,7 +389,7 @@ expr = \ case
 
 type_ :: Type -> Builder
 type_ (Type a _ b _) =
-  text a <>
+  name a <>
   fold (replicate b "[]")
 
 whenClause :: WhenClause -> Builder

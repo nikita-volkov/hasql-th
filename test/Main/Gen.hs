@@ -406,11 +406,13 @@ ident = keywordNotInSet HashSet.keyword
 
 identOrKeywordInSet = keywordNotInSet . HashSet.difference HashSet.keyword
 
-typeName = identOrKeywordInSet HashSet.typeFunctionName
+typeName = nameWithSet HashSet.typeFunctionName
 
-name = choice [
+name = nameWithSet HashSet.colId
+
+nameWithSet set = choice [
     QuotedName <$> text (Range.linear 1 30) quotedChar,
-    UnquotedName <$> identOrKeywordInSet HashSet.colId
+    UnquotedName <$> identOrKeywordInSet set
   ]
 
 qualifiedName = choice [
