@@ -259,22 +259,39 @@ forLockingStrength = element [
 -- * Expressions
 -------------------------
 
-expr = choice [
-    PlaceholderExpr <$> int (Range.linear 1 5),
-    TypecastExpr <$> expr <*> type_,
-    BinOpExpr <$> binOp <*> expr <*> expr,
-    EscapableBinOpExpr <$> bool <*> escapableBinOp <*> expr <*> expr <*> maybe expr,
-    pure DefaultExpr,
-    QualifiedNameExpr <$> qualifiedName,
-    LiteralExpr <$> literal,
-    InParensExpr <$> expr <*> maybe indirection,
-    CaseExpr <$> maybe expr <*> nonEmpty (Range.exponential 1 20) whenClause <*> maybe expr,
-    FuncExpr <$> funcApplication,
-    SelectExpr <$> selectNoParens,
-    ExistsSelectExpr <$> selectNoParens,
-    ArraySelectExpr <$> selectNoParens,
-    GroupingExpr <$> nonEmpty (Range.exponential 1 20) expr
-  ]
+expr = choice (terminalExprList <> nonTerminalExprList)
+  where
+    terminalExpr = choice terminalExprList
+    terminalExprList = [
+        PlaceholderExpr <$> int (Range.linear 1 5)
+        ,
+        pure DefaultExpr
+        ,
+        QualifiedNameExpr <$> qualifiedName
+        ,
+        LiteralExpr <$> literal
+        ,
+        InParensExpr <$> expr <*> maybe indirection
+        ,
+        CaseExpr <$> maybe expr <*> nonEmpty (Range.exponential 1 20) whenClause <*> maybe expr
+        ,
+        FuncExpr <$> funcApplication
+        ,
+        SelectExpr <$> selectNoParens
+        ,
+        ExistsSelectExpr <$> selectNoParens
+        ,
+        ArraySelectExpr <$> selectNoParens
+        ,
+        GroupingExpr <$> nonEmpty (Range.exponential 1 20) expr
+      ]
+    nonTerminalExprList = [
+        TypecastExpr <$> terminalExpr <*> type_
+        ,
+        BinOpExpr <$> binOp <*> terminalExpr <*> expr
+        ,
+        EscapableBinOpExpr <$> bool <*> escapableBinOp <*> terminalExpr <*> terminalExpr <*> maybe terminalExpr
+      ]
 
 binOp = element (toList HashSet.symbolicBinOp <> ["AND", "OR", "IS DISTINCT FROM", "IS NOT DISTINCT FROM"])
 
