@@ -6,6 +6,7 @@ import Hedgehog.Gen
 import qualified Hedgehog.Range as Range
 import qualified Data.Text as Text
 import qualified Data.HashSet as HashSet
+import qualified Data.List as List
 import qualified Hasql.TH.Syntax.HashSet as HashSet
 
 
@@ -399,7 +400,7 @@ keywordNotInSet = \ set -> notInSet set $ do
   b <- text (Range.linear 1 29) (element contList)
   return (Text.cons a b)
   where
-    startList = "abcdefghiklmnopqrstuvwxyz_" <> enumFromTo '\200' '\377'
+    startList = "abcdefghiklmnopqrstuvwxyz_" <> List.filter isLower (enumFromTo '\200' '\377')
     contList = startList <> "0123456789$"
 
 ident = keywordNotInSet HashSet.keyword
