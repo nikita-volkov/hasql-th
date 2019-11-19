@@ -33,7 +33,7 @@ inSet = flip HashSet.member
 ident_start   [A-Za-z\200-\377_]
 -}
 firstIdentifierChar :: Char -> Bool
-firstIdentifierChar x = isAlpha x || x == '_'
+firstIdentifierChar x = isAlpha x || x == '_' || x >= '\200' && x <= '\377'
 
 {-
 ident_cont    [A-Za-z\200-\377_0-9\$]
