@@ -1074,8 +1074,8 @@ numeric = asum [
     RealNumeric <$ string' "real",
     FloatNumeric <$> (string' "float" *> optional (try (space *> inParens iconst))),
     DoublePrecisionNumeric <$ keyphrase "double precision",
-    DecNumeric <$> (string' "dec" *> optional (try (space *> exprListInParens))),
     DecimalNumeric <$> (string' "decimal" *> optional (try (space *> exprListInParens))),
+    DecNumeric <$> (string' "dec" *> optional (try (space *> exprListInParens))),
     NumericNumeric <$> (string' "numeric" *> optional (try (space *> exprListInParens))),
     BooleanNumeric <$ string' "boolean"
   ]
