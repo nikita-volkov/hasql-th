@@ -1017,19 +1017,21 @@ literal = label "literal" $ asum [
       return (HexLiteral a)
     ,
     do
-      a <- funcName
+      a <- try $ do
+        a <- funcName
+        space
+        char '('
+        space
+        return a
+      b <- nonEmptyList funcArgExpr
+      c <- optional (try space1 *> sortClause)
+      space
+      char ')'
       space1
-      asum [
-          FuncLiteral a Nothing <$> stringLiteral,
-          do
-            b <- inParens $ do
-              c <- nonEmptyList funcArgExpr
-              d <- optional (try space1 *> sortClause)
-              return (FuncLiteralArgList c d)
-            space1
-            c <- stringLiteral
-            return (FuncLiteral a (Just b) c)
-        ]
+      d <- stringLiteral
+      return (FuncLiteral a (Just (FuncLiteralArgList b c)) d)
+    ,
+    FuncLiteral <$> try (funcName <* space1) <*> pure Nothing <*> stringLiteral
   ]
 
 intOrFloat = label "int or float" $ try $ do
