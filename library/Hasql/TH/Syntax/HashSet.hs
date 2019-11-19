@@ -40,3 +40,9 @@ symbolicBinOpChars = symbolicBinOp & toList & mconcat & Text.unpack & fromList
 {-# NOINLINE hexDigitChars #-}
 hexDigitChars :: HashSet Char
 hexDigitChars = fromList "0123456789abcdefABCDEF"
+
+{-# NOINLINE colId #-}
+colId = unions [unreservedKeyword, colNameKeyword]
+
+{-# NOINLINE typeFunctionName #-}
+typeFunctionName = unions [unreservedKeyword, typeFuncNameKeyword]

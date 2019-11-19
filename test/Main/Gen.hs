@@ -5,8 +5,17 @@ import Hasql.TH.Syntax.Ast
 import Hedgehog.Gen
 import qualified Hedgehog.Range as Range
 import qualified Data.Text as Text
+import qualified Data.HashSet as HashSet
 import qualified Hasql.TH.Syntax.HashSet as HashSet
 
+
+
+-- * Generic
+-------------------------
+
+inSet _set = filter (flip HashSet.member _set)
+
+outOfSet _set = filter (not . flip HashSet.member _set)
 
 
 -- * Statements
@@ -385,10 +394,10 @@ arrayDimensionsAmount = int (Range.exponential 0 4)
 -- * Names
 -------------------------
 
-typeName = identifier
+typeName = keyword HashSet.typeFunctionName
 
-{-# NOINLINE identifier #-}
-identifier = do
+{-# NOINLINE keyword #-}
+keyword = \ set -> inSet set $ do
   a <- element startList
   b <- text (Range.linear 1 29) (element contList)
   return (Text.cons a b)
@@ -398,7 +407,7 @@ identifier = do
 
 name = choice [
     QuotedName <$> text (Range.linear 1 30) quotedChar,
-    UnquotedName <$> identifier
+    UnquotedName <$> keyword HashSet.colId
   ]
 
 qualifiedName = choice [
