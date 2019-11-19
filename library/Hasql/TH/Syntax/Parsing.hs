@@ -855,6 +855,7 @@ funcApplicationParams :: Parser FuncApplicationParams
 funcApplicationParams =
   asum
     [
+      starFuncApplicationParams,
       listVariadicFuncApplicationParams,
       singleVariadicFuncApplicationParams,
       normalFuncApplicationParams
@@ -882,6 +883,9 @@ listVariadicFuncApplicationParams = do
   _arg <- funcArgExpr
   _optSortClause <- optional (space1 *> sortClause)
   return (VariadicFuncApplicationParams (Just _argList) _arg _optSortClause)
+
+starFuncApplicationParams :: Parser FuncApplicationParams
+starFuncApplicationParams = try (space *> char '*' *> space $> StarFuncApplicationParams)
 
 {-
 func_arg_expr:
