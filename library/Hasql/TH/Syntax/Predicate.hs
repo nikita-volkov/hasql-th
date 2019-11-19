@@ -6,22 +6,16 @@ import qualified Hasql.TH.Syntax.HashSet as HashSet
 
 
 {-
-SQL identifiers and key words must begin with a letter
-(a-z, but also letters with diacritical marks and non-Latin letters) or an underscore (_).
-Subsequent characters in an identifier or key word can be letters,
-underscores, digits (0-9), or dollar signs ($). 
+ident_start   [A-Za-z\200-\377_]
 -}
 firstIdentifierChar :: Char -> Bool
 firstIdentifierChar x = isAlpha x || x == '_'
 
 {-
-SQL identifiers and key words must begin with a letter
-(a-z, but also letters with diacritical marks and non-Latin letters) or an underscore (_).
-Subsequent characters in an identifier or key word can be letters,
-underscores, digits (0-9), or dollar signs ($). 
+ident_cont    [A-Za-z\200-\377_0-9\$]
 -}
 notFirstIdentifierChar :: Char -> Bool
-notFirstIdentifierChar x = isAlphaNum x || x == '_' || x == '$'
+notFirstIdentifierChar x = isAlphaNum x || x == '_' || x == '$' || x >= '\200' && x <= '\377'
 
 keyword :: Text -> Bool
 keyword = inSet HashSet.keyword

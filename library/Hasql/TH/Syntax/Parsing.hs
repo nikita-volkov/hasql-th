@@ -1328,6 +1328,11 @@ quotedName = label "quoted name" $ try $ do
     then fail "Empty name"
     else return (QuotedName _contents)
 
+{-
+ident_start   [A-Za-z\200-\377_]
+ident_cont    [A-Za-z\200-\377_0-9\$]
+identifier    {ident_start}{ident_cont}*
+-}
 ident :: Parser Name
 ident = quotedName <|> keywordNameByPredicate (not . Predicate.keyword)
 

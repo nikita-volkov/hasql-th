@@ -387,10 +387,14 @@ arrayDimensionsAmount = int (Range.exponential 0 4)
 
 typeName = identifier
 
+{-# NOINLINE identifier #-}
 identifier = do
-  a <- element "abcdefghiklmnopqrstuvwxyz_"
-  b <- text (Range.linear 1 29) (element "abcdefghiklmnopqrstuvwxyz0123456789$_")
+  a <- element startList
+  b <- text (Range.linear 1 29) (element contList)
   return (Text.cons a b)
+  where
+    startList = "abcdefghiklmnopqrstuvwxyz_" <> enumFromTo '\200' '\377'
+    contList = startList <> "0123456789$"
 
 name = choice [
     QuotedName <$> text (Range.linear 1 30) quotedChar,
