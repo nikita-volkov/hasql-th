@@ -779,7 +779,7 @@ typecastExpr _left = do
 
 binOpExpr :: Expr -> Parser Expr
 binOpExpr _a = do
-  _binOp <- try (space *> symbolicBinOp <* space) <|> try (space1 *> lexicalBinOp <* space1)
+  _binOp <- (try (space *> symbolicBinOp <* space) <|> try (space1 *> lexicalBinOp <* space1)) <?> "binary operator"
   _b <- aExpr
   return (BinOpExpr _binOp _a _b)
 
