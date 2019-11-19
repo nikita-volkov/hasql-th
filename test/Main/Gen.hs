@@ -268,10 +268,7 @@ expr = choice [
 
 binOp = element (toList HashSet.symbolicBinOp <> ["AND", "OR", "IS DISTINCT FROM", "IS NOT DISTINCT FROM"])
 
-escapableBinOp = do
-  a <- bool
-  b <- element ["LIKE", "ILIKE", "SIMILAR TO"]
-  return (if a then "NOT " <> b else b)
+escapableBinOp = element ["LIKE", "ILIKE", "SIMILAR TO"]
 
 whenClause = WhenClause <$> expr <*> expr
 
