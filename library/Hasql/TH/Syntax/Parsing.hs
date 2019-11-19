@@ -71,11 +71,12 @@ dotSeparator :: Parser ()
 dotSeparator = try $ space *> char '.' *> space
 
 inParens :: Parser a -> Parser a
-inParens p = try (char '(' *> space) *> p <* space <* char ')'
+inParens p = char '(' *> space *> p <* space <* char ')'
 
 inParensWithLabel :: (label -> content -> result) -> Parser label -> Parser content -> Parser result
 inParensWithLabel _result _labelParser _contentParser = do
   _label <- try $ _labelParser <* space <* char '('
+  space
   _content <- _contentParser
   space
   char ')'
@@ -700,7 +701,7 @@ BinOpExpr "=" (PlaceholderExpr 1) (BinOpExpr "and" (TypecastExpr (PlaceholderExp
 -}
 aExpr :: Parser Expr
 aExpr = label "expression" $ do
-  _left <- nonLoopingExpr
+  _left <- terminatingExpr
   loopingExpr _left <|> pure _left
   where
     loopingExpr _left = do
@@ -711,21 +712,7 @@ aExpr = label "expression" $ do
           escapableBinOpExpr _left
         ]
       loopingExpr _expr <|> pure _expr
-    nonLoopingExpr =
-      asum
-        [
-          defaultExpr,
-          placeholderExpr,
-          try literalExpr,
-          funcExpr,
-          columnRefExpr,
-          inParensExpr,
-          caseExpr,
-          selectExpr,
-          existsSelectExpr,
-          arraySelectExpr,
-          groupingExpr
-        ]
+    terminatingExpr = defaultExpr <|> cExpr
 
 {-
 c_expr:
@@ -751,15 +738,15 @@ cExpr =
   asum
     [
       placeholderExpr,
-      literalExpr,
-      columnRefExpr,
+      try literalExpr,
+      funcExpr,
       inParensExpr,
       caseExpr,
-      funcExpr,
       selectExpr,
       existsSelectExpr,
       arraySelectExpr,
-      groupingExpr
+      groupingExpr,
+      columnRefExpr
     ]
 
 placeholderExpr :: Parser Expr
