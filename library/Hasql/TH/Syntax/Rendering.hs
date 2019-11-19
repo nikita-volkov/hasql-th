@@ -26,8 +26,11 @@ toText = Text.decodeUtf8 . toByteString
 text :: Text -> Builder
 text = stringUtf8 . Text.unpack
 
-nonEmptyList :: (a -> Builder) -> NonEmpty a -> Builder
-nonEmptyList = intersperseFoldMap1 ", "
+commaNonEmpty :: (a -> Builder) -> NonEmpty a -> Builder
+commaNonEmpty = intersperseFoldMap1 ", "
+
+spaceNonEmpty :: (a -> Builder) -> NonEmpty a -> Builder
+spaceNonEmpty = intersperseFoldMap1 " "
 
 lexemes :: [Builder] -> Builder
 lexemes = mconcat . intersperse " "
@@ -63,13 +66,13 @@ selectNoParens (SelectNoParens a b c d e) =
     ]
 
 withClause (WithClause a b) =
-  "WITH " <> bool "" "RECURSIVE " a <> nonEmptyList commonTableExpr b
+  "WITH " <> bool "" "RECURSIVE " a <> commaNonEmpty commonTableExpr b
 
 commonTableExpr (CommonTableExpr a b c d) =
   optLexemes
     [
       Just (name a),
-      fmap (nonEmptyList name) b,
+      fmap (commaNonEmpty name) b,
       Just "AS",
       fmap materialization c,
       Just (inParens (preparableStmt d))
@@ -114,7 +117,7 @@ offsetClause = \ case
   FetchFirstOffsetClause a b -> "OFFSET " <> selectFetchFirstValue a <> " " <> rowOrRows b
 
 forLockingClause = \ case
-  ItemsForLockingClause a -> nonEmptyList forLockingItem a
+  ItemsForLockingClause a -> commaNonEmpty forLockingItem a
   ReadOnlyForLockingClause -> "FOR READ ONLY"
 
 forLockingItem (ForLockingItem a b c) =
@@ -131,7 +134,7 @@ forLockingStrength = \ case
   ShareForLockingStrength -> "FOR SHARE"
   KeyForLockingStrength -> "FOR KEY SHARE"
 
-lockedRelsList a = "OF " <> nonEmptyList qualifiedName a
+lockedRelsList a = "OF " <> commaNonEmpty qualifiedName a
 
 nowaitOrSkip = bool "NOWAIT" "SKIP LOCKED"
 
@@ -157,12 +160,12 @@ simpleSelect = \ case
 
 targeting :: Targeting -> Builder
 targeting = \ case
-  NormalTargeting a -> nonEmptyList target a
-  AllTargeting a -> "ALL" <> foldMap (mappend " " . nonEmptyList target) a
-  DistinctTargeting a b -> "DISTINCT" <> foldMap (mappend " " . onExpressionsClause) a <> " " <> nonEmptyList target b
+  NormalTargeting a -> commaNonEmpty target a
+  AllTargeting a -> "ALL" <> foldMap (mappend " " . commaNonEmpty target) a
+  DistinctTargeting a b -> "DISTINCT" <> foldMap (mappend " " . onExpressionsClause) a <> " " <> commaNonEmpty target b
 
 onExpressionsClause :: NonEmpty Expr -> Builder
-onExpressionsClause a = "ON (" <> nonEmptyList expr a <> ")"
+onExpressionsClause a = "ON (" <> commaNonEmpty expr a <> ")"
 
 target :: Target -> Builder
 target = \ case
@@ -190,7 +193,7 @@ optTempTableName (OptTempTableName a b c) =
 -------------------------
 
 fromClause :: FromClause -> Builder
-fromClause a = "FROM " <> nonEmptyList tableRef a
+fromClause a = "FROM " <> commaNonEmpty tableRef a
 
 tableRef :: TableRef -> Builder
 tableRef = \ case
@@ -222,7 +225,7 @@ aliasClause (AliasClause a b) =
     [
       Just "AS",
       Just (name a),
-      fmap (inParens . nonEmptyList name) b
+      fmap (inParens . commaNonEmpty name) b
     ]
 
 joinedTable :: JoinedTable -> Builder
@@ -242,7 +245,7 @@ joinType = \ case
 
 joinQual :: JoinQual -> Builder
 joinQual = \ case
-  UsingJoinQual a -> "USING (" <> nonEmptyList name a <> ")" 
+  UsingJoinQual a -> "USING (" <> commaNonEmpty name a <> ")" 
   OnJoinQual a -> "ON " <> expr a
 
 
@@ -257,15 +260,15 @@ whereClause a = "WHERE " <> expr a
 -------------------------
 
 groupClause :: GroupClause -> Builder
-groupClause a = "GROUP BY " <> nonEmptyList groupByItem a
+groupClause a = "GROUP BY " <> commaNonEmpty groupByItem a
 
 groupByItem :: GroupByItem -> Builder
 groupByItem = \ case
   ExprGroupByItem a -> expr a
   EmptyGroupingSetGroupByItem -> "()"
-  RollupGroupByItem a -> "ROLLUP (" <> nonEmptyList expr a <> ")"
-  CubeGroupByItem a -> "CUBE (" <> nonEmptyList expr a <> ")"
-  GroupingSetsGroupByItem a -> "GROUPING SETS (" <> nonEmptyList groupByItem a <> ")"
+  RollupGroupByItem a -> "ROLLUP (" <> commaNonEmpty expr a <> ")"
+  CubeGroupByItem a -> "CUBE (" <> commaNonEmpty expr a <> ")"
+  GroupingSetsGroupByItem a -> "GROUPING SETS (" <> commaNonEmpty groupByItem a <> ")"
 
 
 -- * Having
@@ -279,7 +282,7 @@ havingClause a = "HAVING " <> expr a
 -------------------------
 
 windowClause :: NonEmpty WindowDefinition -> Builder
-windowClause a = "WINDOW " <> nonEmptyList windowDefinition a
+windowClause a = "WINDOW " <> commaNonEmpty windowDefinition a
 
 windowDefinition :: WindowDefinition -> Builder
 windowDefinition (WindowDefinition a b) = name a <> " AS " <> windowSpecification b
@@ -295,7 +298,7 @@ windowSpecification (WindowSpecification a b c d) =
     ]
 
 partitionClause :: NonEmpty Expr -> Builder
-partitionClause a = "PARTITION BY " <> nonEmptyList expr a
+partitionClause a = "PARTITION BY " <> commaNonEmpty expr a
 
 frameClause :: FrameClause -> Builder
 frameClause (FrameClause a b c) =
@@ -337,7 +340,7 @@ windowExclusionCause = \ case
 -------------------------
 
 sortClause :: NonEmpty SortBy -> Builder
-sortClause a = "ORDER BY " <> nonEmptyList sortBy a
+sortClause a = "ORDER BY " <> commaNonEmpty sortBy a
 
 sortBy :: SortBy -> Builder
 sortBy (SortBy a b) = optLexemes [Just (expr a), fmap order b]
@@ -352,7 +355,7 @@ order = \ case
 -------------------------
 
 valuesClause :: ValuesClause -> Builder
-valuesClause a = "VALUES " <> nonEmptyList (inParens . nonEmptyList expr) a
+valuesClause a = "VALUES " <> commaNonEmpty (inParens . commaNonEmpty expr) a
 
 
 -- * Expr
@@ -377,7 +380,7 @@ expr = \ case
   CaseExpr a b c -> optLexemes [
       Just "CASE",
       fmap expr a,
-      Just (nonEmptyList whenClause b),
+      Just (spaceNonEmpty whenClause b),
       fmap caseDefault c,
       Just "END"
     ]
@@ -385,7 +388,7 @@ expr = \ case
   SelectExpr a -> inParens (selectNoParens a)
   ExistsSelectExpr a -> "EXISTS " <> inParens (selectNoParens a)
   ArraySelectExpr a -> "ARRAY " <> inParens (selectNoParens a)
-  GroupingExpr a -> "GROUPING " <> inParens (nonEmptyList expr a)
+  GroupingExpr a -> "GROUPING " <> inParens (commaNonEmpty expr a)
 
 type_ :: Type -> Builder
 type_ (Type a _ b _) =
@@ -408,13 +411,13 @@ funcApplicationParams = \ case
     optLexemes
       [
         fmap allOrDistinct a,
-        Just (nonEmptyList funcArgExpr b),
+        Just (commaNonEmpty funcArgExpr b),
         fmap sortClause c
       ]
   VariadicFuncApplicationParams a b c ->
     optLexemes
       [
-        fmap (nonEmptyList funcArgExpr) a,
+        fmap (commaNonEmpty funcArgExpr) a,
         Just "VARIADIC",
         Just (funcArgExpr b),
         fmap sortClause c
@@ -453,7 +456,7 @@ literal = \ case
 stringLiteral :: Text -> Builder
 stringLiteral a = "'" <> text (Text.replace "'" "''" a) <> "'"
 
-funcLiteralArgList (FuncLiteralArgList a b) = nonEmptyList funcArgExpr a <> foldMap (mappend " " . sortClause) b
+funcLiteralArgList (FuncLiteralArgList a b) = commaNonEmpty funcArgExpr a <> foldMap (mappend " " . sortClause) b
 
 constTypename = \ case
   NumericConstTypename a -> numeric a
@@ -469,15 +472,15 @@ numeric = \ case
   RealNumeric -> "REAL"
   FloatNumeric a -> "FLOAT" <> foldMap (mappend " " . inParens . int64Dec) a
   DoublePrecisionNumeric -> "DOUBLE PRECISION"
-  DecimalNumeric a -> "DECIMAL" <> foldMap (mappend " " . inParens . nonEmptyList expr) a
-  DecNumeric a -> "DEC" <> foldMap (mappend " " . inParens . nonEmptyList expr) a
-  NumericNumeric a -> "NUMERIC" <> foldMap (mappend " " . inParens . nonEmptyList expr) a
+  DecimalNumeric a -> "DECIMAL" <> foldMap (mappend " " . inParens . commaNonEmpty expr) a
+  DecNumeric a -> "DEC" <> foldMap (mappend " " . inParens . commaNonEmpty expr) a
+  NumericNumeric a -> "NUMERIC" <> foldMap (mappend " " . inParens . commaNonEmpty expr) a
   BooleanNumeric -> "BOOLEAN"
 
 constBit (ConstBit a b) = optLexemes [
     Just "BIT",
     bool Nothing (Just "VARYING") a,
-    fmap (inParens . nonEmptyList expr) b
+    fmap (inParens . commaNonEmpty expr) b
   ]
 
 constCharacter (ConstCharacter a b) = character a <> foldMap (mappend " " . inParens . int64Dec) b
