@@ -987,7 +987,7 @@ NullLiteral
 -}
 {- TODO: Add remaining cases -}
 literal :: Parser Literal
-literal = label "literal" $ asum [
+literal = asum [
     do
       try $ do
         string' "interval"
