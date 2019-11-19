@@ -94,6 +94,9 @@ sepWithSpace1 _parser = do
   _tail <- many $ try (space1 *> _parser)
   return (_head :| _tail)
 
+spaceIfJust :: Maybe a -> Parser ()
+spaceIfJust = maybe (pure ()) (const space1)
+
 {-|
 >>> testParser (quotedString '\'') "'abc''d'"
 "abc'd"
@@ -447,7 +450,65 @@ groupByItem = asum [
 -------------------------
 
 windowDefinition :: Parser WindowDefinition
-windowDefinition = error "TODO"
+windowDefinition = WindowDefinition <$> try (colId <* space1 <* string' "as" <* space1) <*> windowSpecification
+
+{-
+window_specification:
+  |  '(' opt_existing_window_name opt_partition_clause
+            opt_sort_clause opt_frame_clause ')'
+-}
+windowSpecification :: Parser WindowSpecification
+windowSpecification = inParens $ do
+  a <- optional colId
+  b <- optional (try (spaceIfJust a *> partitionByClause))
+  c <- optional (try (spaceIfJust (void a <|> void b) *> sortClause))
+  d <- optional (try (spaceIfJust (void a <|> void b <|> void c) *> frameClause))
+  return (WindowSpecification a b c d)
+
+partitionByClause = try $ keyphrase "partition by" *> space1 *> nonEmptyList aExpr
+
+{-
+opt_frame_clause:
+  |  RANGE frame_extent opt_window_exclusion_clause
+  |  ROWS frame_extent opt_window_exclusion_clause
+  |  GROUPS frame_extent opt_window_exclusion_clause
+  |  EMPTY
+-}
+frameClause = do
+  a <- try (frameClauseMode <* space1)
+  b <- frameExtent
+  c <- optional (try (space1 *> windowExclusionClause))
+  return (FrameClause a b c)
+
+frameClauseMode = asum [
+    RangeFrameClauseMode <$ string' "range",
+    RowsFrameClauseMode <$ string' "rows",
+    GroupsFrameClauseMode <$ string' "groups"
+  ]
+
+frameExtent =
+  BetweenFrameExtent <$> (try (string' "between" *> space1) *> frameBound <* space1 <* string' "and" <* space1) <*> frameBound <|>
+  SingularFrameExtent <$> frameBound
+
+{-
+  |  UNBOUNDED PRECEDING
+  |  UNBOUNDED FOLLOWING
+  |  CURRENT_P ROW
+  |  a_expr PRECEDING
+  |  a_expr FOLLOWING
+-}
+frameBound =
+  UnboundedPrecedingFrameBound <$ keyphrase "unbounded preceding" <|>
+  UnboundedFollowingFrameBound <$ keyphrase "unbounded following" <|>
+  CurrentRowFrameBound <$ keyphrase "current row" <|>
+  PrecedingFrameBound <$> try (aExpr <* string' "preceding") <|>
+  FollowingFrameBound <$> try (aExpr <* string' "following")
+
+windowExclusionClause =
+  CurrentRowWindowExclusionClause <$ keyphrase "exclude current row" <|>
+  GroupWindowExclusionClause <$ keyphrase "exclude group" <|>
+  TiesWindowExclusionClause <$ keyphrase "exclude ties" <|>
+  NoOthersWindowExclusionClause <$ keyphrase "exclude no others"
 
 
 -- * Table refs
