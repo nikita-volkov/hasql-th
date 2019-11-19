@@ -35,17 +35,19 @@ selectStmt = choice [
     NoParensSelectStmt <$> selectNoParens
   ]
 
-selectNoParens = SelectNoParens <$> maybe withClause <*> selectClause <*> maybe sortClause <*> maybe selectLimit <*> maybe forLockingClause
+selectNoParens = sized $ \ _size -> if _size <= 1
+  then discard
+  else SelectNoParens <$> maybe withClause <*> selectClause <*> maybe sortClause <*> maybe selectLimit <*> maybe forLockingClause
 
 selectClause = choice [
     Left <$> simpleSelect,
-    Right <$> selectNoParens
+    Right <$> small selectNoParens
   ]
 
 simpleSelect = choice [
     NormalSimpleSelect <$> maybe targeting <*> maybe intoClause <*> maybe fromClause <*> maybe whereClause <*> maybe groupClause <*> maybe havingClause <*> maybe windowClause,
     ValuesSimpleSelect <$> valuesClause,
-    BinSimpleSelect <$> selectBinOp <*> selectClause <*> allOrDistinct <*> selectClause
+    BinSimpleSelect <$> selectBinOp <*> small selectClause <*> allOrDistinct <*> small selectClause
   ]
 
 
@@ -77,7 +79,7 @@ selectBinOp = element [UnionSelectBinOp, IntersectSelectBinOp, ExceptSelectBinOp
 
 withClause = WithClause <$> bool <*> nonEmpty (Range.exponential 1 7) commonTableExpr
 
-commonTableExpr = CommonTableExpr <$> name <*> maybe (nonEmpty (Range.exponential 1 8) name) <*> maybe bool <*> preparableStmt
+commonTableExpr = CommonTableExpr <$> name <*> maybe (nonEmpty (Range.exponential 1 8) name) <*> maybe bool <*> small preparableStmt
 
 
 -- * Into Clause
