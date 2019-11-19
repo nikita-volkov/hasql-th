@@ -898,8 +898,28 @@ listVariadicFuncApplicationParams = try $ do
   _optSortClause <- optional (space1 *> sortClause)
   return (VariadicFuncApplicationParams (Just _argList) _arg _optSortClause)
 
+{-
+func_arg_expr:
+  | a_expr
+  | param_name COLON_EQUALS a_expr
+  | param_name EQUALS_GREATER a_expr
+param_name:
+  | type_function_name
+-}
 funcArgExpr :: Parser FuncArgExpr
-funcArgExpr = ExprFuncArgExpr <$> aExpr
+funcArgExpr = asum [
+    do
+      a <- try (typeFuncName <* space <* string ":=") <?> "<param name> :="
+      b <- space *> aExpr
+      return (ColonEqualsFuncArgExpr a b)
+    ,
+    do
+      a <- try (typeFuncName <* space <* string "=>") <?> "<param name> =>"
+      b <- space *> aExpr
+      return (EqualsGreaterFuncArgExpr a b)
+    ,
+    ExprFuncArgExpr <$> aExpr
+  ]
 
 sortClause :: Parser (NonEmpty SortBy)
 sortClause = do
@@ -1374,15 +1394,20 @@ columnRef = qualifiedName
 func_name:
   | type_function_name
   | ColId indirection
+-}
+funcName =
+  try (IndirectedQualifiedName <$> colId <*> (space *> indirection)) <|>
+  SimpleQualifiedName <$> typeFuncName
+
+{-
 type_function_name:
   | IDENT
   | unreserved_keyword
   | type_func_name_keyword
 -}
-funcName =
-  try (IndirectedQualifiedName <$> colId <*> (space *> indirection)) <|>
-  SimpleQualifiedName <$> ident <|>
-  SimpleQualifiedName <$> keywordNameFromSet (HashSet.unreservedKeyword <> HashSet.typeFuncNameKeyword)
+typeFuncName =
+  ident <|>
+  keywordNameFromSet (HashSet.unreservedKeyword <> HashSet.typeFuncNameKeyword)
 
 {-
 indirection:
