@@ -999,7 +999,7 @@ literal = asum [
             return (StringIntervalLiteral a b)
           ,
           do
-            a <- inParens intLiteral
+            a <- inParens iconst
             space1
             b <- stringLiteral
             return (IntIntervalLiteral a b)
@@ -1017,7 +1017,7 @@ literal = asum [
     ,
     NullLiteral <$ string' "null"
     ,
-    either IntLiteral FloatLiteral <$> intOrFloat
+    either IntLiteral FloatLiteral <$> iconstOrFconst
     ,
     StringLiteral <$> stringLiteral
     ,
@@ -1051,11 +1051,11 @@ literal = asum [
     FuncLiteral <$> try (funcName <* space1) <*> pure Nothing <*> stringLiteral
   ]
 
-intOrFloat =
-  Right <$> try (Lex.signed space Lex.float) <|>
-  Left <$> try (Lex.signed space Lex.decimal)
+iconstOrFconst = Right <$> fconst <|> Left <$> iconst
 
-intLiteral = Lex.decimal
+iconst = Lex.decimal <?> "integer literal"
+
+fconst = try Lex.float <?> "float literal"
 
 stringLiteral = quotedString '\''
 
@@ -1072,7 +1072,7 @@ numeric = asum [
     SmallintNumeric <$ string' "smallint",
     BigintNumeric <$ string' "bigint",
     RealNumeric <$ string' "real",
-    FloatNumeric <$> (string' "float" *> optional (try (space *> inParens intLiteral))),
+    FloatNumeric <$> (string' "float" *> optional (try (space *> inParens iconst))),
     DoublePrecisionNumeric <$ keyphrase "double precision",
     DecNumeric <$> (string' "dec" *> optional (try (space *> exprListInParens))),
     DecimalNumeric <$> (string' "decimal" *> optional (try (space *> exprListInParens))),
@@ -1096,7 +1096,7 @@ constBit = asum [
   ]
 
 
-constCharacter = ConstCharacter <$> character <*> optional (try (space *> inParens intLiteral))
+constCharacter = ConstCharacter <$> character <*> optional (try (space *> inParens iconst))
 
 character = asum [
     CharacterCharacter <$> (string' "character" *> optVaryingAfterSpace),
@@ -1109,16 +1109,23 @@ character = asum [
   where
     optVaryingAfterSpace = True <$ try (space1 <* string' "varying") <|> pure False
 
+{-
+ConstDatetime:
+  | TIMESTAMP '(' Iconst ')' opt_timezone
+  | TIMESTAMP opt_timezone
+  | TIME '(' Iconst ')' opt_timezone
+  | TIME opt_timezone
+-}
 constDatetime = asum [
     do
       string' "timestamp"
-      a <- optional (try (space1 *> inParens intLiteral))
+      a <- optional (try (space1 *> inParens iconst))
       b <- optional (try (space1 *> timezone))
       return (TimestampConstDatetime a b)
     ,
     do
       string' "time"
-      a <- optional (try (space1 *> inParens intLiteral))
+      a <- optional (try (space1 *> inParens iconst))
       b <- optional (try (space1 *> timezone))
       return (TimeConstDatetime a b)
   ]
@@ -1146,7 +1153,7 @@ interval = asum [
 
 intervalSecond = do
   string' "second"
-  a <- optional (try (space *> inParens intLiteral))
+  a <- optional (try (space *> inParens iconst))
   return a
 
 
@@ -1263,7 +1270,7 @@ firstOrNext =
 
 selectFetchFirstValue =
   ExprSelectFetchFirstValue <$> cExpr <|>
-  NumSelectFetchFirstValue <$> try (plusOrMinus <* space) <*> intOrFloat
+  NumSelectFetchFirstValue <$> try (plusOrMinus <* space) <*> iconstOrFconst
 
 plusOrMinus = try $ False <$ char '+' <|> True <$ char '-'
 

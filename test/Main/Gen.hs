@@ -223,7 +223,7 @@ limitClause = choice [
 
 selectFetchFirstValue = choice [
     ExprSelectFetchFirstValue <$> expr,
-    NumSelectFetchFirstValue <$> bool <*> intOrFloatLiteral
+    NumSelectFetchFirstValue <$> bool <*> iconstOrFconst
   ]
 
 selectLimitValue = choice [
@@ -300,8 +300,8 @@ funcArgExpr = choice [
 -------------------------
 
 literal = choice [
-    IntLiteral <$> intLiteral,
-    FloatLiteral <$> floatLiteral,
+    IntLiteral <$> iconst,
+    FloatLiteral <$> fconst,
     StringLiteral <$> stringLiteral,
     BitLiteral <$> text (Range.exponential 1 100) (element "01"),
     HexLiteral <$> text (Range.exponential 1 100) (element "0123456789abcdefABCDEF"),
@@ -328,7 +328,7 @@ numeric = choice [
     pure SmallintNumeric,
     pure BigintNumeric,
     pure RealNumeric,
-    FloatNumeric <$> maybe intLiteral,
+    FloatNumeric <$> maybe iconst,
     pure DoublePrecisionNumeric,
     DecimalNumeric <$> maybe (nonEmpty (Range.exponential 1 10) expr),
     DecNumeric <$> maybe (nonEmpty (Range.exponential 1 10) expr),
@@ -338,7 +338,7 @@ numeric = choice [
 
 constBit = ConstBit <$> bool <*> maybe (nonEmpty (Range.exponential 1 10) expr)
 
-constCharacter = ConstCharacter <$> character <*> maybe intLiteral
+constCharacter = ConstCharacter <$> character <*> maybe iconst
 
 character = choice [
     CharacterCharacter <$> bool,
@@ -350,8 +350,8 @@ character = choice [
   ]
 
 constDatetime = choice [
-    TimestampConstDatetime <$> maybe intLiteral <*> maybe bool,
-    TimeConstDatetime <$> maybe intLiteral <*> maybe bool
+    TimestampConstDatetime <$> maybe iconst <*> maybe bool,
+    TimeConstDatetime <$> maybe iconst <*> maybe bool
   ]
 
 interval = choice [
@@ -370,15 +370,15 @@ interval = choice [
     MinuteToSecondInterval <$> intervalSecond
   ]
 
-intervalSecond = maybe intLiteral
+intervalSecond = maybe iconst
 
 stringLiteral = text (Range.exponential 0 1000) unicode
 
-intOrFloatLiteral = choice [Left <$> intLiteral <|> Right <$> floatLiteral]
+iconstOrFconst = choice [Left <$> iconst <|> Right <$> fconst]
 
-intLiteral = integral (Range.exponentialFrom 0 (-97234095729345740293579345) 309457394857984375983475943)
+fconst = realFrac_ (Range.exponentialFloat 0 309457394857984375983475943)
 
-floatLiteral = realFrac_ (Range.linearFracFrom 0 (-97234095729) 3094573948579)
+iconst = integral (Range.exponential 0 maxBound)
 
 
 -- * Types
