@@ -87,7 +87,17 @@ commonTableExpr = CommonTableExpr <$> name <*> maybe (nonEmpty (Range.exponentia
 
 intoClause = optTempTableName
 
-optTempTableName = OptTempTableName <$> bool <*> bool <*> qualifiedName
+optTempTableName = choice [
+    TemporaryOptTempTableName <$> bool <*> qualifiedName,
+    TempOptTempTableName <$> bool <*> qualifiedName,
+    LocalTemporaryOptTempTableName <$> bool <*> qualifiedName,
+    LocalTempOptTempTableName <$> bool <*> qualifiedName,
+    GlobalTemporaryOptTempTableName <$> bool <*> qualifiedName,
+    GlobalTempOptTempTableName <$> bool <*> qualifiedName,
+    UnloggedOptTempTableName <$> bool <*> qualifiedName,
+    TableOptTempTableName <$> qualifiedName,
+    QualifedOptTempTableName <$> qualifiedName
+  ]
 
 
 -- * From Clause

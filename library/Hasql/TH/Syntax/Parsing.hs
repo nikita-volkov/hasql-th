@@ -160,12 +160,14 @@ sharedSelectNoParens _with = do
     sort _select = 
       (do
         _sort <- sortClause
+        space1
         limit _select (Just _sort)
       ) <|>
       limit _select Nothing
     limit _select _optSorting =
       (do
         _limit <- selectLimit
+        space1
         forLocking _select _optSorting (Just _limit)
       ) <|>
       forLocking _select _optSorting Nothing
@@ -189,11 +191,14 @@ withSelectNoParens = do
   space1
   sharedSelectNoParens (Just _with)
 
-selectClause =
-  asum
-    [
+selectClause = do
+  a <- asum [
       Right <$> selectWithParens,
-      Left <$> simpleSelect
+      Left <$> headfulSimpleSelect
+    ]
+  asum [
+      Left <$> headlessSimpleSelect a,
+      pure a
     ]
 
 {-|
@@ -249,9 +254,9 @@ simple_select:
 
 TODO: handle remaining cases
 -}
-simpleSelect :: Parser SimpleSelect
-simpleSelect = asum
-  [
+
+headfulSimpleSelect :: Parser SimpleSelect
+headfulSimpleSelect = asum [
     do
       try $ do
         string' "select"
@@ -266,6 +271,22 @@ simpleSelect = asum
       return (NormalSimpleSelect _targeting _intoClause _fromClause _whereClause _groupClause _havingClause _windowClause)
     ,
     ValuesSimpleSelect <$> valuesClause
+  ]
+
+headlessSimpleSelect :: SelectClause -> Parser SimpleSelect
+headlessSimpleSelect _headSelectClause = do
+  _op <- try $ space1 *> selectBinOp <* space1
+  _allOrDistinct <- allOrDistinct
+  space1
+  _selectClause <- selectClause
+  return (BinSimpleSelect _op _headSelectClause _allOrDistinct _selectClause)
+  
+allOrDistinct = string' "all" $> AllAllOrDistinct <|> string' "distinct" $> DistinctAllOrDistinct
+
+selectBinOp = asum [
+    string' "union" $> UnionSelectBinOp,
+    string' "intersect" $> IntersectSelectBinOp,
+    string' "except" $> ExceptSelectBinOp
   ]
 
 valuesClause = nonEmptyList $ do
@@ -373,8 +394,40 @@ onExpressionsClause = do
 -- * Into clause details
 -------------------------
 
+{-
+OptTempTableName:
+  | TEMPORARY opt_table qualified_name
+  | TEMP opt_table qualified_name
+  | LOCAL TEMPORARY opt_table qualified_name
+  | LOCAL TEMP opt_table qualified_name
+  | GLOBAL TEMPORARY opt_table qualified_name
+  | GLOBAL TEMP opt_table qualified_name
+  | UNLOGGED opt_table qualified_name
+  | TABLE qualified_name
+  | qualified_name
+-}
 optTempTableName :: Parser OptTempTableName
-optTempTableName = error "TODO"
+optTempTableName = asum [
+    do
+      a <- asum [
+          TemporaryOptTempTableName <$ try (string' "temporary" *> space1),
+          TempOptTempTableName <$ try (string' "temp" *> space1),
+          LocalTemporaryOptTempTableName <$ try (string' "local temporary" *> space1),
+          LocalTempOptTempTableName <$ try (string' "local temp" *> space1),
+          GlobalTemporaryOptTempTableName <$ try (string' "global temporary" *> space1),
+          GlobalTempOptTempTableName <$ try (string' "global temp" *> space1),
+          UnloggedOptTempTableName <$ try (string' "unlogged" *> space1)
+        ]
+      b <- option False (try (True <$ string' "table" <* space1))
+      c <- qualifiedName
+      return (a b c)
+    ,
+    do
+      try (string' "table" *> space1)
+      TableOptTempTableName <$> qualifiedName
+    ,
+    QualifedOptTempTableName <$> qualifiedName
+  ]
 
 
 -- * Group by details
@@ -876,7 +929,7 @@ funcApplicationParams =
 
 normalFuncApplicationParams :: Parser FuncApplicationParams
 normalFuncApplicationParams = try $ do
-  _optAllOrDistinct <- optional ((string' "all" $> AllAllOrDistinct <|> string' "distinct" $> DistinctAllOrDistinct) <* space1)
+  _optAllOrDistinct <- optional (allOrDistinct <* space1)
   _argList <- nonEmptyList funcArgExpr
   _optSortClause <- optional (space1 *> sortClause)
   return (NormalFuncApplicationParams _optAllOrDistinct _argList _optSortClause)

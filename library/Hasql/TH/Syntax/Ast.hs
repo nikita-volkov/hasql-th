@@ -132,6 +132,11 @@ data Target =
   ExprTarget Expr (Maybe Name)
   deriving (Show, Generic, Eq, Ord)
 
+{-
+  |  select_clause UNION all_or_distinct select_clause
+  |  select_clause INTERSECT all_or_distinct select_clause
+  |  select_clause EXCEPT all_or_distinct select_clause
+-}
 data SelectBinOp = UnionSelectBinOp | IntersectSelectBinOp | ExceptSelectBinOp
   deriving (Show, Generic, Eq, Ord)
 
@@ -157,17 +162,7 @@ data CommonTableExpr = CommonTableExpr Name (Maybe (NonEmpty Name)) (Maybe Bool)
 
 type IntoClause = OptTempTableName
 
-{-|
-TEMPORARY or TEMP
-If specified, the table is created as a temporary table. Refer to CREATE TABLE for details.
-
-UNLOGGED
-If specified, the table is created as an unlogged table. Refer to CREATE TABLE for details.
-
-new_table
-The name (optionally schema-qualified) of the table to be created.
-
-@
+{-
 OptTempTableName:
   |  TEMPORARY opt_table qualified_name
   |  TEMP opt_table qualified_name
@@ -178,9 +173,17 @@ OptTempTableName:
   |  UNLOGGED opt_table qualified_name
   |  TABLE qualified_name
   |  qualified_name
-@
 -}
-data OptTempTableName = OptTempTableName Bool Bool QualifiedName
+data OptTempTableName =
+  TemporaryOptTempTableName Bool QualifiedName |
+  TempOptTempTableName Bool QualifiedName |
+  LocalTemporaryOptTempTableName Bool QualifiedName |
+  LocalTempOptTempTableName Bool QualifiedName |
+  GlobalTemporaryOptTempTableName Bool QualifiedName |
+  GlobalTempOptTempTableName Bool QualifiedName |
+  UnloggedOptTempTableName Bool QualifiedName |
+  TableOptTempTableName QualifiedName |
+  QualifedOptTempTableName QualifiedName
   deriving (Show, Generic, Eq, Ord)
 
 type FromClause = NonEmpty TableRef

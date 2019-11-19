@@ -102,7 +102,7 @@ valuesClause :: ValuesClause -> [Expr]
 valuesClause = foldable toList
 
 optTempTableName :: OptTempTableName -> [Expr]
-optTempTableName (OptTempTableName _ _ _) = []
+optTempTableName _ = []
 
 groupByItem :: GroupByItem -> [Expr]
 groupByItem = \ case

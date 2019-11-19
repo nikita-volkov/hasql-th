@@ -15,7 +15,7 @@ import qualified Data.Text as Text
 main = defaultMain [
     checkParallel $ Group "Parsing a rendered AST produces the same AST" $ let
       p _name _gen _parser _renderer =
-        (,) _name $ withTests 10000 $ property $ do
+        (,) _name $ withDiscards 10000 $ withTests 10000 $ property $ do
           ast <- forAll _gen
           let
             sql = Rendering.toText (_renderer ast)

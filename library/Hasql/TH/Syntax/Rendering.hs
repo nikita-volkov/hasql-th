@@ -87,7 +87,7 @@ selectLimit = \ case
   OffsetSelectLimit a -> offsetClause a
 
 limitClause = \ case
-  LimitLimitClause a b -> optLexemes [Just (selectLimitValue a), fmap expr b]
+  LimitLimitClause a b -> optLexemes [Just "LIMIT", Just (selectLimitValue a), fmap expr b]
   FetchOnlyLimitClause a b c ->
     optLexemes
       [
@@ -180,13 +180,16 @@ intoClause :: IntoClause -> Builder
 intoClause a = "INTO " <> optTempTableName a
 
 optTempTableName :: OptTempTableName -> Builder
-optTempTableName (OptTempTableName a b c) =
-  optLexemes
-    [
-      if a then Just "TEMP" else Nothing,
-      if b then Just "UNLOGGED" else Nothing,
-      Just (qualifiedName c)
-    ]
+optTempTableName = \ case
+  TemporaryOptTempTableName a b -> optLexemes [Just "TEMPORARY", bool Nothing (Just "TABLE") a, Just (qualifiedName b)]
+  TempOptTempTableName a b -> optLexemes [Just "TEMP", bool Nothing (Just "TABLE") a, Just (qualifiedName b)]
+  LocalTemporaryOptTempTableName a b -> optLexemes [Just "LOCAL TEMPORARY", bool Nothing (Just "TABLE") a, Just (qualifiedName b)]
+  LocalTempOptTempTableName a b -> optLexemes [Just "LOCAL TEMP", bool Nothing (Just "TABLE") a, Just (qualifiedName b)]
+  GlobalTemporaryOptTempTableName a b -> optLexemes [Just "GLOBAL TEMPORARY", bool Nothing (Just "TABLE") a, Just (qualifiedName b)]
+  GlobalTempOptTempTableName a b -> optLexemes [Just "GLOBAL TEMP", bool Nothing (Just "TABLE") a, Just (qualifiedName b)]
+  UnloggedOptTempTableName a b -> optLexemes [Just "UNLOGGED", bool Nothing (Just "TABLE") a, Just (qualifiedName b)]
+  TableOptTempTableName a -> "TABLE " <> qualifiedName a
+  QualifedOptTempTableName a -> qualifiedName a
 
 
 -- * From
