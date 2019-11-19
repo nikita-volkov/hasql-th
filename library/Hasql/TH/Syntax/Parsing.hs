@@ -807,7 +807,7 @@ escapableBinOpExpr _a = do
     string' "escape"
     space1
     aExpr
-  return (EscapableBinOpExpr _not _op _a _b _escaping)
+  return (EscapableBinOpExpr _not (Text.toUpper _op) _a _b _escaping)
 
 defaultExpr :: Parser Expr
 defaultExpr = DefaultExpr <$ string' "default"
@@ -1481,4 +1481,4 @@ keyword = label "keyword" $ try $ do
 Consume a keyphrase, ignoring case and types of spaces between words.
 -}
 keyphrase :: Text -> Parser Text
-keyphrase a = Text.words a & fmap (void . string') & intersperse space1 & sequence_ & fmap (const a) & try & label (show a)
+keyphrase a = Text.words a & fmap (void . string') & intersperse space1 & sequence_ & fmap (const (Text.toUpper a)) & try & label (show a)
