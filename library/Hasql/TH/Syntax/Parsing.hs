@@ -86,7 +86,7 @@ inParensWithClause :: Parser clause -> Parser content -> Parser content
 inParensWithClause = inParensWithLabel (const id)
 
 nonEmptyList :: Parser a -> Parser (NonEmpty a)
-nonEmptyList p = sepBy1 p commaSeparator
+nonEmptyList p = (:|) <$> p <*> many (try (commaSeparator *> p))
 
 sepWithSpace1 :: Parser a -> Parser (NonEmpty a)
 sepWithSpace1 _parser = do
@@ -855,9 +855,9 @@ funcApplicationParams :: Parser FuncApplicationParams
 funcApplicationParams =
   asum
     [
-      normalFuncApplicationParams,
+      listVariadicFuncApplicationParams,
       singleVariadicFuncApplicationParams,
-      listVariadicFuncApplicationParams
+      normalFuncApplicationParams
     ]
 
 normalFuncApplicationParams :: Parser FuncApplicationParams
@@ -868,19 +868,17 @@ normalFuncApplicationParams = try $ do
   return (NormalFuncApplicationParams _optAllOrDistinct _argList _optSortClause)
 
 singleVariadicFuncApplicationParams :: Parser FuncApplicationParams
-singleVariadicFuncApplicationParams = try $ do
-  string' "variadic"
-  space1
+singleVariadicFuncApplicationParams = do
+  try $ do
+    string' "variadic"
+    space1
   _arg <- funcArgExpr
   _optSortClause <- optional (space1 *> sortClause)
   return (VariadicFuncApplicationParams Nothing _arg _optSortClause)
 
 listVariadicFuncApplicationParams :: Parser FuncApplicationParams
-listVariadicFuncApplicationParams = try $ do
-  _argList <- nonEmptyList funcArgExpr
-  commaSeparator
-  string' "variadic"
-  space1
+listVariadicFuncApplicationParams = do
+  _argList <- try $ nonEmptyList funcArgExpr <* commaSeparator <* string' "variadic" <* space1
   _arg <- funcArgExpr
   _optSortClause <- optional (space1 *> sortClause)
   return (VariadicFuncApplicationParams (Just _argList) _arg _optSortClause)
