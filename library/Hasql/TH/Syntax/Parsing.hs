@@ -702,6 +702,30 @@ aExpr :: Parser Expr
 aExpr = label "expression" $ do
   _left <- nonLoopingExpr
   loopingExpr _left <|> pure _left
+  where
+    loopingExpr _left = do
+      _expr <- asum
+        [
+          typecastExpr _left,
+          binOpExpr _left,
+          escapableBinOpExpr _left
+        ]
+      loopingExpr _expr <|> pure _expr
+    nonLoopingExpr =
+      asum
+        [
+          defaultExpr,
+          placeholderExpr,
+          try literalExpr,
+          columnRefExpr,
+          inParensExpr,
+          caseExpr,
+          funcExpr,
+          selectExpr,
+          existsSelectExpr,
+          arraySelectExpr,
+          groupingExpr
+        ]
 
 {-
 c_expr:
@@ -728,33 +752,6 @@ cExpr =
     [
       placeholderExpr,
       literalExpr,
-      columnRefExpr,
-      inParensExpr,
-      caseExpr,
-      funcExpr,
-      selectExpr,
-      existsSelectExpr,
-      arraySelectExpr,
-      groupingExpr
-    ]
-
-loopingExpr :: Expr -> Parser Expr
-loopingExpr _left = do
-  _expr <- asum
-    [
-      typecastExpr _left,
-      binOpExpr _left,
-      escapableBinOpExpr _left
-    ]
-  loopingExpr _expr <|> pure _expr
-
-nonLoopingExpr :: Parser Expr
-nonLoopingExpr =
-  asum
-    [
-      defaultExpr,
-      placeholderExpr,
-      try literalExpr,
       columnRefExpr,
       inParensExpr,
       caseExpr,
