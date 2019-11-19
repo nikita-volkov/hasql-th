@@ -55,10 +55,10 @@ simpleSelect = choice [
 targeting = choice [
     NormalTargeting <$> targets,
     AllTargeting <$> maybe targets,
-    DistinctTargeting <$> maybe (nonEmpty (Range.exponential 1 20) expr) <*> targets
+    DistinctTargeting <$> maybe (nonEmpty (Range.exponential 1 8) expr) <*> targets
   ]
 
-targets = nonEmpty (Range.exponential 1 20) target
+targets = nonEmpty (Range.exponential 1 8) target
 
 target = choice [
     pure AllTarget,
@@ -75,9 +75,9 @@ selectBinOp = element [UnionSelectBinOp, IntersectSelectBinOp, ExceptSelectBinOp
 -- * With Clause
 -------------------------
 
-withClause = WithClause <$> bool <*> nonEmpty (Range.exponential 1 10) commonTableExpr
+withClause = WithClause <$> bool <*> nonEmpty (Range.exponential 1 7) commonTableExpr
 
-commonTableExpr = CommonTableExpr <$> name <*> maybe (nonEmpty (Range.exponential 1 20) name) <*> maybe bool <*> preparableStmt
+commonTableExpr = CommonTableExpr <$> name <*> maybe (nonEmpty (Range.exponential 1 8) name) <*> maybe bool <*> preparableStmt
 
 
 -- * Into Clause
@@ -91,7 +91,7 @@ optTempTableName = OptTempTableName <$> bool <*> bool <*> qualifiedName
 -- * From Clause
 -------------------------
 
-fromClause = nonEmpty (Range.exponential 1 20) tableRef
+fromClause = nonEmpty (Range.exponential 1 8) tableRef
 
 tableRef = choice [
     RelationExprTableRef <$> relationExpr <*> maybe aliasClause,
@@ -104,7 +104,7 @@ relationExpr = choice [
     OnlyRelationExpr <$> qualifiedName <*> bool
   ]
 
-aliasClause = AliasClause <$> name <*> maybe (nonEmpty (Range.exponential 1 20) name)
+aliasClause = AliasClause <$> name <*> maybe (nonEmpty (Range.exponential 1 8) name)
 
 joinedTable = choice [
     InParensJoinedTable <$> joinedTable,
@@ -125,7 +125,7 @@ joinType = choice [
   ]
 
 joinQual = choice [
-    UsingJoinQual <$> nonEmpty (Range.exponential 1 20) name,
+    UsingJoinQual <$> nonEmpty (Range.exponential 1 8) name,
     OnJoinQual <$> expr
   ]
 
@@ -133,14 +133,14 @@ joinQual = choice [
 -- * Group Clause
 -------------------------
 
-groupClause = nonEmpty (Range.exponential 1 20) groupByItem
+groupClause = nonEmpty (Range.exponential 1 8) groupByItem
 
 groupByItem = choice [
     ExprGroupByItem <$> expr,
     pure EmptyGroupingSetGroupByItem,
-    RollupGroupByItem <$> nonEmpty (Range.exponential 1 20) expr,
-    CubeGroupByItem <$> nonEmpty (Range.exponential 1 20) expr,
-    GroupingSetsGroupByItem <$> nonEmpty (Range.exponential 1 5) groupByItem
+    RollupGroupByItem <$> nonEmpty (Range.exponential 1 8) expr,
+    CubeGroupByItem <$> nonEmpty (Range.exponential 1 8) expr,
+    GroupingSetsGroupByItem <$> nonEmpty (Range.exponential 1 3) groupByItem
   ]
 
 
@@ -159,11 +159,11 @@ whereClause = expr
 -- * Window Clause
 -------------------------
 
-windowClause = nonEmpty (Range.exponential 1 20) windowDefinition
+windowClause = nonEmpty (Range.exponential 1 8) windowDefinition
 
 windowDefinition = WindowDefinition <$> name <*> windowSpecification
 
-windowSpecification = WindowSpecification <$> maybe name <*> maybe (nonEmpty (Range.exponential 1 20) expr) <*> maybe sortClause <*> maybe frameClause
+windowSpecification = WindowSpecification <$> maybe name <*> maybe (nonEmpty (Range.exponential 1 8) expr) <*> maybe sortClause <*> maybe frameClause
 
 frameClause = FrameClause <$> frameClauseMode <*> frameExtent <*> maybe windowExclusionClause
 
@@ -188,13 +188,13 @@ windowExclusionClause = element [CurrentRowWindowExclusionClause, GroupWindowExc
 -- * Values Clause
 -------------------------
 
-valuesClause = nonEmpty (Range.exponential 1 20) (nonEmpty (Range.exponential 1 20) expr)
+valuesClause = nonEmpty (Range.exponential 1 8) (nonEmpty (Range.exponential 1 8) expr)
 
 
 -- * Sort Clause
 -------------------------
 
-sortClause = nonEmpty (Range.exponential 1 20) sortBy
+sortClause = nonEmpty (Range.exponential 1 8) sortBy
 
 sortBy = SortBy <$> expr <*> maybe order
 
@@ -242,11 +242,11 @@ offsetClause = choice [
 -------------------------
 
 forLockingClause = choice [
-    ItemsForLockingClause <$> nonEmpty (Range.exponential 1 20) forLockingItem,
+    ItemsForLockingClause <$> nonEmpty (Range.exponential 1 8) forLockingItem,
     pure ReadOnlyForLockingClause
   ]
 
-forLockingItem = ForLockingItem <$> forLockingStrength <*> maybe (nonEmpty (Range.exponential 1 20) qualifiedName) <*> maybe bool
+forLockingItem = ForLockingItem <$> forLockingStrength <*> maybe (nonEmpty (Range.exponential 1 8) qualifiedName) <*> maybe bool
 
 forLockingStrength = element [
     UpdateForLockingStrength,
@@ -273,7 +273,7 @@ expr = choice (terminalExprList <> nonTerminalExprList)
         ,
         InParensExpr <$> expr <*> maybe indirection
         ,
-        CaseExpr <$> maybe expr <*> nonEmpty (Range.exponential 1 20) whenClause <*> maybe expr
+        CaseExpr <$> maybe expr <*> nonEmpty (Range.exponential 1 8) whenClause <*> maybe expr
         ,
         FuncExpr <$> funcApplication
         ,
@@ -283,7 +283,7 @@ expr = choice (terminalExprList <> nonTerminalExprList)
         ,
         ArraySelectExpr <$> selectNoParens
         ,
-        GroupingExpr <$> nonEmpty (Range.exponential 1 20) expr
+        GroupingExpr <$> nonEmpty (Range.exponential 1 8) expr
       ]
     nonTerminalExprList = [
         TypecastExpr <$> terminalExpr <*> type_
@@ -302,8 +302,8 @@ whenClause = WhenClause <$> expr <*> expr
 funcApplication = FuncApplication <$> qualifiedName <*> maybe funcApplicationParams
 
 funcApplicationParams = choice [
-    NormalFuncApplicationParams <$> maybe allOrDistinct <*> nonEmpty (Range.exponential 1 20) funcArgExpr <*> maybe sortClause,
-    VariadicFuncApplicationParams <$> maybe (nonEmpty (Range.exponential 1 20) funcArgExpr) <*> funcArgExpr <*> maybe sortClause,
+    NormalFuncApplicationParams <$> maybe allOrDistinct <*> nonEmpty (Range.exponential 1 8) funcArgExpr <*> maybe sortClause,
+    VariadicFuncApplicationParams <$> maybe (nonEmpty (Range.exponential 1 8) funcArgExpr) <*> funcArgExpr <*> maybe sortClause,
     pure StarFuncApplicationParams
   ]
 
@@ -331,7 +331,7 @@ literal = choice [
     pure NullLiteral
   ]
 
-funcLiteralArgList = FuncLiteralArgList <$> nonEmpty (Range.exponential 1 10) funcArgExpr <*> maybe sortClause
+funcLiteralArgList = FuncLiteralArgList <$> nonEmpty (Range.exponential 1 7) funcArgExpr <*> maybe sortClause
 
 constTypename = choice [
     NumericConstTypename <$> numeric,
@@ -348,13 +348,13 @@ numeric = choice [
     pure RealNumeric,
     FloatNumeric <$> maybe iconst,
     pure DoublePrecisionNumeric,
-    DecimalNumeric <$> maybe (nonEmpty (Range.exponential 1 10) expr),
-    DecNumeric <$> maybe (nonEmpty (Range.exponential 1 10) expr),
-    NumericNumeric <$> maybe (nonEmpty (Range.exponential 1 10) expr),
+    DecimalNumeric <$> maybe (nonEmpty (Range.exponential 1 7) expr),
+    DecNumeric <$> maybe (nonEmpty (Range.exponential 1 7) expr),
+    NumericNumeric <$> maybe (nonEmpty (Range.exponential 1 7) expr),
     pure BooleanNumeric
   ]
 
-constBit = ConstBit <$> bool <*> maybe (nonEmpty (Range.exponential 1 10) expr)
+constBit = ConstBit <$> bool <*> maybe (nonEmpty (Range.exponential 1 7) expr)
 
 constCharacter = ConstCharacter <$> character <*> maybe iconst
 
