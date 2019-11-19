@@ -259,21 +259,22 @@ forLockingStrength = element [
 -- * Expressions
 -------------------------
 
-expr = choice (terminalExprList <> nonTerminalExprList)
+expr = recursive choice terminatingHeadfulExprList (recursiveHeadfulExprList <> recursiveHeadlessExprList)
   where
-    terminalExpr = choice terminalExprList
-    terminalExprList = [
-        PlaceholderExpr <$> int (Range.linear 1 5)
+    headfulExpr = recursive choice terminatingHeadfulExprList recursiveHeadfulExprList
+    terminatingHeadfulExprList = [
+        PlaceholderExpr <$> int (Range.linear 1 11)
         ,
         pure DefaultExpr
-        ,
+      ]
+    recursiveHeadfulExprList = [
         QualifiedNameExpr <$> qualifiedName
         ,
         LiteralExpr <$> literal
         ,
         InParensExpr <$> (small expr) <*> maybe indirection
         ,
-        CaseExpr <$> maybe (small expr) <*> nonEmpty (Range.exponential 1 8) whenClause <*> maybe (small expr)
+        CaseExpr <$> maybe (small expr) <*> nonEmpty (Range.exponential 1 2) whenClause <*> maybe (small expr)
         ,
         FuncExpr <$> funcApplication
         ,
@@ -283,14 +284,14 @@ expr = choice (terminalExprList <> nonTerminalExprList)
         ,
         ArraySelectExpr <$> small selectNoParens
         ,
-        GroupingExpr <$> nonEmpty (Range.exponential 1 8) (small expr)
+        GroupingExpr <$> nonEmpty (Range.exponential 1 4) (small expr)
       ]
-    nonTerminalExprList = [
-        TypecastExpr <$> terminalExpr <*> type_
+    recursiveHeadlessExprList = [
+        TypecastExpr <$> small headfulExpr <*> type_
         ,
-        BinOpExpr <$> binOp <*> terminalExpr <*> small expr
+        BinOpExpr <$> binOp <*> small headfulExpr <*> small expr
         ,
-        EscapableBinOpExpr <$> bool <*> escapableBinOp <*> terminalExpr <*> terminalExpr <*> maybe terminalExpr
+        EscapableBinOpExpr <$> bool <*> escapableBinOp <*> small headfulExpr <*> small headfulExpr <*> maybe (small headfulExpr)
       ]
 
 binOp = element (toList HashSet.symbolicBinOp <> ["AND", "OR", "IS DISTINCT FROM", "IS NOT DISTINCT FROM"])
