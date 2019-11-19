@@ -1107,7 +1107,7 @@ character = asum [
     NcharCharacter <$> (string' "nchar" *> optVaryingAfterSpace)
   ]
   where
-    optVaryingAfterSpace = True <$ (space1 <* string' "varying") <|> pure False
+    optVaryingAfterSpace = True <$ try (space1 <* string' "varying") <|> pure False
 
 constDatetime = asum [
     do
