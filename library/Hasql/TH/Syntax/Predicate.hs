@@ -5,6 +5,30 @@ import qualified Data.HashSet as HashSet
 import qualified Hasql.TH.Syntax.HashSet as HashSet
 
 
+-- * Generic
+-------------------------
+
+{-|
+>>> test = oneOf [(==3), (==7), (==3), (==5)]
+>>> test 1
+False
+
+>>> test 3
+True
+
+>>> test 5
+True
+-}
+oneOf :: [a -> Bool] -> a -> Bool
+oneOf = foldr (\ a b c -> a c || b c) (const False)
+
+inSet :: (Eq a, Hashable a) => HashSet a -> a -> Bool
+inSet = flip HashSet.member
+
+
+-- *
+-------------------------
+
 {-
 ident_start   [A-Za-z\200-\377_]
 -}
@@ -32,22 +56,5 @@ typeFuncNameKeyword = inSet HashSet.typeFuncNameKeyword
 reservedKeyword :: Text -> Bool
 reservedKeyword = inSet HashSet.reservedKeyword
 
-inSet :: (Eq a, Hashable a) => HashSet a -> a -> Bool
-inSet = flip HashSet.member
-
 symbolicBinOpChar :: Char -> Bool
 symbolicBinOpChar = inSet HashSet.symbolicBinOpChars
-
-{-|
->>> test = oneOf [(==3), (==7), (==3), (==5)]
->>> test 1
-False
-
->>> test 3
-True
-
->>> test 5
-True
--}
-oneOf :: [a -> Bool] -> a -> Bool
-oneOf = foldr (\ a b c -> a c || b c) (const False)
