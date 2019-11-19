@@ -15,7 +15,7 @@ import qualified Hasql.TH.Syntax.HashSet as HashSet
 
 inSet _set = filter (flip HashSet.member _set)
 
-outOfSet _set = filter (not . flip HashSet.member _set)
+notInSet _set = filter (not . flip HashSet.member _set)
 
 
 -- * Statements
@@ -394,10 +394,7 @@ arrayDimensionsAmount = int (Range.exponential 0 4)
 -- * Names
 -------------------------
 
-typeName = keyword HashSet.typeFunctionName
-
-{-# NOINLINE keyword #-}
-keyword = \ set -> inSet set $ do
+keywordNotInSet = \ set -> notInSet set $ do
   a <- element startList
   b <- text (Range.linear 1 29) (element contList)
   return (Text.cons a b)
@@ -405,9 +402,15 @@ keyword = \ set -> inSet set $ do
     startList = "abcdefghiklmnopqrstuvwxyz_" <> enumFromTo '\200' '\377'
     contList = startList <> "0123456789$"
 
+ident = keywordNotInSet HashSet.keyword
+
+identOrKeywordInSet = keywordNotInSet . HashSet.difference HashSet.keyword
+
+typeName = identOrKeywordInSet HashSet.typeFunctionName
+
 name = choice [
     QuotedName <$> text (Range.linear 1 30) quotedChar,
-    UnquotedName <$> keyword HashSet.colId
+    UnquotedName <$> identOrKeywordInSet HashSet.colId
   ]
 
 qualifiedName = choice [
