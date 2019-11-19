@@ -264,7 +264,20 @@ simpleSelect = asum
       _havingClause <- optional (try (space1 *> string' "having" *> space1) *> aExpr)
       _windowClause <- optional (try (space1 *> string' "window" *> space1) *> nonEmptyList windowDefinition)
       return (NormalSimpleSelect _targeting _intoClause _fromClause _whereClause _groupClause _havingClause _windowClause)
+    ,
+    ValuesSimpleSelect <$> valuesClause
   ]
+
+valuesClause = nonEmptyList $ do
+  try $ do
+    string' "values"
+    space
+    char '('
+  space
+  _a <- nonEmptyList aExpr
+  space
+  char ')'
+  return _a
 
 withClause = label "with clause" $ do
   try $ do
