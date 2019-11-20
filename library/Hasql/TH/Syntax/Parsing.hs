@@ -852,7 +852,6 @@ cExpr =
       try literalExpr,
       funcExpr,
       inParensExpr,
-      selectExpr,
       caseExpr,
       existsSelectExpr,
       arraySelectExpr,
@@ -864,10 +863,9 @@ placeholderExpr :: Parser Expr
 placeholderExpr = PlaceholderExpr <$> (try (char '$') *> Lex.decimal)
 
 inParensExpr :: Parser Expr
-inParensExpr = InParensExpr <$> inParens aExpr <*> optional (try (space *> indirection))
+inParensExpr = InParensExpr <$> inParens exprOrSelect <*> optional (try (space *> indirection))
 
-selectExpr :: Parser Expr
-selectExpr = SelectExpr <$> selectNoParens
+exprOrSelect = Left <$> aExpr <|> Right <$> selectNoParens
 
 typecastExpr :: Expr -> Parser Expr
 typecastExpr _left = do

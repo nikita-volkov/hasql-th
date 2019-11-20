@@ -284,13 +284,11 @@ expr = recursive choice terminatingHeadfulExprList (recursiveHeadfulExprList <> 
         ,
         LiteralExpr <$> literal
         ,
-        InParensExpr <$> (small expr) <*> maybe indirection
+        InParensExpr <$> small eitherExprOrSelect <*> maybe indirection
         ,
         CaseExpr <$> maybe (small expr) <*> nonEmpty (Range.exponential 1 2) whenClause <*> maybe (small expr)
         ,
         FuncExpr <$> funcApplication
-        ,
-        SelectExpr <$> small selectNoParens
         ,
         ExistsSelectExpr <$> small selectNoParens
         ,
@@ -305,6 +303,10 @@ expr = recursive choice terminatingHeadfulExprList (recursiveHeadfulExprList <> 
         ,
         EscapableBinOpExpr <$> bool <*> escapableBinOp <*> small headfulExpr <*> small headfulExpr <*> maybe (small headfulExpr)
       ]
+
+eitherExprOrSelect =
+  Left <$> expr <|>
+  Right <$> selectNoParens
 
 binOp = element (toList HashSet.symbolicBinOp <> ["AND", "OR", "IS DISTINCT FROM", "IS NOT DISTINCT FROM"])
 

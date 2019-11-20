@@ -28,7 +28,7 @@ castedExpr :: Type -> Expr -> Either Text (IntMap Type)
 castedExpr _type = \ case
   PlaceholderExpr _index -> Right $ IntMap.singleton _index _type
   TypecastExpr _expr _type' -> castedExpr _type' _expr
-  InParensExpr _expr _optIndirection -> do
+  InParensExpr (Left _expr) _optIndirection -> do
     _a <- castedExpr _type _expr
     _b <- exprList (ChildExprList.foldable ChildExprList.indirection _optIndirection)
     union _a _b

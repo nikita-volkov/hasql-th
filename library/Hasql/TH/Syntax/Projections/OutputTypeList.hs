@@ -59,5 +59,5 @@ valuesClause = foldable (foldable expr)
 expr :: Expr -> Either Text [Type]
 expr = \ case
   TypecastExpr _ a -> Right [a]
-  InParensExpr a _ -> expr a
+  InParensExpr (Left a) _ -> expr a
   a -> Left "Result expression is missing a typecast"

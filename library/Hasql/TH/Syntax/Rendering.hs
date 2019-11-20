@@ -379,7 +379,7 @@ expr = \ case
   DefaultExpr -> "DEFAULT"
   QualifiedNameExpr a -> qualifiedName a
   LiteralExpr a -> literal a
-  InParensExpr a b -> "(" <> expr a <> ")" <> foldMap (mappend " " . indirection) b
+  InParensExpr a b -> "(" <> either expr selectNoParens a <> ")" <> foldMap (mappend " " . indirection) b
   CaseExpr a b c -> optLexemes [
       Just "CASE",
       fmap expr a,
@@ -388,7 +388,6 @@ expr = \ case
       Just "END"
     ]
   FuncExpr a -> funcApplication a
-  SelectExpr a -> inParens (selectNoParens a)
   ExistsSelectExpr a -> "EXISTS " <> inParens (selectNoParens a)
   ArraySelectExpr a -> "ARRAY " <> inParens (selectNoParens a)
   GroupingExpr a -> "GROUPING " <> inParens (commaNonEmpty expr a)

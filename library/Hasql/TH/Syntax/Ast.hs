@@ -614,7 +614,7 @@ data Expr =
   | select_with_parens
   | select_with_parens indirection
   -}
-  InParensExpr Expr (Maybe Indirection) |
+  InParensExpr (Either Expr SelectNoParens) (Maybe Indirection) |
   {-
   case_expr:
     |  CASE case_arg when_clause_list case_default END_P
@@ -627,8 +627,6 @@ data Expr =
   -}
   CaseExpr (Maybe Expr) (NonEmpty WhenClause) (Maybe Expr) |
   FuncExpr FuncApplication |
-  {-| We treat it as just a case of InParensExpr-}
-  SelectExpr SelectNoParens |
   ExistsSelectExpr SelectNoParens |
   ArraySelectExpr SelectNoParens |
   GroupingExpr (NonEmpty Expr)
