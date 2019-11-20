@@ -851,8 +851,8 @@ cExpr =
       placeholderExpr,
       try literalExpr,
       funcExpr,
-      selectExpr,
       inParensExpr,
+      selectExpr,
       caseExpr,
       existsSelectExpr,
       arraySelectExpr,
@@ -864,7 +864,10 @@ placeholderExpr :: Parser Expr
 placeholderExpr = PlaceholderExpr <$> (try (char '$') *> Lex.decimal)
 
 inParensExpr :: Parser Expr
-inParensExpr = InParensExpr <$> inParens aExpr <*> optional (try (space1 *> indirection))
+inParensExpr = InParensExpr <$> inParens aExpr <*> optional (try (space *> indirection))
+
+selectExpr :: Parser Expr
+selectExpr = SelectExpr <$> selectNoParens
 
 typecastExpr :: Expr -> Parser Expr
 typecastExpr _left = do
@@ -1036,9 +1039,6 @@ sortBy = do
 
 order :: Parser Order
 order = string' "asc" $> AscOrder <|> string' "desc" $> DescOrder
-
-selectExpr :: Parser Expr
-selectExpr = InParensExpr <$> (SelectExpr <$> inParens selectNoParens) <*> optional (try (space1 *> indirection))
 
 existsSelectExpr :: Parser Expr
 existsSelectExpr = inParensWithClause (string' "array") (ExistsSelectExpr <$> selectNoParens)

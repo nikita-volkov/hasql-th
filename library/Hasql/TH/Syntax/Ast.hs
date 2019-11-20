@@ -609,6 +609,11 @@ data Expr =
   DefaultExpr |
   QualifiedNameExpr QualifiedName |
   LiteralExpr Literal |
+  {-
+  | '(' a_expr ')' opt_indirection
+  | select_with_parens
+  | select_with_parens indirection
+  -}
   InParensExpr Expr (Maybe Indirection) |
   {-
   case_expr:
@@ -622,6 +627,7 @@ data Expr =
   -}
   CaseExpr (Maybe Expr) (NonEmpty WhenClause) (Maybe Expr) |
   FuncExpr FuncApplication |
+  {-| We treat it as just a case of InParensExpr-}
   SelectExpr SelectNoParens |
   ExistsSelectExpr SelectNoParens |
   ArraySelectExpr SelectNoParens |
