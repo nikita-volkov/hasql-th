@@ -107,7 +107,7 @@ fromClause = nonEmpty (Range.exponential 1 8) tableRef
 
 tableRef = choice [
     RelationExprTableRef <$> relationExpr <*> maybe aliasClause,
-    SelectTableRef <$> bool <*> selectNoParens <*> maybe aliasClause,
+    SelectTableRef <$> bool <*> small selectNoParens <*> maybe aliasClause,
     JoinTableRef <$> joinedTable <*> maybe aliasClause
   ]
 
