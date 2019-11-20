@@ -197,16 +197,12 @@ group_by_item:
   |  cube_clause
   |  rollup_clause
   |  grouping_sets_clause
-
 empty_grouping_set:
   |  '(' ')'
-
 rollup_clause:
   |  ROLLUP '(' expr_list ')'
-
 cube_clause:
   |  CUBE '(' expr_list ')'
-
 grouping_sets_clause:
   |  GROUPING SETS '(' group_by_list ')'
 -}
@@ -267,49 +263,41 @@ opt_partition_clause:
 data WindowSpecification = WindowSpecification (Maybe Name) (Maybe (NonEmpty Expr)) (Maybe SortClause) (Maybe FrameClause)
   deriving (Show, Generic, Eq, Ord)
 
-{-|
-@
+{-
 opt_frame_clause:
   |  RANGE frame_extent opt_window_exclusion_clause
   |  ROWS frame_extent opt_window_exclusion_clause
   |  GROUPS frame_extent opt_window_exclusion_clause
   |  EMPTY
-@
 -}
 data FrameClause = FrameClause FrameClauseMode FrameExtent (Maybe WindowExclusionClause)
   deriving (Show, Generic, Eq, Ord)
 
-{-|
-@
+{-
 opt_frame_clause:
   |  RANGE frame_extent opt_window_exclusion_clause
   |  ROWS frame_extent opt_window_exclusion_clause
   |  GROUPS frame_extent opt_window_exclusion_clause
   |  EMPTY
-@
 -}
 data FrameClauseMode = RangeFrameClauseMode | RowsFrameClauseMode | GroupsFrameClauseMode
   deriving (Show, Generic, Eq, Ord)
 
-{-|
-@
+{-
 frame_extent:
   |  frame_bound
   |  BETWEEN frame_bound AND frame_bound
-@
 -}
 data FrameExtent = SingularFrameExtent FrameBound | BetweenFrameExtent FrameBound FrameBound
   deriving (Show, Generic, Eq, Ord)
 
-{-|
-@
+{-
 frame_bound:
   |  UNBOUNDED PRECEDING
   |  UNBOUNDED FOLLOWING
   |  CURRENT_P ROW
   |  a_expr PRECEDING
   |  a_expr FOLLOWING
-@
 -}
 data FrameBound =
   UnboundedPrecedingFrameBound |
@@ -319,15 +307,13 @@ data FrameBound =
   FollowingFrameBound Expr
   deriving (Show, Generic, Eq, Ord)
 
-{-|
-@
+{-
 opt_window_exclusion_clause:
   |  EXCLUDE CURRENT_P ROW
   |  EXCLUDE GROUP_P
   |  EXCLUDE TIES
   |  EXCLUDE NO OTHERS
   |  EMPTY
-@
 -}
 data WindowExclusionClause =
   CurrentRowWindowExclusionClause |
@@ -336,12 +322,10 @@ data WindowExclusionClause =
   NoOthersWindowExclusionClause
   deriving (Show, Generic, Eq, Ord)
 
-{-|
-@
+{-
 values_clause:
   |  VALUES '(' expr_list ')'
   |  values_clause ',' '(' expr_list ')'
-@
 -}
 type ValuesClause = NonEmpty (NonEmpty Expr)
 
