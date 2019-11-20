@@ -147,7 +147,7 @@ noParensSelectStmt = NoParensSelectStmt <$> selectNoParens
 selectWithParens = inParens (selectNoParens <|> selectWithParens)
 
 selectNoParens :: Parser SelectNoParens
-selectNoParens = simpleSelectNoParens <|> withSelectNoParens
+selectNoParens = withSelectNoParens <|> simpleSelectNoParens
 
 sharedSelectNoParens _with = do
   _select <- selectClause
