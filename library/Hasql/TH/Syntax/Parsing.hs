@@ -175,7 +175,7 @@ sharedSelectNoParens _with = do
       ) <|>
       forLocking _select _optSorting Nothing
     forLocking _select _optSorting _optLimit = do
-      _optForLocking <- optional (try (space1 *> forLockingClause))
+      _optForLocking <- optional forLockingClause
       return (SelectNoParens _with _select _optSorting _optLimit _optForLocking)
 
 {-|
