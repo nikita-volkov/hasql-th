@@ -151,32 +151,10 @@ selectNoParens = withSelectNoParens <|> simpleSelectNoParens
 
 sharedSelectNoParens _with = do
   _select <- selectClause
-  asum
-    [
-      do
-        try space1
-        asum [sort _select, limit _select Nothing, forLocking _select Nothing Nothing]
-      ,
-      pure (SelectNoParens _with _select Nothing Nothing Nothing)
-    ]
-  where
-    sort _select = 
-      (do
-        _sort <- sortClause
-        space1
-        limit _select (Just _sort)
-      ) <|>
-      limit _select Nothing
-    limit _select _optSorting =
-      (do
-        _limit <- selectLimit
-        space1
-        forLocking _select _optSorting (Just _limit)
-      ) <|>
-      forLocking _select _optSorting Nothing
-    forLocking _select _optSorting _optLimit = do
-      _optForLocking <- optional forLockingClause
-      return (SelectNoParens _with _select _optSorting _optLimit _optForLocking)
+  _sort <- optional (try (space1 *> sortClause))
+  _limit <- optional (try (space1 *> selectLimit))
+  _forLocking <- optional (try (space1 *> forLockingClause))
+  return (SelectNoParens _with _select _sort _limit _forLocking)
 
 {-|
 The one that doesn't start with \"WITH\".
@@ -1379,8 +1357,8 @@ select_limit_value:
   | ALL
 -}
 selectLimitValue =
-  ExprSelectLimitValue <$> aExpr <|>
-  AllSelectLimitValue <$ string' "all"
+  AllSelectLimitValue <$ string' "all" <|>
+  ExprSelectLimitValue <$> aExpr
 
 rowOrRows =
   True <$ try (string' "rows") <|>
