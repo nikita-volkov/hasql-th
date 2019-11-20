@@ -72,7 +72,7 @@ commonTableExpr (CommonTableExpr a b c d) =
   optLexemes
     [
       Just (name a),
-      fmap (commaNonEmpty name) b,
+      fmap (inParens . commaNonEmpty name) b,
       Just "AS",
       fmap materialization c,
       Just (inParens (preparableStmt d))
@@ -87,7 +87,7 @@ selectLimit = \ case
   OffsetSelectLimit a -> offsetClause a
 
 limitClause = \ case
-  LimitLimitClause a b -> optLexemes [Just "LIMIT", Just (selectLimitValue a), fmap expr b]
+  LimitLimitClause a b -> optLexemes [Just "LIMIT", Just (selectLimitValue a), fmap (mappend ", " . expr) b]
   FetchOnlyLimitClause a b c ->
     optLexemes
       [
