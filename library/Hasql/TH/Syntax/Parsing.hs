@@ -580,7 +580,6 @@ relationExpr =
       do
         string' "only"
         space1
-        endHead
         _name <- qualifiedName
         return (OnlyRelationExpr _name False) 
       ,
