@@ -46,10 +46,10 @@ selectNoParens = sized $ \ _size -> if _size <= 1
       (10, SelectNoParens <$> fmap Just withClause <*> selectClause <*> fmap Just sortClause <*> fmap Just selectLimit <*> fmap Just forLockingClause)
     ]
 
-selectWithParens = recursive choice [
-    NoParensSelectWithParens <$> selectNoParens
-  ] [
-    WithParensSelectWithParens <$> selectWithParens
+selectWithParens = frequency [
+    (90, NoParensSelectWithParens <$> selectNoParens)
+    ,
+    (10, WithParensSelectWithParens <$> selectWithParens)
   ]
 
 selectClause = choice [
