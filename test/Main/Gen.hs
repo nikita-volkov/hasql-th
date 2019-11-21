@@ -235,7 +235,7 @@ limitClause = choice [
   ]
 
 selectFetchFirstValue = choice [
-    ExprSelectFetchFirstValue <$> expr,
+    ExprSelectFetchFirstValue <$> cExpr,
     NumSelectFetchFirstValue <$> bool <*> iconstOrFconst
   ]
 
@@ -303,6 +303,40 @@ expr = recursive choice terminatingHeadfulExprList (recursiveHeadfulExprList <> 
         ,
         EscapableBinOpExpr <$> bool <*> escapableBinOp <*> small headfulExpr <*> small headfulExpr <*> maybe (small headfulExpr)
       ]
+{-
+c_expr:
+  | columnref
+  | AexprConst
+  | PARAM opt_indirection
+  | '(' a_expr ')' opt_indirection
+  | case_expr
+  | func_expr
+  | select_with_parens
+  | select_with_parens indirection
+  | EXISTS select_with_parens
+  | ARRAY select_with_parens
+  | ARRAY array_expr
+  | explicit_row
+  | implicit_row
+  | GROUPING '(' expr_list ')'
+-}
+cExpr = choice [
+    QualifiedNameExpr <$> qualifiedName
+    ,
+    LiteralExpr <$> literal
+    ,
+    InParensExpr <$> small eitherExprOrSelect <*> maybe indirection
+    ,
+    CaseExpr <$> maybe (small expr) <*> nonEmpty (Range.exponential 1 2) whenClause <*> maybe (small expr)
+    ,
+    FuncExpr <$> funcApplication
+    ,
+    ExistsSelectExpr <$> small selectNoParens
+    ,
+    ArraySelectExpr <$> small selectNoParens
+    ,
+    GroupingExpr <$> nonEmpty (Range.exponential 1 4) (small expr)
+  ]
 
 eitherExprOrSelect =
   Left <$> expr <|>
