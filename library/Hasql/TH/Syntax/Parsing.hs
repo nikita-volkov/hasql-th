@@ -852,7 +852,7 @@ cExpr =
   asum
     [
       placeholderExpr,
-      funcExpr,
+      headify funcExpr,
       literalExpr,
       inParensExpr,
       caseExpr,
