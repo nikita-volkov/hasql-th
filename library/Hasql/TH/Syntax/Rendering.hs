@@ -117,7 +117,7 @@ offsetClause = \ case
   FetchFirstOffsetClause a b -> "OFFSET " <> selectFetchFirstValue a <> " " <> rowOrRows b
 
 forLockingClause = \ case
-  ItemsForLockingClause a -> commaNonEmpty forLockingItem a
+  ItemsForLockingClause a -> spaceNonEmpty forLockingItem a
   ReadOnlyForLockingClause -> "FOR READ ONLY"
 
 forLockingItem (ForLockingItem a b c) =
