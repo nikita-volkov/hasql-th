@@ -880,8 +880,8 @@ cExpr =
   asum
     [
       placeholderExpr,
-      headify funcExpr,
-      literalExpr,
+      headify literalExpr,
+      funcExpr,
       inParensExpr,
       caseExpr,
       existsSelectExpr,
