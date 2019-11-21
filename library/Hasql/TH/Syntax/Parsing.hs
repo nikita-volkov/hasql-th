@@ -1580,7 +1580,7 @@ indirectionEl =
                     _b <- optional aExpr
                     return (SliceIndirectionEl (Just _a) _b)
                   ,
-                  return (SliceIndirectionEl (Just _a) Nothing)
+                  return (ExprIndirectionEl _a)
                 ]
           ]
         space
