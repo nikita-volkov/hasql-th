@@ -1492,7 +1492,8 @@ ColId:
 -}
 {-# NOINLINE colId #-}
 colId :: Parser Name
-colId = ident <|> keywordNameFromSet (HashSet.unreservedKeyword <> HashSet.colNameKeyword)
+colId = label "identifier" $
+  ident <|> keywordNameFromSet (HashSet.unreservedKeyword <> HashSet.colNameKeyword)
 
 {-
 ColLabel:
@@ -1503,7 +1504,8 @@ ColLabel:
   |  reserved_keyword
 -}
 colLabel :: Parser Name
-colLabel = ident <|> keywordNameFromSet HashSet.keyword
+colLabel = label "column label" $
+  ident <|> keywordNameFromSet HashSet.keyword
 
 {-|
 >>> testParser qualifiedName "a.b"
