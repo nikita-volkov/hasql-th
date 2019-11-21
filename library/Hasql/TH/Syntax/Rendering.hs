@@ -160,7 +160,7 @@ simpleSelect = \ case
         fmap windowClause g
       ]
   ValuesSimpleSelect a -> valuesClause a
-  BinSimpleSelect a b c d -> selectClause b <> " " <> selectBinOp a <> foldMap (mappend " ". allOrDistinct) c <> " " <> selectClause b
+  BinSimpleSelect a b c d -> selectClause b <> " " <> selectBinOp a <> foldMap (mappend " ". allOrDistinct) c <> " " <> selectClause d
 
 selectBinOp = \ case
   UnionSelectBinOp -> "UNION"
