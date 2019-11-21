@@ -372,7 +372,7 @@ onExpressionsClause = do
   string' "on"
   space1
   endHead
-  nonEmptyList aExpr
+  inParens (nonEmptyList aExpr)
 
 
 -- * Into clause details
