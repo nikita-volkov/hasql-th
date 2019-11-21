@@ -1218,11 +1218,11 @@ numeric = asum [
     SmallintNumeric <$ string' "smallint",
     BigintNumeric <$ string' "bigint",
     RealNumeric <$ string' "real",
-    FloatNumeric <$> (string' "float" *> optional (space *> inParens iconst)),
+    FloatNumeric <$> (string' "float" *> endHead *> optional (space *> inParens iconst)),
     DoublePrecisionNumeric <$ keyphrase "double precision",
-    DecimalNumeric <$> (string' "decimal" *> optional (space *> exprListInParens)),
-    DecNumeric <$> (string' "dec" *> optional (space *> exprListInParens)),
-    NumericNumeric <$> (string' "numeric" *> optional (space *> exprListInParens)),
+    DecimalNumeric <$> (string' "decimal" *> endHead *> optional (space *> exprListInParens)),
+    DecNumeric <$> (string' "dec" *> endHead *> optional (space *> exprListInParens)),
+    NumericNumeric <$> (string' "numeric" *> endHead *> optional (space *> exprListInParens)),
     BooleanNumeric <$ string' "boolean"
   ]
 
@@ -1232,7 +1232,7 @@ constBit = do
   b <- optional (space1 *> exprListInParens)
   return (ConstBit a b)
 
-constCharacter = ConstCharacter <$> character <*> optional (space *> inParens iconst)
+constCharacter = ConstCharacter <$> (character <* endHead) <*> optional (space *> inParens iconst)
 
 character = asum [
     CharacterCharacter <$> (string' "character" *> optVaryingAfterSpace),
