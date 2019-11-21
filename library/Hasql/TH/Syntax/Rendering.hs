@@ -424,7 +424,7 @@ funcApplicationParams = \ case
   VariadicFuncApplicationParams a b c ->
     optLexemes
       [
-        fmap (flip mappend ", " . commaNonEmpty funcArgExpr) a,
+        fmap (flip mappend "," . commaNonEmpty funcArgExpr) a,
         Just "VARIADIC",
         Just (funcArgExpr b),
         fmap sortClause c
