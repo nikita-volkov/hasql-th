@@ -324,7 +324,6 @@ targeting = distinct <|> allWithTargetList <|> all <|> normal where
   allWithTargetList = do
     string' "all"
     space1
-    endHead
     AllTargeting <$> Just <$> targetList
   all = string' "all" $> AllTargeting Nothing
   distinct = do
