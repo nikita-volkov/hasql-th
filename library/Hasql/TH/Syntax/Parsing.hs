@@ -413,11 +413,11 @@ optTempTableName = asum [
 
 groupByItem :: Parser GroupByItem
 groupByItem = asum [
-    ExprGroupByItem <$> aExpr,
-    EmptyGroupingSetGroupByItem <$ (char '(' *> endHead *> space *> char ')'),
-    RollupGroupByItem <$> (string' "rollup" *> space *> endHead *> inParens (nonEmptyList aExpr)),
-    CubeGroupByItem <$> (string' "cube" *> space *> endHead *> inParens (nonEmptyList aExpr)),
-    GroupingSetsGroupByItem <$> (keyphrase "grouping sets" *> space *> endHead *> inParens (nonEmptyList groupByItem))
+    EmptyGroupingSetGroupByItem <$ (char '(' *> space *> char ')'),
+    RollupGroupByItem <$> (string' "rollup" *> endHead *> space *> inParens (nonEmptyList aExpr)),
+    CubeGroupByItem <$> (string' "cube" *> endHead *> space *> inParens (nonEmptyList aExpr)),
+    GroupingSetsGroupByItem <$> (keyphrase "grouping sets" *> endHead *> space *> inParens (nonEmptyList groupByItem)),
+    ExprGroupByItem <$> aExpr
   ]
 
 
