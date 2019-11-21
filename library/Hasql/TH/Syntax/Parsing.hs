@@ -502,8 +502,8 @@ frameBound =
   UnboundedPrecedingFrameBound <$ keyphrase "unbounded preceding" <|>
   UnboundedFollowingFrameBound <$ keyphrase "unbounded following" <|>
   CurrentRowFrameBound <$ keyphrase "current row" <|>
-  PrecedingFrameBound <$> (aExpr <* string' "preceding") <|>
-  FollowingFrameBound <$> (aExpr <* string' "following")
+  PrecedingFrameBound <$> (aExpr <* space1 <* string' "preceding") <|>
+  FollowingFrameBound <$> (aExpr <* space1 <* string' "following")
 
 windowExclusionClause =
   CurrentRowWindowExclusionClause <$ keyphrase "exclude current row" <|>
