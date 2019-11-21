@@ -20,14 +20,19 @@ preparableStmt = \ case
 
 selectStmt :: SelectStmt -> Either Text [Type]
 selectStmt = \ case
-  InParensSelectStmt a -> selectStmt a
-  NoParensSelectStmt a -> selectNoParens a
+  Left a -> selectNoParens a
+  Right a -> selectWithParens a
 
 selectNoParens :: SelectNoParens -> Either Text [Type]
 selectNoParens (SelectNoParens _ a _ _ _) = selectClause a
 
+selectWithParens :: SelectWithParens -> Either Text [Type]
+selectWithParens = \ case
+  NoParensSelectWithParens a -> selectNoParens a
+  WithParensSelectWithParens a -> selectWithParens a
+
 selectClause :: SelectClause -> Either Text [Type]
-selectClause = either simpleSelect selectNoParens
+selectClause = either simpleSelect selectWithParens
 
 simpleSelect :: SimpleSelect -> Either Text [Type]
 simpleSelect = \ case

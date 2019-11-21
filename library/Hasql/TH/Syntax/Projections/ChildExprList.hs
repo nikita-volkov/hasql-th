@@ -13,8 +13,8 @@ preparableStmt = \ case
 
 selectStmt :: SelectStmt -> [Expr]
 selectStmt = \ case
-  InParensSelectStmt a -> selectStmt a
-  NoParensSelectStmt a -> selectNoParens a
+  Left a -> selectNoParens a
+  Right a -> selectWithParens a
 
 selectNoParens :: SelectNoParens -> [Expr]
 selectNoParens (SelectNoParens a b c d e) =
@@ -23,6 +23,10 @@ selectNoParens (SelectNoParens a b c d e) =
   foldable sortClause c <>
   foldable selectLimit d <>
   foldable forLockingClause e
+
+selectWithParens = \ case
+  NoParensSelectWithParens a -> selectNoParens a
+  WithParensSelectWithParens a -> selectWithParens a
 
 withClause (WithClause _ a) = foldable commonTableExpr a
 
@@ -58,7 +62,7 @@ forLockingItem (ForLockingItem a b c) =
   foldable (foldable qualifiedName) b
 
 selectClause :: SelectClause -> [Expr]
-selectClause = either simpleSelect selectNoParens
+selectClause = either simpleSelect selectWithParens
 
 simpleSelect :: SimpleSelect -> [Expr]
 simpleSelect = \ case
@@ -143,7 +147,7 @@ sortBy (SortBy a _) = [a]
 tableRef :: TableRef -> [Expr]
 tableRef = \ case
   RelationExprTableRef a _ -> relationExpr a
-  SelectTableRef _ a _ -> selectNoParens a
+  SelectTableRef _ a _ -> selectWithParens a
   JoinTableRef a _ -> joinedTable a
 
 relationExpr = \ case
@@ -175,11 +179,11 @@ expr = \ case
   DefaultExpr -> []
   QualifiedNameExpr a -> qualifiedName a
   LiteralExpr a -> literal a
-  InParensExpr a b -> either pure selectNoParens a <> foldable indirection b
+  InParensExpr a b -> either pure selectWithParens a <> foldable indirection b
   CaseExpr a b c -> maybeToList a <> foldable whenClause b <> maybeToList c
   FuncExpr a -> funcApplication a
-  ExistsSelectExpr a -> selectNoParens a
-  ArraySelectExpr a -> selectNoParens a
+  ExistsSelectExpr a -> selectWithParens a
+  ArraySelectExpr a -> selectWithParens a
   GroupingExpr a -> toList a
 
 whenClause :: WhenClause -> [Expr]

@@ -27,22 +27,21 @@ data PreparableStmt =
 -- * Select
 -------------------------
 
-{-|
-Covers the following cases:
-
-@
+{-
 SelectStmt:
   |  select_no_parens
   |  select_with_parens
+-}
+type SelectStmt = Either SelectNoParens SelectWithParens
 
+{-
 select_with_parens:
   |  '(' select_no_parens ')'
   |  '(' select_with_parens ')'
-@
 -}
-data SelectStmt =
-  InParensSelectStmt SelectStmt |
-  NoParensSelectStmt SelectNoParens
+data SelectWithParens =
+  NoParensSelectWithParens SelectNoParens |
+  WithParensSelectWithParens SelectWithParens
   deriving (Show, Generic, Eq, Ord)
 
 {-|
@@ -71,7 +70,7 @@ select_clause:
   |  select_with_parens
 @
 -}
-type SelectClause = Either SimpleSelect SelectNoParens
+type SelectClause = Either SimpleSelect SelectWithParens
 
 {-
 simple_select:
@@ -500,7 +499,7 @@ data TableRef =
   | select_with_parens opt_alias_clause
   | LATERAL_P select_with_parens opt_alias_clause
   -}
-  SelectTableRef Bool SelectNoParens (Maybe AliasClause) |
+  SelectTableRef Bool SelectWithParens (Maybe AliasClause) |
   {-
   | joined_table
   | '(' joined_table ')' alias_clause
@@ -611,7 +610,7 @@ data Expr =
   | select_with_parens
   | select_with_parens indirection
   -}
-  InParensExpr (Either Expr SelectNoParens) (Maybe Indirection) |
+  InParensExpr (Either Expr SelectWithParens) (Maybe Indirection) |
   {-
   case_expr:
     |  CASE case_arg when_clause_list case_default END_P
@@ -624,8 +623,8 @@ data Expr =
   -}
   CaseExpr (Maybe Expr) (NonEmpty WhenClause) (Maybe Expr) |
   FuncExpr FuncApplication |
-  ExistsSelectExpr SelectNoParens |
-  ArraySelectExpr SelectNoParens |
+  ExistsSelectExpr SelectWithParens |
+  ArraySelectExpr SelectWithParens |
   GroupingExpr (NonEmpty Expr)
   deriving (Show, Generic, Eq, Ord)
 

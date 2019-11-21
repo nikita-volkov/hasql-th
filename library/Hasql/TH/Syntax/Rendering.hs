@@ -51,8 +51,8 @@ preparableStmt = \ case
 
 selectStmt :: SelectStmt -> Builder
 selectStmt = \ case
-  InParensSelectStmt a -> inParens (selectStmt a)
-  NoParensSelectStmt a -> selectNoParens a
+  Left a -> selectNoParens a
+  Right a -> selectWithParens a
 
 selectNoParens :: SelectNoParens -> Builder
 selectNoParens (SelectNoParens a b c d e) =
@@ -64,6 +64,10 @@ selectNoParens (SelectNoParens a b c d e) =
       fmap selectLimit d,
       fmap forLockingClause e
     ]
+
+selectWithParens = inParens . \ case
+  NoParensSelectWithParens a -> selectNoParens a
+  WithParensSelectWithParens a -> selectWithParens a
 
 withClause (WithClause a b) =
   "WITH " <> bool "" "RECURSIVE " a <> commaNonEmpty commonTableExpr b
@@ -139,7 +143,7 @@ lockedRelsList a = "OF " <> commaNonEmpty qualifiedName a
 nowaitOrSkip = bool "NOWAIT" "SKIP LOCKED"
 
 selectClause :: SelectClause -> Builder
-selectClause = either simpleSelect selectNoParens
+selectClause = either simpleSelect selectWithParens
 
 simpleSelect :: SimpleSelect -> Builder
 simpleSelect = \ case
@@ -215,7 +219,7 @@ tableRef = \ case
     optLexemes
       [
         if a then Just "LATERAL" else Nothing,
-        Just (selectNoParens b),
+        Just (selectWithParens b),
         fmap aliasClause c
       ]
   JoinTableRef a b -> case b of
@@ -384,7 +388,7 @@ expr = \ case
   DefaultExpr -> "DEFAULT"
   QualifiedNameExpr a -> qualifiedName a
   LiteralExpr a -> literal a
-  InParensExpr a b -> "(" <> either expr selectNoParens a <> ")" <> foldMap indirection b
+  InParensExpr a b -> either (inParens . expr) selectWithParens a <> foldMap indirection b
   CaseExpr a b c -> optLexemes [
       Just "CASE",
       fmap expr a,
@@ -393,8 +397,8 @@ expr = \ case
       Just "END"
     ]
   FuncExpr a -> funcApplication a
-  ExistsSelectExpr a -> "EXISTS " <> inParens (selectNoParens a)
-  ArraySelectExpr a -> "ARRAY " <> inParens (selectNoParens a)
+  ExistsSelectExpr a -> "EXISTS " <> selectWithParens a
+  ArraySelectExpr a -> "ARRAY " <> selectWithParens a
   GroupingExpr a -> "GROUPING " <> inParens (commaNonEmpty expr a)
 
 type_ :: Type -> Builder

@@ -2,6 +2,7 @@ module Main.Gen where
 
 import Hasql.TH.Prelude hiding (maybe, bool, sortBy, filter)
 import Hasql.TH.Syntax.Ast
+import Hedgehog (Gen)
 import Hedgehog.Gen
 import qualified Hedgehog.Range as Range
 import qualified Data.Text as Text
@@ -31,17 +32,24 @@ preparableStmt = choice [
 -------------------------
 
 selectStmt = choice [
-    InParensSelectStmt <$> selectStmt,
-    NoParensSelectStmt <$> selectNoParens
+    Left <$> selectNoParens,
+    Right <$> selectWithParens
   ]
 
+selectNoParens :: Gen SelectNoParens
 selectNoParens = sized $ \ _size -> if _size <= 1
   then discard
   else SelectNoParens <$> maybe withClause <*> selectClause <*> maybe sortClause <*> maybe selectLimit <*> maybe forLockingClause
 
+selectWithParens = recursive choice [
+    NoParensSelectWithParens <$> selectNoParens
+  ] [
+    WithParensSelectWithParens <$> selectWithParens
+  ]
+
 selectClause = choice [
     Left <$> simpleSelect,
-    Right <$> small selectNoParens
+    Right <$> small selectWithParens
   ]
 
 simpleSelect = choice [
@@ -107,7 +115,7 @@ fromClause = nonEmpty (Range.exponential 1 8) tableRef
 
 tableRef = choice [
     RelationExprTableRef <$> relationExpr <*> maybe aliasClause,
-    SelectTableRef <$> bool <*> small selectNoParens <*> maybe aliasClause,
+    SelectTableRef <$> bool <*> small selectWithParens <*> maybe aliasClause,
     JoinTableRef <$> joinedTable <*> maybe aliasClause
   ]
 
@@ -290,9 +298,9 @@ expr = recursive choice terminatingHeadfulExprList (recursiveHeadfulExprList <> 
         ,
         FuncExpr <$> funcApplication
         ,
-        ExistsSelectExpr <$> small selectNoParens
+        ExistsSelectExpr <$> small selectWithParens
         ,
-        ArraySelectExpr <$> small selectNoParens
+        ArraySelectExpr <$> small selectWithParens
         ,
         GroupingExpr <$> nonEmpty (Range.exponential 1 4) (small expr)
       ]
@@ -331,16 +339,16 @@ cExpr = choice [
     ,
     FuncExpr <$> funcApplication
     ,
-    ExistsSelectExpr <$> small selectNoParens
+    ExistsSelectExpr <$> small selectWithParens
     ,
-    ArraySelectExpr <$> small selectNoParens
+    ArraySelectExpr <$> small selectWithParens
     ,
     GroupingExpr <$> nonEmpty (Range.exponential 1 4) (small expr)
   ]
 
 eitherExprOrSelect =
   Left <$> expr <|>
-  Right <$> selectNoParens
+  Right <$> selectWithParens
 
 binOp = element (toList HashSet.symbolicBinOp <> ["AND", "OR", "IS DISTINCT FROM", "IS NOT DISTINCT FROM"])
 

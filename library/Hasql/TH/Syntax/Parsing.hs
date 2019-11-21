@@ -146,15 +146,9 @@ selectPreparableStmt = SelectPreparableStmt <$> selectStmt
 -------------------------
 
 selectStmt :: Parser SelectStmt
-selectStmt = inParensSelectStmt <|> noParensSelectStmt
+selectStmt = Right <$> selectWithParens <|> Left <$> selectNoParens
 
-inParensSelectStmt :: Parser SelectStmt
-inParensSelectStmt = inParens (InParensSelectStmt <$> selectStmt)
-
-noParensSelectStmt :: Parser SelectStmt
-noParensSelectStmt = NoParensSelectStmt <$> selectNoParens
-
-selectWithParens = inParens (selectNoParens <|> selectWithParens)
+selectWithParens = inParens (WithParensSelectWithParens <$> selectWithParens <|> NoParensSelectWithParens <$> selectNoParens)
 
 selectNoParens :: Parser SelectNoParens
 selectNoParens = withSelectNoParens <|> simpleSelectNoParens
@@ -896,9 +890,7 @@ placeholderExpr :: Parser Expr
 placeholderExpr = PlaceholderExpr <$> (char '$' *> head Lex.decimal)
 
 inParensExpr :: Parser Expr
-inParensExpr = InParensExpr <$> inParens exprOrSelect <*> optional (space *> indirection)
-
-exprOrSelect = Left <$> aExpr <|> Right <$> selectNoParens
+inParensExpr = InParensExpr <$> (Left <$> inParens aExpr <|> Right <$> selectWithParens) <*> optional (space *> indirection)
 
 typecastExpr :: Expr -> Parser Expr
 typecastExpr _left = do
@@ -1090,10 +1082,10 @@ order :: Parser Order
 order = string' "asc" $> AscOrder <|> string' "desc" $> DescOrder
 
 existsSelectExpr :: Parser Expr
-existsSelectExpr = inParensWithClause (string' "array") (ExistsSelectExpr <$> selectNoParens)
+existsSelectExpr = string' "array" *> space *> (ExistsSelectExpr <$> selectWithParens)
 
 arraySelectExpr :: Parser Expr
-arraySelectExpr = inParensWithClause (string' "array") (ArraySelectExpr <$> selectNoParens)
+arraySelectExpr = string' "array" *> space *> (ArraySelectExpr <$> selectWithParens)
 
 groupingExpr :: Parser Expr
 groupingExpr = inParensWithClause (string' "grouping") (GroupingExpr <$> nonEmptyList aExpr)
