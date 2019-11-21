@@ -1564,7 +1564,7 @@ indirectionEl =
         space
         _a <- asum [
             do
-              _a <- optional aExpr
+              _a <- optional (headify aExpr)
               space
               char ':'
               space
