@@ -47,7 +47,7 @@ selectClause = choice [
 simpleSelect = choice [
     NormalSimpleSelect <$> maybe targeting <*> maybe intoClause <*> maybe fromClause <*> maybe whereClause <*> maybe groupClause <*> maybe havingClause <*> maybe windowClause,
     ValuesSimpleSelect <$> valuesClause,
-    BinSimpleSelect <$> selectBinOp <*> small selectClause <*> allOrDistinct <*> small selectClause
+    BinSimpleSelect <$> selectBinOp <*> small selectClause <*> maybe allOrDistinct <*> small selectClause
   ]
 
 
@@ -216,7 +216,7 @@ order = element [AscOrder, DescOrder]
 -- * All or distinct
 -------------------------
 
-allOrDistinct = element [AllAllOrDistinct, DistinctAllOrDistinct]
+allOrDistinct = bool
 
 
 -- * Limit

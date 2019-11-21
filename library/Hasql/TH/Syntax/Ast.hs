@@ -92,7 +92,7 @@ TODO: Cover TABLE clause.
 data SimpleSelect =
   NormalSimpleSelect (Maybe Targeting) (Maybe IntoClause) (Maybe FromClause) (Maybe WhereClause) (Maybe GroupClause) (Maybe HavingClause) (Maybe WindowClause) |
   ValuesSimpleSelect ValuesClause |
-  BinSimpleSelect SelectBinOp SelectClause AllOrDistinct SelectClause
+  BinSimpleSelect SelectBinOp SelectClause (Maybe Bool) SelectClause
   deriving (Show, Generic, Eq, Ord)
 
 {-|
@@ -340,9 +340,6 @@ sortby_list:
 
 -}
 type SortClause = NonEmpty SortBy
-
-data AllOrDistinct = AllAllOrDistinct | DistinctAllOrDistinct
-  deriving (Show, Generic, Eq, Ord)
 
 {-|
 @
@@ -663,7 +660,7 @@ func_application:
   |  func_name '(' '*' ')'
 -}
 data FuncApplicationParams =
-  NormalFuncApplicationParams (Maybe AllOrDistinct) (NonEmpty FuncArgExpr) (Maybe SortClause) |
+  NormalFuncApplicationParams (Maybe Bool) (NonEmpty FuncArgExpr) (Maybe SortClause) |
   VariadicFuncApplicationParams (Maybe (NonEmpty FuncArgExpr)) FuncArgExpr (Maybe SortClause) |
   StarFuncApplicationParams
   deriving (Show, Generic, Eq, Ord)

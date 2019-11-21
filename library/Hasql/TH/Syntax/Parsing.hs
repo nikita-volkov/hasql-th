@@ -252,12 +252,11 @@ headlessSimpleSelect :: SelectClause -> Parser SimpleSelect
 headlessSimpleSelect _headSelectClause = do
   _op <- space1 *> selectBinOp <* space1
   endHead
-  _allOrDistinct <- allOrDistinct
-  space1
+  _allOrDistinct <- optional (allOrDistinct <* space1)
   _selectClause <- selectClause
   return (BinSimpleSelect _op _headSelectClause _allOrDistinct _selectClause)
   
-allOrDistinct = string' "all" $> AllAllOrDistinct <|> string' "distinct" $> DistinctAllOrDistinct
+allOrDistinct = string' "all" $> False <|> string' "distinct" $> True
 
 selectBinOp = asum [
     string' "union" $> UnionSelectBinOp,

@@ -156,7 +156,12 @@ simpleSelect = \ case
         fmap windowClause g
       ]
   ValuesSimpleSelect a -> valuesClause a
-  BinSimpleSelect _ a _ b -> selectClause a <> selectClause b
+  BinSimpleSelect a b c d -> selectClause b <> " " <> selectBinOp a <> foldMap (mappend " ". allOrDistinct) c <> " " <> selectClause b
+
+selectBinOp = \ case
+  UnionSelectBinOp -> "UNION"
+  IntersectSelectBinOp -> "INTERSECT"
+  ExceptSelectBinOp -> "EXCEPT"
 
 targeting :: Targeting -> Builder
 targeting = \ case
@@ -426,10 +431,10 @@ funcApplicationParams = \ case
       ]
   StarFuncApplicationParams -> "*"
 
-allOrDistinct :: AllOrDistinct -> Builder
+allOrDistinct :: Bool -> Builder
 allOrDistinct = \ case
-  AllAllOrDistinct -> "ALL"
-  DistinctAllOrDistinct -> "DISTINCT"
+  False -> "ALL"
+  True -> "DISTINCT"
 
 funcArgExpr :: FuncArgExpr -> Builder
 funcArgExpr = \ case
