@@ -1015,17 +1015,22 @@ param_name:
 -}
 funcArgExpr :: Parser FuncArgExpr
 funcArgExpr = asum [
-    label "<param name> := <expression>" $ do
-      a <- typeFuncName <* space <* string ":="
-      endHead
-      b <- space *> aExpr
-      return (ColonEqualsFuncArgExpr a b)
-    ,
-    label "<param name> => <expression>" $ do
-      a <- typeFuncName <* space <* string "=>"
-      endHead
-      b <- space *> aExpr
-      return (EqualsGreaterFuncArgExpr a b)
+    do
+      a <- typeFuncName
+      space
+      asum [
+          do
+            string ":="
+            endHead
+            b <- space *> aExpr
+            return (ColonEqualsFuncArgExpr a b)
+          ,
+          do
+            string "=>"
+            endHead
+            b <- space *> aExpr
+            return (EqualsGreaterFuncArgExpr a b)
+        ]
     ,
     ExprFuncArgExpr <$> aExpr
   ]
