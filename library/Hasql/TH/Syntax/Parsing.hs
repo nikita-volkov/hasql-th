@@ -1029,7 +1029,7 @@ singleVariadicFuncApplicationParams = do
 
 listVariadicFuncApplicationParams :: Parser FuncApplicationParams
 listVariadicFuncApplicationParams = do
-  (_argList, _) <- sepEnd1 commaSeparator (string' "variadic" <* space1) funcArgExpr
+  (_argList, _) <- headify $ sepEnd1 commaSeparator (string' "variadic" <* space1) funcArgExpr
   endHead
   _arg <- funcArgExpr
   _optSortClause <- optional (space1 *> sortClause)
