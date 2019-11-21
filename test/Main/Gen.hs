@@ -39,7 +39,11 @@ selectStmt = choice [
 selectNoParens :: Gen SelectNoParens
 selectNoParens = sized $ \ _size -> if _size <= 1
   then discard
-  else SelectNoParens <$> maybe withClause <*> selectClause <*> maybe sortClause <*> maybe selectLimit <*> maybe forLockingClause
+  else frequency [
+      (90, SelectNoParens <$> maybe withClause <*> (Left <$> simpleSelect) <*> maybe sortClause <*> maybe selectLimit <*> maybe forLockingClause)
+      ,
+      (10, SelectNoParens <$> fmap Just withClause <*> selectClause <*> fmap Just sortClause <*> fmap Just selectLimit <*> fmap Just forLockingClause)
+    ]
 
 selectWithParens = recursive choice [
     NoParensSelectWithParens <$> selectNoParens
