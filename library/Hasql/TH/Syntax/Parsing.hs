@@ -853,8 +853,8 @@ cExpr =
   asum
     [
       placeholderExpr,
-      literalExpr,
       funcExpr,
+      literalExpr,
       inParensExpr,
       caseExpr,
       existsSelectExpr,
