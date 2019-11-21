@@ -1372,7 +1372,7 @@ offsetClause = do
   offsetClauseParams
 
 offsetClauseParams =
-  FetchFirstOffsetClause <$> selectFetchFirstValue <*> (endHead *> space1 *> rowOrRows) <|>
+  FetchFirstOffsetClause <$> selectFetchFirstValue <*> (space1 *> rowOrRows) <|>
   ExprOffsetClause <$> aExpr
 
 {-
