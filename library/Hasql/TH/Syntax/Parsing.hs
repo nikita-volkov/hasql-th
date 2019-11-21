@@ -272,16 +272,17 @@ selectBinOp = asum [
     string' "except" $> ExceptSelectBinOp
   ]
 
-valuesClause = nonEmptyList $ do
+valuesClause = do
   string' "values"
   space
-  char '('
-  endHead
-  space
-  _a <- nonEmptyList aExpr
-  space
-  char ')'
-  return _a
+  nonEmptyList $ do
+    char '('
+    endHead
+    space
+    _a <- nonEmptyList aExpr
+    space
+    char ')'
+    return _a
 
 withClause = label "with clause" $ do
   string' "with"
