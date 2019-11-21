@@ -70,7 +70,7 @@ inParens p = char '(' *> space *> p <* endHead <* space <* char ')'
 
 inParensWithLabel :: (label -> content -> result) -> Parser label -> Parser content -> Parser result
 inParensWithLabel _result _labelParser _contentParser = do
-  _label <- _labelParser <* head (Mega.space <* Mega.char '(')
+  _label <- headify _labelParser <* head (Mega.space <* Mega.char '(')
   tail Mega.space
   _content <- _contentParser
   tail (Mega.space <* Mega.char ')')
@@ -1149,7 +1149,7 @@ literal = asum [
       return (HexLiteral a)
     ,
     do
-      a <- funcName
+      a <- headify funcName
       space
       char '('
       endHead
@@ -1162,7 +1162,7 @@ literal = asum [
       d <- sconst
       return (FuncLiteral a (Just (FuncLiteralArgList b c)) d)
     ,
-    FuncLiteral <$> (funcName <* space1 <* endHead) <*> pure Nothing <*> sconst
+    FuncLiteral <$> (headify funcName <* space1) <*> pure Nothing <*> sconst
   ]
 
 iconstOrFconst = Right <$> fconst <|> Left <$> iconst
