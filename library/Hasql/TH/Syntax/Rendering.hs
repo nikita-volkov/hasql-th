@@ -379,7 +379,7 @@ expr = \ case
   DefaultExpr -> "DEFAULT"
   QualifiedNameExpr a -> qualifiedName a
   LiteralExpr a -> literal a
-  InParensExpr a b -> "(" <> either expr selectNoParens a <> ")" <> foldMap (mappend " " . indirection) b
+  InParensExpr a b -> "(" <> either expr selectNoParens a <> ")" <> foldMap indirection b
   CaseExpr a b c -> optLexemes [
       Just "CASE",
       fmap expr a,
