@@ -87,7 +87,7 @@ selectLimit = \ case
   OffsetSelectLimit a -> offsetClause a
 
 limitClause = \ case
-  LimitLimitClause a b -> optLexemes [Just "LIMIT", Just (selectLimitValue a), fmap (mappend ", " . expr) b]
+  LimitLimitClause a b -> "LIMIT" <> selectLimitValue a <> foldMap (mappend ", " . expr) b
   FetchOnlyLimitClause a b c ->
     optLexemes
       [
