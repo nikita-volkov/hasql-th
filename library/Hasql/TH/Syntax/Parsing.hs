@@ -434,7 +434,7 @@ window_specification:
 -}
 windowSpecification :: Parser WindowSpecification
 windowSpecification = inParens $ do
-  a <- optional colId
+  a <- optional (headify colId)
   b <- optional (spaceIfJust a *> partitionByClause)
   c <- optional (spaceIfJust (void a <|> void b) *> sortClause)
   d <- optional (spaceIfJust (void a <|> void b <|> void c) *> frameClause)
