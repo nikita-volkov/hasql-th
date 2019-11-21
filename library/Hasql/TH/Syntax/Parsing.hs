@@ -1049,7 +1049,7 @@ param_name:
 funcArgExpr :: Parser FuncArgExpr
 funcArgExpr = asum [
     do
-      a <- typeFuncName
+      a <- headify typeFuncName
       space
       asum [
           do
