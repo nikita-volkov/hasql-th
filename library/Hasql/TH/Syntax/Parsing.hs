@@ -1564,14 +1564,24 @@ indirectionEl =
         space
         _a <- asum [
             do
-              _a <- optional (headify aExpr)
-              space
               char ':'
+              endHead
               space
               _b <- optional aExpr
-              return (SliceIndirectionEl _a _b)
+              return (SliceIndirectionEl Nothing _b)
             ,
-            ExprIndirectionEl <$> aExpr
+            do
+              _a <- aExpr
+              asum [
+                  do
+                    space
+                    char ':'
+                    space
+                    _b <- optional aExpr
+                    return (SliceIndirectionEl (Just _a) _b)
+                  ,
+                  return (SliceIndirectionEl (Just _a) Nothing)
+                ]
           ]
         space
         char ']'
