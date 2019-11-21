@@ -146,7 +146,7 @@ selectPreparableStmt = SelectPreparableStmt <$> selectStmt
 -------------------------
 
 selectStmt :: Parser SelectStmt
-selectStmt = Right <$> selectWithParens <|> Left <$> selectNoParens
+selectStmt = Left <$> selectNoParens <|> Right <$> selectWithParens
 
 selectWithParens = inParens (WithParensSelectWithParens <$> selectWithParens <|> NoParensSelectWithParens <$> selectNoParens)
 
