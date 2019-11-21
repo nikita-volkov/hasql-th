@@ -1085,7 +1085,7 @@ order :: Parser Order
 order = string' "asc" $> AscOrder <|> string' "desc" $> DescOrder
 
 existsSelectExpr :: Parser Expr
-existsSelectExpr = string' "array" *> space *> (ExistsSelectExpr <$> selectWithParens)
+existsSelectExpr = string' "exists" *> space *> (ExistsSelectExpr <$> selectWithParens)
 
 arraySelectExpr :: Parser Expr
 arraySelectExpr = string' "array" *> space *> (ArraySelectExpr <$> selectWithParens)
