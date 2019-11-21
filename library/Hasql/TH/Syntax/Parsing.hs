@@ -1234,20 +1234,11 @@ numeric = asum [
     BooleanNumeric <$ string' "boolean"
   ]
 
-constBit = asum [
-    do
-      string' "bit"
-      space1
-      string' "varying"
-      a <- optional (space *> endHead *> exprListInParens)
-      return (ConstBit True a)
-    ,
-    do
-      string' "bit"
-      a <- optional (space1 *> endHead *> exprListInParens)
-      return (ConstBit False a)
-  ]
-
+constBit = do
+  string' "bit"
+  a <- option False (True <$ space1 <* string' "varying")
+  b <- optional (space1 *> exprListInParens)
+  return (ConstBit a b)
 
 constCharacter = ConstCharacter <$> character <*> optional (space *> endHead *> inParens iconst)
 
