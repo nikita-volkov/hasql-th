@@ -66,7 +66,7 @@ dotSeparator :: Parser ()
 dotSeparator = head (Mega.space *> Mega.char '.') *> tail (Mega.space)
 
 inParens :: Parser a -> Parser a
-inParens p = char '(' *> space *> p <* tailify (space <* char ')')
+inParens p = char '(' *> space *> p <* endHead <* space <* char ')'
 
 inParensWithLabel :: (label -> content -> result) -> Parser label -> Parser content -> Parser result
 inParensWithLabel _result _labelParser _contentParser = do
@@ -80,12 +80,13 @@ inParensWithClause :: Parser clause -> Parser content -> Parser content
 inParensWithClause = inParensWithLabel (const id)
 
 nonEmptyList :: Parser a -> Parser (NonEmpty a)
-nonEmptyList p = (:|) <$> p <*> tailify (many (commaSeparator *> p))
+nonEmptyList p = (:|) <$> (p <* endHead) <*> many (commaSeparator *> p)
 
 sepWithSpace1 :: Parser a -> Parser (NonEmpty a)
 sepWithSpace1 _parser = do
   _head <- _parser
-  _tail <- tailify $ many $ space1 *> _parser
+  endHead
+  _tail <- many $ space1 *> _parser
   return (_head :| _tail)
 
 spaceIfJust :: Maybe a -> Parser ()
@@ -114,7 +115,7 @@ quotedString q = do
   return _tail
 
 quasiQuote :: Parser a -> Parser a
-quasiQuote p = space *> p <* tailify (space <* eof)
+quasiQuote p = space *> p <* endHead <* space <* eof
 
 
 -- * PreparableStmt
@@ -1296,7 +1297,7 @@ type_ = label "type" $ do
   _baseName <- typeFuncName
   endHead
   _baseNullable <- option False (True <$ space <* char '?')
-  _arrayLevels <- fmap length $ many $ space *> char '[' *> tailify (space *> char ']')
+  _arrayLevels <- fmap length $ many $ space *> char '[' *> endHead *> space *> char ']'
   _arrayNullable <- option False (True <$ space <* char '?')
   return (Type _baseName _baseNullable _arrayLevels _arrayNullable)
 
@@ -1426,7 +1427,7 @@ opt_nowait_or_skip:
 -}
 forLockingItem = do
   _strength <- forLockingStrength
-  _rels <- optional $ space1 *> string' "of" *> tailify (space1 *> nonEmptyList qualifiedName)
+  _rels <- optional $ space1 *> string' "of" *> space1 *> endHead *> nonEmptyList qualifiedName
   _nowaitOrSkip <- optional (space1 *> nowaitOrSkip)
   return (ForLockingItem _strength _rels _nowaitOrSkip)
 
@@ -1553,32 +1554,27 @@ indirectionEl =
     [
       do
         char '.'
-        _a <- tailify $ do
-          space
-          _a <- AllIndirectionEl <$ char '*' <|> AttrNameIndirectionEl <$> attrName
-          pure _a
-        return _a
+        endHead
+        space
+        AllIndirectionEl <$ char '*' <|> AttrNameIndirectionEl <$> attrName
       ,
       do
         char '['
-        _a <- tailify $ do
-          space
-          _a <-
-            asum
-              [
-                do
-                  _a <- optional aExpr
-                  space
-                  char ':'
-                  space
-                  _b <- optional aExpr
-                  return (SliceIndirectionEl _a _b)
-                ,
-                ExprIndirectionEl <$> aExpr
-              ]
-          space
-          char ']'
-          return _a
+        endHead
+        space
+        _a <- asum [
+            do
+              _a <- optional aExpr
+              space
+              char ':'
+              space
+              _b <- optional aExpr
+              return (SliceIndirectionEl _a _b)
+            ,
+            ExprIndirectionEl <$> aExpr
+          ]
+        space
+        char ']'
         return _a
     ]
 
