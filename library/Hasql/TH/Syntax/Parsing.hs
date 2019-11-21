@@ -462,6 +462,8 @@ windowSpecification = inParens $ asum [
       c <- optional (space1 *> sortClause)
       d <- optional (space1 *> frameClause)
       return (WindowSpecification (Just a) b c d)
+    ,
+    pure (WindowSpecification Nothing Nothing Nothing Nothing)
   ]
 
 partitionByClause = keyphrase "partition by" *> space1 *> endHead *> nonEmptyList aExpr
