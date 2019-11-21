@@ -1371,8 +1371,8 @@ offsetClause = do
   offsetClauseParams
 
 offsetClauseParams =
-  ExprOffsetClause <$> aExpr <|>
-  FetchFirstOffsetClause <$> selectFetchFirstValue <*> (endHead *> space1 *> rowOrRows)
+  FetchFirstOffsetClause <$> selectFetchFirstValue <*> (endHead *> space1 *> rowOrRows) <|>
+  ExprOffsetClause <$> aExpr
 
 {-
 select_limit_value:
