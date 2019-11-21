@@ -89,9 +89,6 @@ sepWithSpace1 _parser = do
   _tail <- many $ space1 *> _parser
   return (_head :| _tail)
 
-spaceIfJust :: Maybe a -> Parser ()
-spaceIfJust = maybe (pure ()) (const space1)
-
 {-|
 >>> testParser (quotedString '\'') "'abc''d'"
 "abc'd"
@@ -432,12 +429,29 @@ window_specification:
             opt_sort_clause opt_frame_clause ')'
 -}
 windowSpecification :: Parser WindowSpecification
-windowSpecification = inParens $ do
-  a <- optional (headify colId)
-  b <- optional (spaceIfJust a *> partitionByClause)
-  c <- optional (spaceIfJust (void a <|> void b) *> sortClause)
-  d <- optional (spaceIfJust (void a <|> void b <|> void c) *> frameClause)
-  return (WindowSpecification a b c d)
+windowSpecification = inParens $ asum [
+    do
+      a <- frameClause
+      return (WindowSpecification Nothing Nothing Nothing (Just a))
+    ,
+    do
+      a <- sortClause
+      b <- optional (space1 *> frameClause)
+      return (WindowSpecification Nothing Nothing (Just a) b)
+    ,
+    do
+      a <- partitionByClause
+      b <- optional (space1 *> sortClause)
+      c <- optional (space1 *> frameClause)
+      return (WindowSpecification Nothing (Just a) b c)
+    ,
+    do
+      a <- colId
+      b <- optional (space1 *> partitionByClause)
+      c <- optional (space1 *> sortClause)
+      d <- optional (space1 *> frameClause)
+      return (WindowSpecification (Just a) b c d)
+  ]
 
 partitionByClause = keyphrase "partition by" *> space1 *> endHead *> nonEmptyList aExpr
 
