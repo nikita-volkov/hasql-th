@@ -89,6 +89,23 @@ sepWithSpace1 _parser = do
   _tail <- many $ space1 *> _parser
   return (_head :| _tail)
 
+sepEnd1 :: Parser separator -> Parser end -> Parser el -> Parser (NonEmpty el, end)
+sepEnd1 sepP endP elP = do
+  headEl <- elP
+  let
+    loop !list = do
+      sepP
+      asum [
+          do
+            end <- endP
+            return (headEl :| reverse list, end)
+          ,
+          do
+            el <- elP
+            loop (el : list)
+        ]
+    in loop []
+
 {-|
 >>> testParser (quotedString '\'') "'abc''d'"
 "abc'd"
@@ -975,6 +992,12 @@ elseClause = do
   space1
   return a
 
+{-
+func_expr:
+  | func_application within_group_clause filter_clause over_clause
+  | func_expr_common_subexpr
+TODO: Handle the remaining stuff
+-}
 funcExpr :: Parser Expr
 funcExpr = FuncExpr <$> funcApplication
 
@@ -1010,7 +1033,7 @@ singleVariadicFuncApplicationParams = do
 
 listVariadicFuncApplicationParams :: Parser FuncApplicationParams
 listVariadicFuncApplicationParams = do
-  _argList <- nonEmptyList funcArgExpr <* commaSeparator <* string' "variadic" <* space1
+  (_argList, _) <- sepEnd1 commaSeparator (string' "variadic" <* space1) funcArgExpr
   endHead
   _arg <- funcArgExpr
   _optSortClause <- optional (space1 *> sortClause)
