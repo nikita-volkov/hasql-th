@@ -31,9 +31,10 @@ preparableStmt = choice [
 -- * Select
 -------------------------
 
-selectStmt = choice [
-    Left <$> selectNoParens,
-    Right <$> selectWithParens
+selectStmt = frequency [
+    (90, Left <$> selectNoParens)
+    ,
+    (10, Right <$> selectWithParens)
   ]
 
 selectNoParens :: Gen SelectNoParens
