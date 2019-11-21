@@ -1187,7 +1187,7 @@ literal = asum [
       endHead
       space
       b <- nonEmptyList funcArgExpr
-      c <- optional (space1 *> endHead *> sortClause)
+      c <- optional (space1 *> sortClause)
       space
       char ')'
       space1
@@ -1218,11 +1218,11 @@ numeric = asum [
     SmallintNumeric <$ string' "smallint",
     BigintNumeric <$ string' "bigint",
     RealNumeric <$ string' "real",
-    FloatNumeric <$> (string' "float" *> optional (space *> endHead *> inParens iconst)),
+    FloatNumeric <$> (string' "float" *> optional (space *> inParens iconst)),
     DoublePrecisionNumeric <$ keyphrase "double precision",
-    DecimalNumeric <$> (string' "decimal" *> optional (space *> endHead *> exprListInParens)),
-    DecNumeric <$> (string' "dec" *> optional (space *> endHead *> exprListInParens)),
-    NumericNumeric <$> (string' "numeric" *> optional (space *> endHead *> exprListInParens)),
+    DecimalNumeric <$> (string' "decimal" *> optional (space *> exprListInParens)),
+    DecNumeric <$> (string' "dec" *> optional (space *> exprListInParens)),
+    NumericNumeric <$> (string' "numeric" *> optional (space *> exprListInParens)),
     BooleanNumeric <$ string' "boolean"
   ]
 
@@ -1232,7 +1232,7 @@ constBit = do
   b <- optional (space1 *> exprListInParens)
   return (ConstBit a b)
 
-constCharacter = ConstCharacter <$> character <*> optional (space *> endHead *> inParens iconst)
+constCharacter = ConstCharacter <$> character <*> optional (space *> inParens iconst)
 
 character = asum [
     CharacterCharacter <$> (string' "character" *> optVaryingAfterSpace),
@@ -1243,7 +1243,7 @@ character = asum [
     NcharCharacter <$> (string' "nchar" *> optVaryingAfterSpace)
   ]
   where
-    optVaryingAfterSpace = True <$ space1 <* endHead <* string' "varying" <|> pure False
+    optVaryingAfterSpace = True <$ space1 <* string' "varying" <|> pure False
 
 {-
 ConstDatetime:
@@ -1255,14 +1255,14 @@ ConstDatetime:
 constDatetime = asum [
     do
       string' "timestamp"
-      a <- optional (space1 *> endHead *> inParens iconst)
-      b <- optional (space1 *> endHead *> timezone)
+      a <- optional (space1 *> inParens iconst)
+      b <- optional (space1 *> timezone)
       return (TimestampConstDatetime a b)
     ,
     do
       string' "time"
-      a <- optional (space1 *> endHead *> inParens iconst)
-      b <- optional (space1 *> endHead *> timezone)
+      a <- optional (space1 *> inParens iconst)
+      b <- optional (space1 *> timezone)
       return (TimeConstDatetime a b)
   ]
 
@@ -1289,7 +1289,7 @@ interval = asum [
 
 intervalSecond = do
   string' "second"
-  a <- optional (space *> endHead *> inParens iconst)
+  a <- optional (space *> inParens iconst)
   return a
 
 
