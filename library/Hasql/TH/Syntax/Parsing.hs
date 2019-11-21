@@ -1501,7 +1501,7 @@ qualified_name:
 -}
 qualifiedName :: Parser QualifiedName
 qualifiedName =
-  IndirectedQualifiedName <$> colId <*> indirection <|>
+  IndirectedQualifiedName <$> headify colId <*> indirection <|>
   SimpleQualifiedName <$> colId
 
 {-
@@ -1517,7 +1517,7 @@ func_name:
   | ColId indirection
 -}
 funcName =
-  IndirectedQualifiedName <$> colId <*> (space *> indirection) <|>
+  IndirectedQualifiedName <$> headify colId <*> (space *> indirection) <|>
   SimpleQualifiedName <$> typeFuncName
 
 {-
