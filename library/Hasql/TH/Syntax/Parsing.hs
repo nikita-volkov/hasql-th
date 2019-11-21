@@ -1332,11 +1332,21 @@ limitClause =
       space1
     _a <- firstOrNext
     space1
-    _b <- optional (selectFetchFirstValue <* space1)
-    _c <- rowOrRows
-    space1
-    string' "only"
-    return (FetchOnlyLimitClause _a _b _c)
+    asum [
+        do
+          _b <- rowOrRows
+          space1
+          string' "only"
+          return (FetchOnlyLimitClause _a Nothing _b)
+        ,
+        do
+          _b <- selectFetchFirstValue
+          space1
+          _c <- rowOrRows
+          space1
+          string' "only"
+          return (FetchOnlyLimitClause _a (Just _b) _c)
+      ]
   )
 
 offsetClause = do
