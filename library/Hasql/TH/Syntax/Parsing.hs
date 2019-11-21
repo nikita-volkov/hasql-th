@@ -1035,15 +1035,15 @@ funcArgExpr = asum [
 sortClause :: Parser (NonEmpty SortBy)
 sortClause = do
   keyphrase "order by"
-  space1
   endHead
+  space1
   a <- nonEmptyList sortBy
   return a
 
 sortBy :: Parser SortBy
 sortBy = do
   _expr <- aExpr
-  _optOrder <- optional (space1 *> endHead *> order)
+  _optOrder <- optional (space1 *> order)
   return (SortBy _expr _optOrder)
 
 order :: Parser Order
