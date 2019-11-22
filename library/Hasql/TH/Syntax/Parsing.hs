@@ -698,8 +698,7 @@ joinType = asum [
   where
     outerAfterSpace = (space1 *> string' "outer") $> True <|> pure False
 
-joinQual = asum
-  [
+joinQual = asum [
     string' "using" *> space1 *> inParens (nonEmptyList colId) <&> UsingJoinQual
     ,
     string' "on" *> space1 *> aExpr <&> OnJoinQual
