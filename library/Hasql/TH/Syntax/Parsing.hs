@@ -626,7 +626,7 @@ relationExpr =
 joinedTable =
   asum [
       do
-        _tr1 <- nonTrailingTableRef
+        _tr1 <- headify nonTrailingTableRef
         tableRefJoinedTableAfterSpace _tr1
       ,
       inParensJoinedTable
