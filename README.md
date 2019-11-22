@@ -16,7 +16,9 @@ selectUserDetails =
 
 As you can see, it completely eliminates the need to mess with codecs. The quasiquoters directly produce `Statement`, which you can then `dimap` over using its `Profunctor` instance to map to your domain types.
 
-You can get the latest development version of the project here: https://github.com/nikita-volkov/hasql-th/tree/0.3/master. With Stack, you can directly depend on the latest commit there.
+# How to use 
+
+You can get the latest development version of the project here: https://github.com/nikita-volkov/hasql-th/tree/0.3/master. With Stack, you can directly depend on the latest commit (or the one of your choosing). Refer to Stack's documentation on how to do that.
 
 # Status
 
