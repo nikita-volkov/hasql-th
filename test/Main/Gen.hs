@@ -34,18 +34,18 @@ preparableStmt = choice [
 selectStmt = Left <$> selectNoParens
 
 selectNoParens :: Gen SelectNoParens
-selectNoParens = sized $ \ _size -> if _size <= 1
+selectNoParens = frequency [
+    (90, SelectNoParens <$> maybe withClause <*> (Left <$> simpleSelect) <*> maybe sortClause <*> maybe selectLimit <*> maybe forLockingClause)
+    ,
+    (10, SelectNoParens <$> fmap Just withClause <*> selectClause <*> fmap Just sortClause <*> fmap Just selectLimit <*> fmap Just forLockingClause)
+  ]
+
+selectWithParens = sized $ \ _size -> if _size <= 1
   then discard
   else frequency [
-      (90, SelectNoParens <$> maybe withClause <*> (Left <$> simpleSelect) <*> maybe sortClause <*> maybe selectLimit <*> maybe forLockingClause)
-      ,
-      (10, SelectNoParens <$> fmap Just withClause <*> selectClause <*> fmap Just sortClause <*> fmap Just selectLimit <*> fmap Just forLockingClause)
-    ]
-
-selectWithParens = frequency [
-    (90, NoParensSelectWithParens <$> selectNoParens)
+    (95, NoParensSelectWithParens <$> selectNoParens)
     ,
-    (10, WithParensSelectWithParens <$> selectWithParens)
+    (5, WithParensSelectWithParens <$> selectWithParens)
   ]
 
 selectClause = choice [
