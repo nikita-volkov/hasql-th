@@ -548,8 +548,8 @@ tableRef = label "table reference" $ do
 nonTrailingTableRef = asum [
     relationExprTableRef <|>
     lateralTableRef <|> nonLateralTableRef <|>
-    inParensJoinedTableTableRef <|>
-    joinedTableWithAliasTableRef
+    joinedTableWithAliasTableRef <|>
+    inParensJoinedTableTableRef
   ]
   where
     
