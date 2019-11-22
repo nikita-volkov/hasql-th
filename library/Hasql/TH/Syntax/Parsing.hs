@@ -543,7 +543,7 @@ TODO: Add support for missing cases.
 tableRef :: Parser TableRef
 tableRef = label "table reference" $ do
   _tr <- nonTrailingTableRef
-  trailingTableRef _tr <|> pure _tr
+  (space1 *> trailingTableRef _tr) <|> pure _tr
 
 nonTrailingTableRef = asum [
     relationExprTableRef <|>
@@ -592,7 +592,7 @@ nonTrailingTableRef = asum [
       return (JoinTableRef _joinedTable (Just _alias))
 
 trailingTableRef _tableRef =
-  JoinTableRef <$> tableRefJoinedTableAfterSpace _tableRef <*> pure Nothing
+  JoinTableRef <$> trailingJoinedTable _tableRef <*> pure Nothing
 
 {-
 | qualified_name
@@ -627,7 +627,8 @@ joinedTable =
   asum [
       do
         _tr1 <- headify nonTrailingTableRef
-        tableRefJoinedTableAfterSpace _tr1
+        space1
+        trailingJoinedTable _tr1
       ,
       inParensJoinedTable
     ]
@@ -644,16 +645,16 @@ inParensJoinedTable = InParensJoinedTable <$> inParens joinedTable
   | table_ref NATURAL join_type JOIN table_ref
   | table_ref NATURAL JOIN table_ref
 -}
-tableRefJoinedTableAfterSpace _tr1 = asum [
+trailingJoinedTable _tr1 = asum [
     do
-      space1 *> keyphrase "cross join"
+      keyphrase "cross join"
       endHead
       space1
       _tr2 <- tableRef
       return (MethJoinedTable CrossJoinMeth _tr1 _tr2)
     ,
     do
-      _jt <- joinTypedJoinAfterSpace
+      _jt <- joinTypedJoin
       endHead
       space1
       _tr2 <- tableRef
@@ -662,17 +663,18 @@ tableRefJoinedTableAfterSpace _tr1 = asum [
       return (MethJoinedTable (QualJoinMeth _jt _jq) _tr1 _tr2)
     ,
     do
-      space1 *> string' "natural"
+      string' "natural"
       endHead
-      _jt <- joinTypedJoinAfterSpace
+      space1
+      _jt <- joinTypedJoin
       space1
       _tr2 <- tableRef
       return (MethJoinedTable (NaturalJoinMeth _jt) _tr1 _tr2)
   ]
   where
-    joinTypedJoinAfterSpace =
-      Just <$> ((space1 *> joinType <* endHead) <* space1 <* string' "join") <|>
-      Nothing <$ (space1 *> string' "join")
+    joinTypedJoin =
+      Just <$> (joinType <* endHead <* space1 <* string' "join") <|>
+      Nothing <$ string' "join"
 
 joinType = asum [
     do
