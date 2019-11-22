@@ -32,7 +32,7 @@ The parser and renderer get heavily tested using the following property: renderi
 
 # Why not use the original Postgres parser?
 
-Unfortunately Postgres doesn't export it's own parser in any of its distribution, so there's no C-library to link to and wrap.
+Unfortunately Postgres doesn't export it's own parser in any of its distributions, so there's no C-library to link to and wrap.
 
 Isolating the original C-code and including it in a Haskell project is also not an option, because it's heavily based on code generators and a complex make-file instructions. Maintaining such a codebase also seems like a non-viable option.
 
