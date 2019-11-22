@@ -1,11 +1,10 @@
 # Summary
 
-[![Build Status](https://api.travis-ci.org/nikita-volkov/hasql-th.svg?branch=0.3/master)](https://api.travis-ci.org/nikita-volkov/hasql-th.svg?branch=0.3/master)
-
 A Hasql extension-library, which brings compile-time syntax checking of queries atop of a great simplification of declaration of statements. All using quasi-quotes and a port of Postgres SQL syntax parser.
 
 Here's a brief example of how it works:
 
+```haskell
 selectUserDetails :: Statement Int32 (Maybe (Text, Text, Maybe Text))
 selectUserDetails =
   [maybeStatement|
@@ -13,6 +12,7 @@ selectUserDetails =
     from "user"
     where id = $1 :: int4
     |]
+```
 
 As you can see, it completely eliminates the need to mess with codecs. The quasiquoters directly produce `Statement`, which you can then `dimap` over using its `Profunctor` instance to map to your domain types.
 
@@ -25,6 +25,8 @@ You can get the latest development version of the project here: https://github.c
 This is a closed-beta version, which brings limited functionality. At the moment the library only supports the Select statements. However support for other types of statements is close to being finished. It's only a matter of porting the remaining pieces of the parser and AST. Since the syntax tree is highly shared, most of their pieces have already been ported, during the work on Select.
 
 # Quality
+
+[![Build Status](https://api.travis-ci.org/nikita-volkov/hasql-th.svg?branch=0.3/master)](https://api.travis-ci.org/nikita-volkov/hasql-th.svg?branch=0.3/master)
 
 The parser and renderer get heavily tested using the following property: rendering a random AST then parsing it should produce the same AST. This pretty much covers most possible reasons for bugs in the library.
 
