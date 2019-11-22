@@ -138,9 +138,9 @@ relationExpr = choice [
 
 aliasClause = AliasClause <$> name <*> maybe (nonEmpty (Range.exponential 1 8) name)
 
-joinedTable = choice [
-    InParensJoinedTable <$> joinedTable,
-    MethJoinedTable <$> joinMeth <*> tableRef <*> tableRef
+joinedTable = frequency [
+    (5,) $ InParensJoinedTable <$> joinedTable,
+    (95,) $ MethJoinedTable <$> joinMeth <*> tableRef <*> tableRef
   ]
 
 joinMeth = choice [
