@@ -625,10 +625,11 @@ relationExpr =
 
 joinedTable =
   asum [
-      inParensJoinedTable,
       do
         _tr1 <- nonTrailingTableRef
         tableRefJoinedTableAfterSpace _tr1
+      ,
+      inParensJoinedTable
     ]
 
 {-
