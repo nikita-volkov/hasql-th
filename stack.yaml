@@ -1,3 +1,0 @@
-resolver: https://raw.githubusercontent.com/nikita-volkov/stack-snapshot/be05aefa9565dcded95879653cb9d78c52f28fce/snapshot.yaml
-extra-deps:
-- {git: "https://github.com/nikita-volkov/headed-megaparsec", commit: "b39ee8e7ba0fb607556944acf7e9a64d43a82cfa"}
