@@ -1,6 +1,6 @@
-[![Build Status](https://api.travis-ci.org/nikita-volkov/hasql-th.svg?branch=0.3/master)](https://api.travis-ci.org/nikita-volkov/hasql-th.svg?branch=0.3/master)
-
 # Summary
+
+[![Build Status](https://api.travis-ci.org/nikita-volkov/hasql-th.svg?branch=0.3/master)](https://api.travis-ci.org/nikita-volkov/hasql-th.svg?branch=0.3/master)
 
 A Hasql extension-library, which brings compile-time syntax checking of queries atop of a great simplification of declaration of statements. All using quasi-quotes and a port of Postgres SQL syntax parser.
 
