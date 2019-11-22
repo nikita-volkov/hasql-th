@@ -33,6 +33,9 @@ install:
       constraint_options=(
       );
     fi;
+  # Install executables
+  - cabal install happy
+  - cabal install doctest
   # Install the library dependencies
   - cabal install --only-dependencies --reorder-goals --force-reinstalls
       ${constraint_options[@]}
@@ -40,8 +43,6 @@ install:
       $([ "$benchmarks" = "1" ] && echo "--enable-benchmarks")
   # Build the library
   - cabal build
-  # Install doctest
-  - cabal install doctest
   # Configure and build the remaining stuff
   - cabal configure 
       $([ "$tests" = "1" ] && echo "--enable-tests")
