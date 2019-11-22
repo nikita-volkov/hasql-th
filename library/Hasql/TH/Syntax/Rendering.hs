@@ -246,7 +246,7 @@ joinedTable = \ case
   MethJoinedTable a b c -> case a of
     CrossJoinMeth -> tableRef b <> " CROSS JOIN " <> tableRef c
     QualJoinMeth d e -> tableRef b <> foldMap (mappend " " . joinType) d <> " JOIN " <> tableRef c <> " " <> joinQual e
-    NaturalJoinMeth d -> tableRef b <> " NATURAL" <> foldMap (mappend " " . joinType) d <> " " <> tableRef c
+    NaturalJoinMeth d -> tableRef b <> " NATURAL" <> foldMap (mappend " " . joinType) d <> " JOIN " <> tableRef c
 
 joinType :: JoinType -> Builder
 joinType = \ case
