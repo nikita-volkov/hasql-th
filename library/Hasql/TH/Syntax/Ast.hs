@@ -27,22 +27,21 @@ data PreparableStmt =
 -- * Select
 -------------------------
 
-{-|
-Covers the following cases:
-
-@
+{-
 SelectStmt:
   |  select_no_parens
   |  select_with_parens
+-}
+type SelectStmt = Either SelectNoParens SelectWithParens
 
+{-
 select_with_parens:
   |  '(' select_no_parens ')'
   |  '(' select_with_parens ')'
-@
 -}
-data SelectStmt =
-  InParensSelectStmt SelectStmt |
-  NoParensSelectStmt SelectNoParens
+data SelectWithParens =
+  NoParensSelectWithParens SelectNoParens |
+  WithParensSelectWithParens SelectWithParens
   deriving (Show, Generic, Eq, Ord)
 
 {-|
@@ -71,7 +70,7 @@ select_clause:
   |  select_with_parens
 @
 -}
-type SelectClause = Either SimpleSelect SelectNoParens
+type SelectClause = Either SimpleSelect SelectWithParens
 
 {-
 simple_select:
@@ -92,7 +91,7 @@ TODO: Cover TABLE clause.
 data SimpleSelect =
   NormalSimpleSelect (Maybe Targeting) (Maybe IntoClause) (Maybe FromClause) (Maybe WhereClause) (Maybe GroupClause) (Maybe HavingClause) (Maybe WindowClause) |
   ValuesSimpleSelect ValuesClause |
-  BinSimpleSelect SelectBinOp SelectClause AllOrDistinct SelectClause
+  BinSimpleSelect SelectBinOp SelectClause (Maybe Bool) SelectClause
   deriving (Show, Generic, Eq, Ord)
 
 {-|
@@ -118,18 +117,18 @@ data Targeting =
   DistinctTargeting (Maybe (NonEmpty Expr)) (NonEmpty Target)
   deriving (Show, Generic, Eq, Ord)
 
-{-|
-@
+{-
 target_el:
   |  a_expr AS ColLabel
   |  a_expr IDENT
   |  a_expr
   |  '*'
-@
 -}
 data Target =
-  AllTarget |
-  ExprTarget Expr (Maybe Name)
+  AliasedExprTarget Expr Name |
+  ImplicitlyAliasedExprTarget Expr Name |
+  ExprTarget Expr |
+  AsteriskTarget
   deriving (Show, Generic, Eq, Ord)
 
 {-
@@ -341,9 +340,6 @@ sortby_list:
 -}
 type SortClause = NonEmpty SortBy
 
-data AllOrDistinct = AllAllOrDistinct | DistinctAllOrDistinct
-  deriving (Show, Generic, Eq, Ord)
-
 {-|
 @
 sortby:
@@ -503,7 +499,7 @@ data TableRef =
   | select_with_parens opt_alias_clause
   | LATERAL_P select_with_parens opt_alias_clause
   -}
-  SelectTableRef Bool SelectNoParens (Maybe AliasClause) |
+  SelectTableRef Bool SelectWithParens (Maybe AliasClause) |
   {-
   | joined_table
   | '(' joined_table ')' alias_clause
@@ -614,7 +610,7 @@ data Expr =
   | select_with_parens
   | select_with_parens indirection
   -}
-  InParensExpr (Either Expr SelectNoParens) (Maybe Indirection) |
+  InParensExpr (Either Expr SelectWithParens) (Maybe Indirection) |
   {-
   case_expr:
     |  CASE case_arg when_clause_list case_default END_P
@@ -627,8 +623,8 @@ data Expr =
   -}
   CaseExpr (Maybe Expr) (NonEmpty WhenClause) (Maybe Expr) |
   FuncExpr FuncApplication |
-  ExistsSelectExpr SelectNoParens |
-  ArraySelectExpr SelectNoParens |
+  ExistsSelectExpr SelectWithParens |
+  ArraySelectExpr SelectWithParens |
   GroupingExpr (NonEmpty Expr)
   deriving (Show, Generic, Eq, Ord)
 
@@ -663,7 +659,7 @@ func_application:
   |  func_name '(' '*' ')'
 -}
 data FuncApplicationParams =
-  NormalFuncApplicationParams (Maybe AllOrDistinct) (NonEmpty FuncArgExpr) (Maybe SortClause) |
+  NormalFuncApplicationParams (Maybe Bool) (NonEmpty FuncArgExpr) (Maybe SortClause) |
   VariadicFuncApplicationParams (Maybe (NonEmpty FuncArgExpr)) FuncArgExpr (Maybe SortClause) |
   StarFuncApplicationParams
   deriving (Show, Generic, Eq, Ord)

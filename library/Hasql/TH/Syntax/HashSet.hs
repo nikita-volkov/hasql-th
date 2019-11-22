@@ -7,7 +7,7 @@ import qualified Data.Text as Text
 
 {-# NOINLINE keyword #-}
 keyword :: HashSet Text
-keyword = unreservedKeyword <> colNameKeyword <> typeFuncNameKeyword <> reservedKeyword
+keyword = colNameKeyword <> typeFuncNameKeyword <> reservedKeyword
 
 {-# NOINLINE unreservedKeyword #-}
 unreservedKeyword :: HashSet Text

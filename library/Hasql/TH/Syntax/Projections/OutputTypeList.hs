@@ -20,14 +20,19 @@ preparableStmt = \ case
 
 selectStmt :: SelectStmt -> Either Text [Type]
 selectStmt = \ case
-  InParensSelectStmt a -> selectStmt a
-  NoParensSelectStmt a -> selectNoParens a
+  Left a -> selectNoParens a
+  Right a -> selectWithParens a
 
 selectNoParens :: SelectNoParens -> Either Text [Type]
 selectNoParens (SelectNoParens _ a _ _ _) = selectClause a
 
+selectWithParens :: SelectWithParens -> Either Text [Type]
+selectWithParens = \ case
+  NoParensSelectWithParens a -> selectNoParens a
+  WithParensSelectWithParens a -> selectWithParens a
+
 selectClause :: SelectClause -> Either Text [Type]
-selectClause = either simpleSelect selectNoParens
+selectClause = either simpleSelect selectWithParens
 
 simpleSelect :: SimpleSelect -> Either Text [Type]
 simpleSelect = \ case
@@ -48,8 +53,10 @@ targeting = \ case
 
 target :: Target -> Either Text [Type]
 target = \ case
-  ExprTarget a _ -> expr a
-  AllTarget -> Left "Target of all fields is not allowed, \
+  AliasedExprTarget a _ -> expr a
+  ImplicitlyAliasedExprTarget a _ -> expr a
+  ExprTarget a -> expr a
+  AsteriskTarget -> Left "Target of all fields is not allowed, \
     \because it leaves the output types unspecified. \
     \You have to be specific."
 

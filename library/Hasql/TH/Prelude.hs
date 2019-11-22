@@ -57,7 +57,7 @@ import Foreign.ForeignPtr as Exports
 import Foreign.Ptr as Exports
 import Foreign.StablePtr as Exports
 import Foreign.Storable as Exports hiding (sizeOf, alignment)
-import GHC.Conc as Exports hiding (withMVar, threadWaitWriteSTM, threadWaitWrite, threadWaitReadSTM, threadWaitRead)
+import GHC.Conc as Exports hiding (orElse, withMVar, threadWaitWriteSTM, threadWaitWrite, threadWaitReadSTM, threadWaitRead)
 import GHC.Exts as Exports (lazy, inline, sortWith, groupWith, IsList(fromList, Item))
 import GHC.Generics as Exports (Generic, Generic1)
 import GHC.IO.Exception as Exports
@@ -80,6 +80,10 @@ import Unsafe.Coerce as Exports
 -- contravariant
 -------------------------
 import Data.Functor.Contravariant.Divisible as Exports
+
+-- selective
+-------------------------
+import Control.Selective as Exports
 
 -- bytestring
 -------------------------
@@ -113,6 +117,10 @@ import Control.Foldl as Exports (Fold(..))
 -- uuid
 -------------------------
 import Data.UUID as Exports (UUID)
+
+-- case-insensitive
+-------------------------
+import Data.CaseInsensitive as Exports (CI, FoldCase)
 
 
 {-|

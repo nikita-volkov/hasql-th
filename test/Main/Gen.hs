@@ -2,6 +2,7 @@ module Main.Gen where
 
 import Hasql.TH.Prelude hiding (maybe, bool, sortBy, filter)
 import Hasql.TH.Syntax.Ast
+import Hedgehog (Gen)
 import Hedgehog.Gen
 import qualified Hedgehog.Range as Range
 import qualified Data.Text as Text
@@ -30,25 +31,62 @@ preparableStmt = choice [
 -- * Select
 -------------------------
 
-selectStmt = choice [
-    InParensSelectStmt <$> selectStmt,
-    NoParensSelectStmt <$> selectNoParens
+selectStmt = Left <$> selectNoParens
+
+-- ** selectNoParens
+-------------------------
+
+selectNoParens = frequency [
+    (90, SelectNoParens <$> maybe withClause <*> (Left <$> simpleSelect) <*> maybe sortClause <*> maybe selectLimit <*> maybe forLockingClause)
+    ,
+    (10, SelectNoParens <$> fmap Just withClause <*> selectClause <*> fmap Just sortClause <*> fmap Just selectLimit <*> fmap Just forLockingClause)
   ]
 
-selectNoParens = sized $ \ _size -> if _size <= 1
+terminalSelectNoParens = 
+  SelectNoParens <$> pure Nothing <*> (Left <$> terminalSimpleSelect) <*> pure Nothing <*> pure Nothing <*> pure Nothing
+
+-- ** selectWithParens
+-------------------------
+
+selectWithParens = sized $ \ _size -> if _size <= 1
   then discard
-  else SelectNoParens <$> maybe withClause <*> selectClause <*> maybe sortClause <*> maybe selectLimit <*> maybe forLockingClause
+  else frequency [
+    (95, NoParensSelectWithParens <$> selectNoParens)
+    ,
+    (5, WithParensSelectWithParens <$> selectWithParens)
+  ]
+
+terminalSelectWithParens = NoParensSelectWithParens <$> terminalSelectNoParens
+
+-- ** selectClause
+-------------------------
 
 selectClause = choice [
     Left <$> simpleSelect,
-    Right <$> small selectNoParens
+    Right <$> small selectWithParens
   ]
 
+nonTrailingSelectClause = Left <$> nonTrailingSimpleSelect
+
+-- ** simpleSelect
+-------------------------
+
 simpleSelect = choice [
-    NormalSimpleSelect <$> maybe targeting <*> maybe intoClause <*> maybe fromClause <*> maybe whereClause <*> maybe groupClause <*> maybe havingClause <*> maybe windowClause,
-    ValuesSimpleSelect <$> valuesClause,
-    BinSimpleSelect <$> selectBinOp <*> small selectClause <*> allOrDistinct <*> small selectClause
+    normalSimpleSelect,
+    valuesSimpleSelect,
+    small nonTrailingSelectClause >>= binSimpleSelect
   ]
+
+nonTrailingSimpleSelect = choice [normalSimpleSelect, valuesSimpleSelect]
+
+normalSimpleSelect = NormalSimpleSelect <$> maybe targeting <*> maybe intoClause <*> maybe fromClause <*> maybe whereClause <*> maybe groupClause <*> maybe havingClause <*> maybe windowClause
+
+valuesSimpleSelect = ValuesSimpleSelect <$> valuesClause
+
+binSimpleSelect _leftSelect = 
+  BinSimpleSelect <$> selectBinOp <*> pure _leftSelect <*> maybe allOrDistinct <*> small selectClause
+
+terminalSimpleSelect = pure (NormalSimpleSelect Nothing Nothing Nothing Nothing Nothing Nothing Nothing)
 
 
 -- * Targeting
@@ -63,8 +101,10 @@ targeting = choice [
 targets = nonEmpty (Range.exponential 1 8) target
 
 target = choice [
-    pure AllTarget,
-    ExprTarget <$> expr <*> maybe name
+    pure AsteriskTarget,
+    AliasedExprTarget <$> expr <*> name,
+    ImplicitlyAliasedExprTarget <$> expr <*> name,
+    ExprTarget <$> expr
   ]
 
 
@@ -105,11 +145,10 @@ optTempTableName = choice [
 
 fromClause = nonEmpty (Range.exponential 1 8) tableRef
 
-tableRef = choice [
-    RelationExprTableRef <$> relationExpr <*> maybe aliasClause,
-    SelectTableRef <$> bool <*> small selectNoParens <*> maybe aliasClause,
-    JoinTableRef <$> joinedTable <*> maybe aliasClause
-  ]
+tableRef = choice [relationExprTableRef, selectTableRef, joinTableRef]
+relationExprTableRef = RelationExprTableRef <$> relationExpr <*> maybe aliasClause
+selectTableRef = SelectTableRef <$> bool <*> small selectWithParens <*> maybe aliasClause
+joinTableRef = JoinTableRef <$> joinedTable <*> maybe aliasClause
 
 relationExpr = choice [
     SimpleRelationExpr <$> qualifiedName <*> bool,
@@ -118,9 +157,9 @@ relationExpr = choice [
 
 aliasClause = AliasClause <$> name <*> maybe (nonEmpty (Range.exponential 1 8) name)
 
-joinedTable = choice [
-    InParensJoinedTable <$> joinedTable,
-    MethJoinedTable <$> joinMeth <*> tableRef <*> tableRef
+joinedTable = frequency [
+    (5,) $ InParensJoinedTable <$> joinedTable,
+    (95,) $ MethJoinedTable <$> joinMeth <*> choice [relationExprTableRef, selectTableRef] <*> tableRef
   ]
 
 joinMeth = choice [
@@ -216,7 +255,7 @@ order = element [AscOrder, DescOrder]
 -- * All or distinct
 -------------------------
 
-allOrDistinct = element [AllAllOrDistinct, DistinctAllOrDistinct]
+allOrDistinct = bool
 
 
 -- * Limit
@@ -235,7 +274,7 @@ limitClause = choice [
   ]
 
 selectFetchFirstValue = choice [
-    ExprSelectFetchFirstValue <$> expr,
+    ExprSelectFetchFirstValue <$> cExpr,
     NumSelectFetchFirstValue <$> bool <*> iconstOrFconst
   ]
 
@@ -271,7 +310,8 @@ forLockingStrength = element [
 -- * Expressions
 -------------------------
 
-expr = recursive choice terminatingHeadfulExprList (recursiveHeadfulExprList <> recursiveHeadlessExprList)
+baseExpr inParensExpr =
+  recursive choice terminatingHeadfulExprList (recursiveHeadfulExprList <> recursiveHeadlessExprList)
   where
     headfulExpr = recursive choice terminatingHeadfulExprList recursiveHeadfulExprList
     terminatingHeadfulExprList = [
@@ -284,15 +324,15 @@ expr = recursive choice terminatingHeadfulExprList (recursiveHeadfulExprList <> 
         ,
         LiteralExpr <$> literal
         ,
-        InParensExpr <$> small eitherExprOrSelect <*> maybe indirection
+        inParensExpr
         ,
         CaseExpr <$> maybe (small expr) <*> nonEmpty (Range.exponential 1 2) whenClause <*> maybe (small expr)
         ,
         FuncExpr <$> funcApplication
         ,
-        ExistsSelectExpr <$> small selectNoParens
+        ExistsSelectExpr <$> small selectWithParens
         ,
-        ArraySelectExpr <$> small selectNoParens
+        ArraySelectExpr <$> small selectWithParens
         ,
         GroupingExpr <$> nonEmpty (Range.exponential 1 4) (small expr)
       ]
@@ -303,10 +343,49 @@ expr = recursive choice terminatingHeadfulExprList (recursiveHeadfulExprList <> 
         ,
         EscapableBinOpExpr <$> bool <*> escapableBinOp <*> small headfulExpr <*> small headfulExpr <*> maybe (small headfulExpr)
       ]
+expr = baseExpr inParensExpr
 
-eitherExprOrSelect =
-  Left <$> expr <|>
-  Right <$> selectNoParens
+{-
+c_expr:
+  | columnref
+  | AexprConst
+  | PARAM opt_indirection
+  | '(' a_expr ')' opt_indirection
+  | case_expr
+  | func_expr
+  | select_with_parens
+  | select_with_parens indirection
+  | EXISTS select_with_parens
+  | ARRAY select_with_parens
+  | ARRAY array_expr
+  | explicit_row
+  | implicit_row
+  | GROUPING '(' expr_list ')'
+-}
+cExpr = choice [
+    QualifiedNameExpr <$> qualifiedName
+    ,
+    LiteralExpr <$> literal
+    ,
+    inParensExpr
+    ,
+    CaseExpr <$> maybe (small expr) <*> nonEmpty (Range.exponential 1 2) whenClause <*> maybe (small expr)
+    ,
+    FuncExpr <$> funcApplication
+    ,
+    ExistsSelectExpr <$> small selectWithParens
+    ,
+    ArraySelectExpr <$> small selectWithParens
+    ,
+    GroupingExpr <$> nonEmpty (Range.exponential 1 4) (small expr)
+  ]
+
+inParensExpr = InParensExpr <$> small eitherExprOrSelect <*> maybe indirection where
+  eitherExprOrSelect =
+    Left <$> (baseExpr inParensWithoutSelectExpr) <|>
+    Right <$> selectWithParens
+
+inParensWithoutSelectExpr = InParensExpr <$> Left <$> baseExpr inParensWithoutSelectExpr <*> maybe indirection
 
 binOp = element (toList HashSet.symbolicBinOp <> ["AND", "OR", "IS DISTINCT FROM", "IS NOT DISTINCT FROM"])
 

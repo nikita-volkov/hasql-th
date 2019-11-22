@@ -15,13 +15,13 @@ import qualified Data.Text as Text
 main = defaultMain [
     checkParallel $ Group "Parsing a rendered AST produces the same AST" $ let
       p _name _gen _parser _renderer =
-        (,) _name $ withDiscards 10000 $ withTests 10000 $ property $ do
+        (,) _name $ withDiscards 1000000000 $ withTests 1000000 $ property $ do
           ast <- forAll _gen
           let
             sql = Rendering.toText (_renderer ast)
             in do
               footnote ("SQL: " <> Text.unpack sql)
-              case Parsing.parse _parser sql of
+              case Parsing.run _parser sql of
                 Left err -> do
                   footnote (Text.unpack err)
                   failure

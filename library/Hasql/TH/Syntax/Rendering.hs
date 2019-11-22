@@ -51,8 +51,8 @@ preparableStmt = \ case
 
 selectStmt :: SelectStmt -> Builder
 selectStmt = \ case
-  InParensSelectStmt a -> inParens (selectStmt a)
-  NoParensSelectStmt a -> selectNoParens a
+  Left a -> selectNoParens a
+  Right a -> selectWithParens a
 
 selectNoParens :: SelectNoParens -> Builder
 selectNoParens (SelectNoParens a b c d e) =
@@ -64,6 +64,10 @@ selectNoParens (SelectNoParens a b c d e) =
       fmap selectLimit d,
       fmap forLockingClause e
     ]
+
+selectWithParens = inParens . \ case
+  NoParensSelectWithParens a -> selectNoParens a
+  WithParensSelectWithParens a -> selectWithParens a
 
 withClause (WithClause a b) =
   "WITH " <> bool "" "RECURSIVE " a <> commaNonEmpty commonTableExpr b
@@ -87,7 +91,7 @@ selectLimit = \ case
   OffsetSelectLimit a -> offsetClause a
 
 limitClause = \ case
-  LimitLimitClause a b -> optLexemes [Just "LIMIT", Just (selectLimitValue a), fmap (mappend ", " . expr) b]
+  LimitLimitClause a b -> "LIMIT " <> selectLimitValue a <> foldMap (mappend ", " . expr) b
   FetchOnlyLimitClause a b c ->
     optLexemes
       [
@@ -117,7 +121,7 @@ offsetClause = \ case
   FetchFirstOffsetClause a b -> "OFFSET " <> selectFetchFirstValue a <> " " <> rowOrRows b
 
 forLockingClause = \ case
-  ItemsForLockingClause a -> commaNonEmpty forLockingItem a
+  ItemsForLockingClause a -> spaceNonEmpty forLockingItem a
   ReadOnlyForLockingClause -> "FOR READ ONLY"
 
 forLockingItem (ForLockingItem a b c) =
@@ -139,7 +143,7 @@ lockedRelsList a = "OF " <> commaNonEmpty qualifiedName a
 nowaitOrSkip = bool "NOWAIT" "SKIP LOCKED"
 
 selectClause :: SelectClause -> Builder
-selectClause = either simpleSelect selectNoParens
+selectClause = either simpleSelect selectWithParens
 
 simpleSelect :: SimpleSelect -> Builder
 simpleSelect = \ case
@@ -156,7 +160,12 @@ simpleSelect = \ case
         fmap windowClause g
       ]
   ValuesSimpleSelect a -> valuesClause a
-  BinSimpleSelect _ a _ b -> selectClause a <> selectClause b
+  BinSimpleSelect a b c d -> selectClause b <> " " <> selectBinOp a <> foldMap (mappend " ". allOrDistinct) c <> " " <> selectClause d
+
+selectBinOp = \ case
+  UnionSelectBinOp -> "UNION"
+  IntersectSelectBinOp -> "INTERSECT"
+  ExceptSelectBinOp -> "EXCEPT"
 
 targeting :: Targeting -> Builder
 targeting = \ case
@@ -169,8 +178,10 @@ onExpressionsClause a = "ON (" <> commaNonEmpty expr a <> ")"
 
 target :: Target -> Builder
 target = \ case
-  AllTarget -> "*"
-  ExprTarget a b -> expr a <> foldMap (mappend " " . name) b
+  AliasedExprTarget a b -> expr a <> " AS " <> name b
+  ImplicitlyAliasedExprTarget a b -> expr a <> " " <> name b
+  ExprTarget a -> expr a
+  AsteriskTarget -> "*"
 
 
 -- * Select Into
@@ -210,7 +221,7 @@ tableRef = \ case
     optLexemes
       [
         if a then Just "LATERAL" else Nothing,
-        Just (selectNoParens b),
+        Just (selectWithParens b),
         fmap aliasClause c
       ]
   JoinTableRef a b -> case b of
@@ -237,7 +248,7 @@ joinedTable = \ case
   MethJoinedTable a b c -> case a of
     CrossJoinMeth -> tableRef b <> " CROSS JOIN " <> tableRef c
     QualJoinMeth d e -> tableRef b <> foldMap (mappend " " . joinType) d <> " JOIN " <> tableRef c <> " " <> joinQual e
-    NaturalJoinMeth d -> tableRef b <> " NATURAL" <> foldMap (mappend " " . joinType) d <> " " <> tableRef c
+    NaturalJoinMeth d -> tableRef b <> " NATURAL" <> foldMap (mappend " " . joinType) d <> " JOIN " <> tableRef c
 
 joinType :: JoinType -> Builder
 joinType = \ case
@@ -379,7 +390,7 @@ expr = \ case
   DefaultExpr -> "DEFAULT"
   QualifiedNameExpr a -> qualifiedName a
   LiteralExpr a -> literal a
-  InParensExpr a b -> "(" <> either expr selectNoParens a <> ")" <> foldMap (mappend " " . indirection) b
+  InParensExpr a b -> either (inParens . expr) selectWithParens a <> foldMap indirection b
   CaseExpr a b c -> optLexemes [
       Just "CASE",
       fmap expr a,
@@ -388,8 +399,8 @@ expr = \ case
       Just "END"
     ]
   FuncExpr a -> funcApplication a
-  ExistsSelectExpr a -> "EXISTS " <> inParens (selectNoParens a)
-  ArraySelectExpr a -> "ARRAY " <> inParens (selectNoParens a)
+  ExistsSelectExpr a -> "EXISTS " <> selectWithParens a
+  ArraySelectExpr a -> "ARRAY " <> selectWithParens a
   GroupingExpr a -> "GROUPING " <> inParens (commaNonEmpty expr a)
 
 type_ :: Type -> Builder
@@ -419,17 +430,17 @@ funcApplicationParams = \ case
   VariadicFuncApplicationParams a b c ->
     optLexemes
       [
-        fmap (flip mappend ", " . commaNonEmpty funcArgExpr) a,
+        fmap (flip mappend "," . commaNonEmpty funcArgExpr) a,
         Just "VARIADIC",
         Just (funcArgExpr b),
         fmap sortClause c
       ]
   StarFuncApplicationParams -> "*"
 
-allOrDistinct :: AllOrDistinct -> Builder
+allOrDistinct :: Bool -> Builder
 allOrDistinct = \ case
-  AllAllOrDistinct -> "ALL"
-  DistinctAllOrDistinct -> "DISTINCT"
+  False -> "ALL"
+  True -> "DISTINCT"
 
 funcArgExpr :: FuncArgExpr -> Builder
 funcArgExpr = \ case
