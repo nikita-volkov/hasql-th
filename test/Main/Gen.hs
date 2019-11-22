@@ -36,7 +36,6 @@ selectStmt = Left <$> selectNoParens
 -- ** selectNoParens
 -------------------------
 
-selectNoParens :: Gen SelectNoParens
 selectNoParens = frequency [
     (90, SelectNoParens <$> maybe withClause <*> (Left <$> simpleSelect) <*> maybe sortClause <*> maybe selectLimit <*> maybe forLockingClause)
     ,
