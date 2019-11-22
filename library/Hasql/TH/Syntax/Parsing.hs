@@ -644,8 +644,7 @@ inParensJoinedTable = InParensJoinedTable <$> inParens joinedTable
   | table_ref NATURAL join_type JOIN table_ref
   | table_ref NATURAL JOIN table_ref
 -}
-tableRefJoinedTableAfterSpace _tr1 = asum $
-  [
+tableRefJoinedTableAfterSpace _tr1 = asum [
     do
       space1 *> keyphrase "cross join"
       endHead
