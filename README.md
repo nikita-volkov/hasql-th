@@ -1,4 +1,4 @@
-https://api.travis-ci.org/nikita-volkov/hasql-th.svg?branch=0.3/master
+[![Build Status](https://api.travis-ci.org/nikita-volkov/hasql-th.svg?branch=0.3/master)](https://api.travis-ci.org/nikita-volkov/hasql-th.svg?branch=0.3/master)
 
 # Summary
 
