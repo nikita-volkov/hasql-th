@@ -68,5 +68,3 @@ Here's what "hasql-th" says:
   |                                  ^
 unexpected '&'
 ```
-
-This is not a manipulative example. There's a lot more. In fact, it's not hard to beat the original parser on this matter, because it never produces any other messages than "syntax error at or near...".
