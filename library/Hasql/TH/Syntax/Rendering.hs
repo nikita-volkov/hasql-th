@@ -178,8 +178,10 @@ onExpressionsClause a = "ON (" <> commaNonEmpty expr a <> ")"
 
 target :: Target -> Builder
 target = \ case
-  AllTarget -> "*"
-  ExprTarget a b -> expr a <> foldMap (mappend " " . name) b
+  AliasedExprTarget a b -> expr a <> " AS " <> name b
+  ImplicitlyAliasedExprTarget a b -> expr a <> " " <> name b
+  ExprTarget a -> expr a
+  AsteriskTarget -> "*"
 
 
 -- * Select Into

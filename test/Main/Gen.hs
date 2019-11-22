@@ -102,8 +102,10 @@ targeting = choice [
 targets = nonEmpty (Range.exponential 1 8) target
 
 target = choice [
-    pure AllTarget,
-    ExprTarget <$> expr <*> maybe name
+    pure AsteriskTarget,
+    AliasedExprTarget <$> expr <*> name,
+    ImplicitlyAliasedExprTarget <$> expr <*> name,
+    ExprTarget <$> expr
   ]
 
 

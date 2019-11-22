@@ -349,22 +349,23 @@ target_el:
   |  '*'
 -}
 target :: Parser Target
-target = label "target" $ exprCase <|> allCase where
-  allCase = AllTarget <$ char '*'
-  exprCase = do
-    _expr <- aExpr
-    endHead
-    _optAlias <- optional $ asum [
-        do
-          space1
-          string' "as"
-          space1
-          endHead
-          colLabel
-        ,
-        space1 *> ident
-      ]
-    return (ExprTarget _expr _optAlias)
+target = label "target" $ asum [
+    do
+      _expr <- aExpr
+      asum [
+          do
+            space1
+            asum [
+                AliasedExprTarget _expr <$> (string' "as" *> space1 *> endHead *> colLabel)
+                ,
+                ImplicitlyAliasedExprTarget _expr <$> ident
+              ]
+          ,
+          pure (ExprTarget _expr)
+        ]
+    ,
+    AsteriskTarget <$ char '*'
+  ]
 
 onExpressionsClause :: Parser (NonEmpty Expr)
 onExpressionsClause = do

@@ -81,8 +81,10 @@ targeting = \ case
 
 target :: Target -> [Expr]
 target = \ case
-  AllTarget -> []
-  ExprTarget a _ -> [a]
+  AliasedExprTarget a _ -> [a]
+  ImplicitlyAliasedExprTarget a _ -> [a]
+  ExprTarget a -> [a]
+  AsteriskTarget -> []
 
 intoClause :: IntoClause -> [Expr]
 intoClause = optTempTableName

@@ -53,8 +53,10 @@ targeting = \ case
 
 target :: Target -> Either Text [Type]
 target = \ case
-  ExprTarget a _ -> expr a
-  AllTarget -> Left "Target of all fields is not allowed, \
+  AliasedExprTarget a _ -> expr a
+  ImplicitlyAliasedExprTarget a _ -> expr a
+  ExprTarget a -> expr a
+  AsteriskTarget -> Left "Target of all fields is not allowed, \
     \because it leaves the output types unspecified. \
     \You have to be specific."
 

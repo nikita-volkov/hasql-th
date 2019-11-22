@@ -117,18 +117,18 @@ data Targeting =
   DistinctTargeting (Maybe (NonEmpty Expr)) (NonEmpty Target)
   deriving (Show, Generic, Eq, Ord)
 
-{-|
-@
+{-
 target_el:
   |  a_expr AS ColLabel
   |  a_expr IDENT
   |  a_expr
   |  '*'
-@
 -}
 data Target =
-  AllTarget |
-  ExprTarget Expr (Maybe Name)
+  AliasedExprTarget Expr Name |
+  ImplicitlyAliasedExprTarget Expr Name |
+  ExprTarget Expr |
+  AsteriskTarget
   deriving (Show, Generic, Eq, Ord)
 
 {-
