@@ -38,6 +38,7 @@ library
   build-depends:
     base >=4.9 && <5,
     bytestring >=0.10 && <0.11,
+    case-insensitive >=1.2 && <2,
     containers >=0.6 && <0.7,
     contravariant >=1.5.2 && <2,
     fast-builder >=0.1.2 && <0.2,
@@ -78,6 +79,7 @@ test-suite test
   build-depends:
     base,
     bytestring,
+    case-insensitive,
     containers,
     contravariant,
     fast-builder,

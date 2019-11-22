@@ -36,7 +36,7 @@ rowlessStatement _quote = do
   return (Statement _sql _encoderList [])
 
 ast :: Text -> Either Text PreparableStmt
-ast = Parsing.parse (Parsing.quasiQuote Parsing.preparableStmt)
+ast = Parsing.run (Parsing.quasiQuote Parsing.preparableStmt)
 
 encoder :: Type -> Either Text Encoder
 encoder (Type _name _nullable _dimensions _arrayNullable) =do

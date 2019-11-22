@@ -21,7 +21,7 @@ main = defaultMain [
             sql = Rendering.toText (_renderer ast)
             in do
               footnote ("SQL: " <> Text.unpack sql)
-              case Parsing.parse _parser sql of
+              case Parsing.run _parser sql of
                 Left err -> do
                   footnote (Text.unpack err)
                   failure

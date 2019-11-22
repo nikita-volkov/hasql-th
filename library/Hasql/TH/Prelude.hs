@@ -118,6 +118,10 @@ import Control.Foldl as Exports (Fold(..))
 -------------------------
 import Data.UUID as Exports (UUID)
 
+-- case-insensitive
+-------------------------
+import Data.CaseInsensitive as Exports (CI, FoldCase)
+
 
 {-|
 >>> intersperseFoldMap1 ", " id (fromList ["a"])

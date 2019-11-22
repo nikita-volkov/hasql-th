@@ -32,9 +32,10 @@ import HeadedMegaparsec
 import Control.Applicative.Combinators hiding (some)
 import Control.Applicative.Combinators.NonEmpty
 import Hasql.TH.Syntax.Ast
-import qualified Text.Megaparsec as Mega
-import qualified Text.Megaparsec.Char as Mega
-import qualified Text.Megaparsec.Char.Lexer as Lex
+import Text.Megaparsec (Stream, Parsec)
+import qualified Text.Megaparsec as Megaparsec
+import qualified Text.Megaparsec.Char as MegaparsecChar
+import qualified Text.Megaparsec.Char.Lexer as MegaparsecLexer
 import qualified Hasql.TH.Syntax.Predicate as Predicate
 import qualified Hasql.TH.Syntax.HashSet as HashSet
 import qualified Data.Text as Text
@@ -52,28 +53,96 @@ type Parser = HeadedParsec Void Text
 -- * Executors
 -------------------------
 
-parse :: Parser a -> Text -> Either Text a
-parse p = first (fromString . Mega.errorBundlePretty) . Mega.runParser (toParsec p <* Mega.eof) ""
+run :: Parser a -> Text -> Either Text a
+run p = first (fromString . Megaparsec.errorBundlePretty) . Megaparsec.runParser (toParsec p <* Megaparsec.eof) ""
+
+
+-- * Primitives
+-------------------------
+
+{-|
+Lifted megaparsec\'s `Megaparsec.eof`.
+-}
+eof :: (Ord err, Stream strm) => HeadedParsec err strm ()
+eof = parse Megaparsec.eof
+
+{-|
+Lifted megaparsec\'s `Megaparsec.space`.
+-}
+space :: (Ord err, Stream strm, Megaparsec.Token strm ~ Char) => HeadedParsec err strm ()
+space = parse MegaparsecChar.space
+
+{-|
+Lifted megaparsec\'s `Megaparsec.space1`.
+-}
+space1 :: (Ord err, Stream strm, Megaparsec.Token strm ~ Char) => HeadedParsec err strm ()
+space1 = parse MegaparsecChar.space1
+
+{-|
+Lifted megaparsec\'s `Megaparsec.char`.
+-}
+char :: (Ord err, Stream strm, Megaparsec.Token strm ~ Char) => Char -> HeadedParsec err strm Char
+char a = parse (MegaparsecChar.char a)
+
+{-|
+Lifted megaparsec\'s `Megaparsec.char'`.
+-}
+char' :: (Ord err, Stream strm, Megaparsec.Token strm ~ Char) => Char -> HeadedParsec err strm Char
+char' a = parse (MegaparsecChar.char' a)
+
+{-|
+Lifted megaparsec\'s `Megaparsec.string`.
+-}
+string :: (Ord err, Stream strm) => Megaparsec.Tokens strm -> HeadedParsec err strm (Megaparsec.Tokens strm)
+string = parse . MegaparsecChar.string
+
+{-|
+Lifted megaparsec\'s `Megaparsec.string'`.
+-}
+string' :: (Ord err, Stream strm, FoldCase (Megaparsec.Tokens strm)) => Megaparsec.Tokens strm -> HeadedParsec err strm (Megaparsec.Tokens strm)
+string' = parse . MegaparsecChar.string'
+
+{-|
+Lifted megaparsec\'s `Megaparsec.takeWhileP`.
+-}
+takeWhileP :: (Ord err, Stream strm) => Maybe String -> (Megaparsec.Token strm -> Bool) -> HeadedParsec err strm (Megaparsec.Tokens strm)
+takeWhileP label predicate = parse (Megaparsec.takeWhileP label predicate)
+
+{-|
+Lifted megaparsec\'s `Megaparsec.takeWhile1P`.
+-}
+takeWhile1P :: (Ord err, Stream strm) => Maybe String -> (Megaparsec.Token strm -> Bool) -> HeadedParsec err strm (Megaparsec.Tokens strm)
+takeWhile1P label predicate = parse (Megaparsec.takeWhile1P label predicate)
+
+decimal :: (Ord err, Stream strm, Megaparsec.Token strm ~ Char, Integral decimal) => HeadedParsec err strm decimal
+decimal = parse MegaparsecLexer.decimal
+
+float :: (Ord err, Stream strm, Megaparsec.Token strm ~ Char, RealFloat float) => HeadedParsec err strm float
+float = parse MegaparsecLexer.float
 
 
 -- * Helpers
 -------------------------
 
 commaSeparator :: Parser ()
-commaSeparator = head (Mega.space *> Mega.char ',') *> tail (Mega.space)
+commaSeparator = space *> char ',' *> endHead *> space
 
 dotSeparator :: Parser ()
-dotSeparator = head (Mega.space *> Mega.char '.') *> tail (Mega.space)
+dotSeparator = space *> char '.' *> endHead *> space
 
 inParens :: Parser a -> Parser a
 inParens p = char '(' *> space *> p <* endHead <* space <* char ')'
 
 inParensWithLabel :: (label -> content -> result) -> Parser label -> Parser content -> Parser result
 inParensWithLabel _result _labelParser _contentParser = do
-  _label <- headify _labelParser <* head (Mega.space <* Mega.char '(')
-  tail Mega.space
+  _label <- wrapToHead _labelParser
+  space
+  char '('
+  endHead
+  space
   _content <- _contentParser
-  tail (Mega.space <* Mega.char ')')
+  space
+  char ')'
   pure (_result _label _content)
 
 inParensWithClause :: Parser clause -> Parser content -> Parser content
@@ -113,17 +182,18 @@ sepEnd1 sepP endP elP = do
 quotedString :: Char -> Parser Text
 quotedString q = do
   char q
-  _tail <- tail $ let
+  endHead
+  _tail <- parse $ let
     collectChunks !bdr = do
-      chunk <- Mega.takeWhileP Nothing (/= q)
+      chunk <- Megaparsec.takeWhileP Nothing (/= q)
       let bdr' = bdr <> TextBuilder.text chunk
-      Mega.try (consumeEscapedQuote bdr') <|> finish bdr'
+      Megaparsec.try (consumeEscapedQuote bdr') <|> finish bdr'
     consumeEscapedQuote bdr = do
-      Mega.char q
-      Mega.char q
+      MegaparsecChar.char q
+      MegaparsecChar.char q
       collectChunks (bdr <> TextBuilder.char q)
     finish bdr = do
-      Mega.char q
+      MegaparsecChar.char q
       return (TextBuilder.run bdr)
     in collectChunks mempty
   return _tail
@@ -242,7 +312,7 @@ headfulSimpleSelect :: Parser SimpleSelect
 headfulSimpleSelect = asum [
     do
       string' "select"
-      head $ Mega.notFollowedBy $ Mega.satisfy $ isAlphaNum
+      parse $ Megaparsec.notFollowedBy $ Megaparsec.satisfy $ isAlphaNum
       endHead
       _targeting <- optional (space1 *> targeting)
       _intoClause <- optional (space1 *> string' "into" *> endHead *> space1 *> optTempTableName)
@@ -549,7 +619,7 @@ tableRef = label "table reference" $ do
 nonTrailingTableRef = asum [
     relationExprTableRef <|>
     lateralTableRef <|>
-    headify nonLateralTableRef <|>
+    wrapToHead nonLateralTableRef <|>
     joinedTableWithAliasTableRef <|>
     inParensJoinedTableTableRef
   ]
@@ -588,7 +658,7 @@ nonTrailingTableRef = asum [
     inParensJoinedTableTableRef = JoinTableRef <$> inParensJoinedTable <*> pure Nothing
 
     joinedTableWithAliasTableRef = do
-      _joinedTable <- headify (inParens joinedTable)
+      _joinedTable <- wrapToHead (inParens joinedTable)
       space1
       _alias <- aliasClause
       return (JoinTableRef _joinedTable (Just _alias))
@@ -628,7 +698,7 @@ relationExpr =
 joinedTable =
   asum [
       do
-        _tr1 <- headify nonTrailingTableRef
+        _tr1 <- wrapToHead nonTrailingTableRef
         space1
         trailingJoinedTable _tr1
       ,
@@ -893,7 +963,7 @@ cExpr =
     ]
 
 placeholderExpr :: Parser Expr
-placeholderExpr = PlaceholderExpr <$> (char '$' *> head Lex.decimal)
+placeholderExpr = PlaceholderExpr <$> (char '$' *> decimal)
 
 inParensExpr :: Parser Expr
 inParensExpr = InParensExpr <$> (Right <$> selectWithParens <|> Left <$> inParens aExpr) <*> optional (space *> indirection)
@@ -1031,7 +1101,7 @@ singleVariadicFuncApplicationParams = do
 
 listVariadicFuncApplicationParams :: Parser FuncApplicationParams
 listVariadicFuncApplicationParams = do
-  (_argList, _) <- headify $ sepEnd1 commaSeparator (string' "variadic" <* space1) funcArgExpr
+  (_argList, _) <- wrapToHead $ sepEnd1 commaSeparator (string' "variadic" <* space1) funcArgExpr
   endHead
   _arg <- funcArgExpr
   _optSortClause <- optional (space1 *> sortClause)
@@ -1051,7 +1121,7 @@ param_name:
 funcArgExpr :: Parser FuncArgExpr
 funcArgExpr = asum [
     do
-      a <- headify typeFuncName
+      a <- wrapToHead typeFuncName
       space
       asum [
           do
@@ -1186,7 +1256,7 @@ literal = asum [
       char '\''
       return (HexLiteral a)
     ,
-    headify $ do
+    wrapToHead $ do
       a <- funcName
       space
       char '('
@@ -1199,14 +1269,14 @@ literal = asum [
       d <- sconst
       return (FuncLiteral a (Just (FuncLiteralArgList b c)) d)
     ,
-    FuncLiteral <$> (headify funcName <* space1) <*> pure Nothing <*> sconst
+    FuncLiteral <$> (wrapToHead funcName <* space1) <*> pure Nothing <*> sconst
   ]
 
 iconstOrFconst = Right <$> fconst <|> Left <$> iconst
 
-iconst = head Lex.decimal
+iconst = decimal
 
-fconst = head Lex.float
+fconst = float
 
 sconst = quotedString '\''
 
@@ -1400,7 +1470,7 @@ offsetClause = do
   offsetClauseParams
 
 offsetClauseParams =
-  FetchFirstOffsetClause <$> headify selectFetchFirstValue <*> (space1 *> rowOrRows) <|>
+  FetchFirstOffsetClause <$> wrapToHead selectFetchFirstValue <*> (space1 *> rowOrRows) <|>
   ExprOffsetClause <$> aExpr
 
 {-
@@ -1531,7 +1601,7 @@ qualified_name:
 -}
 qualifiedName :: Parser QualifiedName
 qualifiedName =
-  IndirectedQualifiedName <$> headify colId <*> indirection <|>
+  IndirectedQualifiedName <$> wrapToHead colId <*> indirection <|>
   SimpleQualifiedName <$> colId
 
 {-
@@ -1547,7 +1617,7 @@ func_name:
   | ColId indirection
 -}
 funcName =
-  IndirectedQualifiedName <$> headify colId <*> (space *> indirection) <|>
+  IndirectedQualifiedName <$> wrapToHead colId <*> (space *> indirection) <|>
   SimpleQualifiedName <$> typeFuncName
 
 {-
@@ -1636,13 +1706,13 @@ keywordNameByPredicate _predicate =
     keyword
 
 keyword :: Parser Text
-keyword = head $ Mega.label "keyword" $ do
-  _firstChar <- Mega.satisfy Predicate.firstIdentifierChar
-  _remainder <- Mega.takeWhileP Nothing Predicate.notFirstIdentifierChar
+keyword = parse $ Megaparsec.label "keyword" $ do
+  _firstChar <- Megaparsec.satisfy Predicate.firstIdentifierChar
+  _remainder <- Megaparsec.takeWhileP Nothing Predicate.notFirstIdentifierChar
   return (Text.toLower (Text.cons _firstChar _remainder))
 
 {-|
 Consume a keyphrase, ignoring case and types of spaces between words.
 -}
 keyphrase :: Text -> Parser Text
-keyphrase a = Text.words a & fmap (void . Mega.string') & intersperse Mega.space1 & sequence_ & fmap (const (Text.toUpper a)) & Mega.label (show a) & head
+keyphrase a = Text.words a & fmap (void . MegaparsecChar.string') & intersperse MegaparsecChar.space1 & sequence_ & fmap (const (Text.toUpper a)) & Megaparsec.label (show a) & parse
