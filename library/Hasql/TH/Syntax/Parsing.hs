@@ -544,56 +544,55 @@ tableRef :: Parser TableRef
 tableRef = label "table reference" $ do
   _tr <- nonTrailingTableRef
   trailingTableRef _tr <|> pure _tr
+
+nonTrailingTableRef = asum [
+    relationExprTableRef <|>
+    lateralTableRef <|> nonLateralTableRef <|>
+    inParensJoinedTableTableRef <|>
+    joinedTableWithAliasTableRef
+  ]
   where
     
-    nonTrailingTableRef = asum [
-        relationExprTableRef <|>
-        lateralTableRef <|> nonLateralTableRef <|>
-        inParensJoinedTableTableRef <|>
-        joinedTableWithAliasTableRef
-      ]
-      where
-        
-        {-
-        | relation_expr opt_alias_clause
-        | relation_expr opt_alias_clause tablesample_clause
+    {-
+    | relation_expr opt_alias_clause
+    | relation_expr opt_alias_clause tablesample_clause
 
-        TODO: Add support for TABLESAMPLE.
-        -}
-        relationExprTableRef = do
-          _relationExpr <- relationExpr
-          endHead
-          _optAliasClause <- optional $ space1 *> aliasClause
-          return (RelationExprTableRef _relationExpr _optAliasClause)
+    TODO: Add support for TABLESAMPLE.
+    -}
+    relationExprTableRef = do
+      _relationExpr <- relationExpr
+      endHead
+      _optAliasClause <- optional $ space1 *> aliasClause
+      return (RelationExprTableRef _relationExpr _optAliasClause)
 
-        {-
-        | LATERAL_P func_table func_alias_clause
-        | LATERAL_P xmltable opt_alias_clause
-        | LATERAL_P select_with_parens opt_alias_clause
-        -}
-        lateralTableRef = do
-          string' "lateral"
-          endHead
-          space1
-          selectWithParensTableRef True
+    {-
+    | LATERAL_P func_table func_alias_clause
+    | LATERAL_P xmltable opt_alias_clause
+    | LATERAL_P select_with_parens opt_alias_clause
+    -}
+    lateralTableRef = do
+      string' "lateral"
+      endHead
+      space1
+      selectWithParensTableRef True
 
-        nonLateralTableRef = selectWithParensTableRef False
+    nonLateralTableRef = selectWithParensTableRef False
 
-        selectWithParensTableRef _lateral = do
-          _select <- selectWithParens
-          _optAliasClause <- optional $ space1 *> aliasClause
-          return (SelectTableRef _lateral _select _optAliasClause)
+    selectWithParensTableRef _lateral = do
+      _select <- selectWithParens
+      _optAliasClause <- optional $ space1 *> aliasClause
+      return (SelectTableRef _lateral _select _optAliasClause)
 
-        inParensJoinedTableTableRef = JoinTableRef <$> inParensJoinedTable <*> pure Nothing
+    inParensJoinedTableTableRef = JoinTableRef <$> inParensJoinedTable <*> pure Nothing
 
-        joinedTableWithAliasTableRef = do
-          _joinedTable <- inParens joinedTable
-          space1
-          _alias <- aliasClause
-          return (JoinTableRef _joinedTable (Just _alias))
+    joinedTableWithAliasTableRef = do
+      _joinedTable <- inParens joinedTable
+      space1
+      _alias <- aliasClause
+      return (JoinTableRef _joinedTable (Just _alias))
 
-    trailingTableRef _tableRef =
-      JoinTableRef <$> tableRefJoinedTableAfterSpace _tableRef <*> pure Nothing
+trailingTableRef _tableRef =
+  JoinTableRef <$> tableRefJoinedTableAfterSpace _tableRef <*> pure Nothing
 
 {-
 | qualified_name
@@ -628,7 +627,7 @@ joinedTable =
   asum [
       inParensJoinedTable,
       do
-        _tr1 <- tableRef
+        _tr1 <- nonTrailingTableRef
         tableRefJoinedTableAfterSpace _tr1
     ]
 
