@@ -31,7 +31,7 @@ preparableStmt = choice [
 -- * Select
 -------------------------
 
-selectStmt = Left <$> scale (\ a -> if a == 1 then 2 else a) selectNoParens
+selectStmt = Left <$> selectNoParens
 
 -- ** selectNoParens
 -------------------------
