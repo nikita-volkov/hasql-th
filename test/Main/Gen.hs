@@ -50,7 +50,7 @@ terminalSelectNoParens =
 -------------------------
 
 selectWithParens = sized $ \ _size -> if _size <= 1
-  then terminalSelectWithParens
+  then discard
   else frequency [
     (95, NoParensSelectWithParens <$> selectNoParens)
     ,
