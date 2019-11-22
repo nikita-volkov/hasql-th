@@ -125,11 +125,10 @@ optTempTableName = choice [
 
 fromClause = nonEmpty (Range.exponential 1 8) tableRef
 
-tableRef = choice [
-    RelationExprTableRef <$> relationExpr <*> maybe aliasClause,
-    SelectTableRef <$> bool <*> small selectWithParens <*> maybe aliasClause,
-    JoinTableRef <$> joinedTable <*> maybe aliasClause
-  ]
+tableRef = choice [relationExprTableRef, selectTableRef, joinTableRef]
+relationExprTableRef = RelationExprTableRef <$> relationExpr <*> maybe aliasClause
+selectTableRef = SelectTableRef <$> bool <*> small selectWithParens <*> maybe aliasClause
+joinTableRef = JoinTableRef <$> joinedTable <*> maybe aliasClause
 
 relationExpr = choice [
     SimpleRelationExpr <$> qualifiedName <*> bool,
@@ -140,7 +139,7 @@ aliasClause = AliasClause <$> name <*> maybe (nonEmpty (Range.exponential 1 8) n
 
 joinedTable = frequency [
     (5,) $ InParensJoinedTable <$> joinedTable,
-    (95,) $ MethJoinedTable <$> joinMeth <*> tableRef <*> tableRef
+    (95,) $ MethJoinedTable <$> joinMeth <*> choice [relationExprTableRef, selectTableRef] <*> tableRef
   ]
 
 joinMeth = choice [
