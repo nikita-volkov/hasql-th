@@ -895,7 +895,7 @@ placeholderExpr :: Parser Expr
 placeholderExpr = PlaceholderExpr <$> (char '$' *> head Lex.decimal)
 
 inParensExpr :: Parser Expr
-inParensExpr = InParensExpr <$> (Left <$> inParens aExpr <|> Right <$> selectWithParens) <*> optional (space *> indirection)
+inParensExpr = InParensExpr <$> (Right <$> selectWithParens <|> Left <$> inParens aExpr) <*> optional (space *> indirection)
 
 typecastExpr :: Expr -> Parser Expr
 typecastExpr _left = do
