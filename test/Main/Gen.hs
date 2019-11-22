@@ -53,11 +53,22 @@ selectClause = choice [
     Right <$> small selectWithParens
   ]
 
+nonTrailingSelectClause = Left <$> nonTrailingSimpleSelect
+
 simpleSelect = choice [
-    NormalSimpleSelect <$> maybe targeting <*> maybe intoClause <*> maybe fromClause <*> maybe whereClause <*> maybe groupClause <*> maybe havingClause <*> maybe windowClause,
-    ValuesSimpleSelect <$> valuesClause,
-    BinSimpleSelect <$> selectBinOp <*> small selectClause <*> maybe allOrDistinct <*> small selectClause
+    normalSimpleSelect,
+    valuesSimpleSelect,
+    small nonTrailingSelectClause >>= binSimpleSelect
   ]
+
+nonTrailingSimpleSelect = choice [normalSimpleSelect, valuesSimpleSelect]
+
+normalSimpleSelect = NormalSimpleSelect <$> maybe targeting <*> maybe intoClause <*> maybe fromClause <*> maybe whereClause <*> maybe groupClause <*> maybe havingClause <*> maybe windowClause
+
+valuesSimpleSelect = ValuesSimpleSelect <$> valuesClause
+
+binSimpleSelect _leftSelect = 
+  BinSimpleSelect <$> selectBinOp <*> pure _leftSelect <*> maybe allOrDistinct <*> small selectClause
 
 
 -- * Targeting
