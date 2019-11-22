@@ -10,22 +10,22 @@ import qualified Data.IntMap.Strict as IntMap
 
 {-|
 >>> import qualified Hasql.TH.Syntax.Parsing as P
->>> test = either (error . show) preparableStmt . Text.Megaparsec.parse P.preparableStmt ""
+>>> test = either fail (return . preparableStmt) . P.run P.preparableStmt
 
 >>> test "select $1 :: INT4"
-Right [Type "int4" False 0 False]
+Right [Type (UnquotedName "int4") False 0 False]
 
 >>> test "select $1 :: int4, a + $2 :: text[]?"
-Right [Type "int4" False 0 False,Type "text" False 1 True]
+Right [Type (UnquotedName "int4") False 0 False,Type (UnquotedName "text") False 1 True]
 
 >>> test "select $1 :: int4, a + $2 :: text?[]?"
-Right [Type "int4" False 0 False,Type "text" True 1 True]
+Right [Type (UnquotedName "int4") False 0 False,Type (UnquotedName "text") True 1 True]
 
 >>> test "select $1"
 Left "Placeholder $1 misses an explicit typecast"
 
 >>> test "select $2 :: int4, $1 :: int4, $2 :: int4"
-Right [Type "int4" False 0 False,Type "int4" False 0 False]
+Right [Type (UnquotedName "int4") False 0 False,Type (UnquotedName "int4") False 0 False]
 
 >>> test "select $1 :: int4, $1 :: text"
 Left "Placeholder $1 has conflicting type annotations"

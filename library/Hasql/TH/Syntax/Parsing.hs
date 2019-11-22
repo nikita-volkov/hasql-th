@@ -43,7 +43,7 @@ import qualified Text.Builder as TextBuilder
 
 
 {- $setup
->>> testParser parser = parseTest (parser <* eof)
+>>> testParser parser = either putStr print . run parser
 -}
 
 
@@ -53,8 +53,8 @@ type Parser = HeadedParsec Void Text
 -- * Executors
 -------------------------
 
-run :: Parser a -> Text -> Either Text a
-run p = first (fromString . Megaparsec.errorBundlePretty) . Megaparsec.runParser (toParsec p <* Megaparsec.eof) ""
+run :: Parser a -> Text -> Either String a
+run p = first Megaparsec.errorBundlePretty . Megaparsec.runParser (toParsec p <* Megaparsec.eof) ""
 
 
 -- * Primitives
@@ -215,6 +215,43 @@ selectPreparableStmt = SelectPreparableStmt <$> selectStmt
 -- * Select
 -------------------------
 
+{-|
+>>> test = testParser selectStmt
+
+>>> test "select"
+...NormalSimpleSelect Nothing Nothing Nothing Nothing Nothing Nothing Nothing...
+
+>>> test "select distinct 1"
+...DistinctTargeting Nothing (ExprTarget (LiteralExpr (IntLiteral 1)) :| [])...
+
+>>> test "select $1"
+...NormalTargeting (ExprTarget (PlaceholderExpr 1) :| [])...
+
+>>> test "select $1 + $2"
+...BinOpExpr "+" (PlaceholderExpr 1) (PlaceholderExpr 2)...
+
+>>> test "select a, b"
+...ExprTarget (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "a"))) :| [ExprTarget (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "b")))]...
+
+>>> test "select $1 :: text"
+...TypecastExpr (PlaceholderExpr 1) (Type (UnquotedName "text") False 0 False)...
+
+>>> test "select 1"
+...ExprTarget (LiteralExpr (IntLiteral 1))...
+
+>>> test "select id"
+...ExprTarget (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "id")))...
+
+>>> test "select id from user"
+1:20:
+  |
+1 | select id from user
+  |                    ^
+Reserved keyword "user" used as an identifier. If that's what you intend, you have to wrap it in double quotes.
+
+>>> test "select id :: int4 from \"user\""
+...TypecastExpr (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "id"))) (Type (UnquotedName "int4") False 0 False)...
+-}
 selectStmt :: Parser SelectStmt
 selectStmt = Left <$> selectNoParens <|> Right <$> selectWithParens
 
@@ -256,43 +293,6 @@ selectClause = do
       pure a
     ]
 
-{-|
->>> test = testParser simpleSelect
-
->>> test "select"
-NormalSimpleSelect Nothing Nothing Nothing Nothing Nothing Nothing Nothing
-
->>> test "select distinct 1"
-...DistinctTargeting Nothing (ExprTarget (LiteralExpr (IntLiteral 1)) Nothing :| [])...
-
->>> test "select $1"
-...NormalTargeting (ExprTarget (PlaceholderExpr 1) Nothing :| [])...
-
->>> test "select $1 + $2"
-...BinOpExpr "+" (PlaceholderExpr 1) (PlaceholderExpr 2)...
-
->>> test "select a, b"
-...ExprTarget (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "a"))) Nothing :| [ExprTarget (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "b"))) Nothing]...
-
->>> test "select $1 :: text"
-...TypecastExpr (PlaceholderExpr 1) (Type "text" False 0 False)...
-
->>> test "select 1"
-...ExprTarget (LiteralExpr (IntLiteral 1))...
-
->>> test "select id"
-...ExprTarget (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "id"))) Nothing...
-
->>> test "select id from user"
-1:20:
-  |
-1 | select id from user
-  |                    ^
-Reserved keyword "user" used as an identifier. If that's what you intend, you have to wrap it in double quotes.
-
->>> test "select id :: int4 from \"user\""
-...TypecastExpr (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "id"))) (Type "int4" False 0 False)...
--}
 {-
 simple_select:
   |  SELECT opt_all_clause opt_target_list
@@ -409,7 +409,7 @@ targetList = nonEmptyList target
 
 {-|
 >>> testParser target "a.b as c"
-ExprTarget (QualifiedNameExpr (IndirectedQualifiedName (UnquotedName "a") (AttrNameIndirectionEl (UnquotedName "b") :| []))) (Just (UnquotedName "c"))
+AliasedExprTarget (QualifiedNameExpr (IndirectedQualifiedName (UnquotedName "a") (AttrNameIndirectionEl (UnquotedName "b") :| []))) (UnquotedName "c")
 -}
 {-
 target_el:
@@ -907,11 +907,11 @@ so we're not bothering with that.
 
 Composite on the right:
 >>> testParser aExpr "$1 = $2 :: int4"
-BinOpExpr "=" (PlaceholderExpr 1) (TypecastExpr (PlaceholderExpr 2) (Type "int4" False 0 False))
+BinOpExpr "=" (PlaceholderExpr 1) (TypecastExpr (PlaceholderExpr 2) (Type (UnquotedName "int4") False 0 False))
 
 Composite on the left:
 >>> testParser aExpr "$1 = $2 :: int4 and $3"
-BinOpExpr "=" (PlaceholderExpr 1) (BinOpExpr "and" (TypecastExpr (PlaceholderExpr 2) (Type "int4" False 0 False)) (PlaceholderExpr 3))
+BinOpExpr "=" (PlaceholderExpr 1) (BinOpExpr "AND" (TypecastExpr (PlaceholderExpr 2) (Type (UnquotedName "int4") False 0 False)) (PlaceholderExpr 3))
 -}
 aExpr :: Parser Expr
 aExpr = label "expression" $ do
@@ -1187,8 +1187,8 @@ AexprConst: Iconst
       | NULL_P
 @
 
->>> testParser literal "- 324098320984320480392480923842"
-IntLiteral (-324098320984320480392480923842)
+>>> testParser literal "32948023849023"
+IntLiteral 32948023849023
 
 >>> testParser literal "'abc''de'"
 StringLiteral "abc'de"
@@ -1196,8 +1196,8 @@ StringLiteral "abc'de"
 >>> testParser literal "23.43234"
 FloatLiteral 23.43234
 
->>> testParser literal "-32423423.3243248732492739847923874"
-FloatLiteral -3.24234233243248732492739847923874e7
+>>> testParser literal "32423423.324324872"
+FloatLiteral 3.2423423324324872e7
 
 >>> testParser literal "NULL"
 NullLiteral
@@ -1373,22 +1373,22 @@ intervalSecond = do
 
 {-|
 >>> testParser type_ "int4"
-Type "int4" False 0 False
+Type (UnquotedName "int4") False 0 False
 
 >>> testParser type_ "int4?"
-Type "int4" True 0 False
+Type (UnquotedName "int4") True 0 False
 
 >>> testParser type_ "int4[]"
-Type "int4" False 1 False
+Type (UnquotedName "int4") False 1 False
 
 >>> testParser type_ "int4[ ] []"
-Type "int4" False 2 False
+Type (UnquotedName "int4") False 2 False
 
 >>> testParser type_ "int4[][]?"
-Type "int4" False 2 True
+Type (UnquotedName "int4") False 2 True
 
 >>> testParser type_ "int4?[][]"
-Type "int4" True 2 False
+Type (UnquotedName "int4") True 2 False
 -}
 type_ :: Parser Type
 type_ = label "type" $ do
@@ -1586,13 +1586,9 @@ colLabel = label "column label" $
 >>> testParser qualifiedName "a.b"
 IndirectedQualifiedName (UnquotedName "a") (AttrNameIndirectionEl (UnquotedName "b") :| [])
 
->>> testParser qualifiedName "a-"
-...
-expecting '.', '[', or end of input
-
 >>> testParser qualifiedName "a.-"
 ...
-expecting '*', keyword, quoted name, or white space
+expecting '*', column label, or white space
 -}
 {-
 qualified_name:

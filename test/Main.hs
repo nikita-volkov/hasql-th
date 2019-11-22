@@ -23,7 +23,7 @@ main = defaultMain [
               footnote ("SQL: " <> Text.unpack sql)
               case Parsing.run _parser sql of
                 Left err -> do
-                  footnote (Text.unpack err)
+                  footnote err
                   failure
                 Right ast' -> ast === ast'
       in [
