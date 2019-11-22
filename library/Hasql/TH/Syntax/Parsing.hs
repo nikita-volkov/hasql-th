@@ -586,7 +586,7 @@ nonTrailingTableRef = asum [
     inParensJoinedTableTableRef = JoinTableRef <$> inParensJoinedTable <*> pure Nothing
 
     joinedTableWithAliasTableRef = do
-      _joinedTable <- inParens joinedTable
+      _joinedTable <- headify (inParens joinedTable)
       space1
       _alias <- aliasClause
       return (JoinTableRef _joinedTable (Just _alias))
