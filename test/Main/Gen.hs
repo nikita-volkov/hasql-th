@@ -33,6 +33,9 @@ preparableStmt = choice [
 
 selectStmt = Left <$> scale (\ a -> if a == 1 then 2 else a) selectNoParens
 
+-- ** selectNoParens
+-------------------------
+
 selectNoParens :: Gen SelectNoParens
 selectNoParens = frequency [
     (90, SelectNoParens <$> maybe withClause <*> (Left <$> simpleSelect) <*> maybe sortClause <*> maybe selectLimit <*> maybe forLockingClause)
@@ -40,13 +43,24 @@ selectNoParens = frequency [
     (10, SelectNoParens <$> fmap Just withClause <*> selectClause <*> fmap Just sortClause <*> fmap Just selectLimit <*> fmap Just forLockingClause)
   ]
 
+terminalSelectNoParens = 
+  SelectNoParens <$> pure Nothing <*> (Left <$> terminalSimpleSelect) <*> pure Nothing <*> pure Nothing <*> pure Nothing
+
+-- ** selectWithParens
+-------------------------
+
 selectWithParens = sized $ \ _size -> if _size <= 1
-  then discard
+  then terminalSelectWithParens
   else frequency [
     (95, NoParensSelectWithParens <$> selectNoParens)
     ,
     (5, WithParensSelectWithParens <$> selectWithParens)
   ]
+
+terminalSelectWithParens = NoParensSelectWithParens <$> terminalSelectNoParens
+
+-- ** selectClause
+-------------------------
 
 selectClause = choice [
     Left <$> simpleSelect,
@@ -54,6 +68,9 @@ selectClause = choice [
   ]
 
 nonTrailingSelectClause = Left <$> nonTrailingSimpleSelect
+
+-- ** simpleSelect
+-------------------------
 
 simpleSelect = choice [
     normalSimpleSelect,
@@ -69,6 +86,8 @@ valuesSimpleSelect = ValuesSimpleSelect <$> valuesClause
 
 binSimpleSelect _leftSelect = 
   BinSimpleSelect <$> selectBinOp <*> pure _leftSelect <*> maybe allOrDistinct <*> small selectClause
+
+terminalSimpleSelect = pure (NormalSimpleSelect Nothing Nothing Nothing Nothing Nothing Nothing Nothing)
 
 
 -- * Targeting
