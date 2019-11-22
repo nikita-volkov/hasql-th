@@ -310,7 +310,8 @@ forLockingStrength = element [
 -- * Expressions
 -------------------------
 
-expr = recursive choice terminatingHeadfulExprList (recursiveHeadfulExprList <> recursiveHeadlessExprList)
+baseExpr inParensExpr =
+  recursive choice terminatingHeadfulExprList (recursiveHeadfulExprList <> recursiveHeadlessExprList)
   where
     headfulExpr = recursive choice terminatingHeadfulExprList recursiveHeadfulExprList
     terminatingHeadfulExprList = [
@@ -323,7 +324,7 @@ expr = recursive choice terminatingHeadfulExprList (recursiveHeadfulExprList <> 
         ,
         LiteralExpr <$> literal
         ,
-        InParensExpr <$> small eitherExprOrSelect <*> maybe indirection
+        inParensExpr
         ,
         CaseExpr <$> maybe (small expr) <*> nonEmpty (Range.exponential 1 2) whenClause <*> maybe (small expr)
         ,
@@ -342,6 +343,8 @@ expr = recursive choice terminatingHeadfulExprList (recursiveHeadfulExprList <> 
         ,
         EscapableBinOpExpr <$> bool <*> escapableBinOp <*> small headfulExpr <*> small headfulExpr <*> maybe (small headfulExpr)
       ]
+expr = baseExpr inParensExpr
+
 {-
 c_expr:
   | columnref
@@ -364,7 +367,7 @@ cExpr = choice [
     ,
     LiteralExpr <$> literal
     ,
-    InParensExpr <$> small eitherExprOrSelect <*> maybe indirection
+    inParensExpr
     ,
     CaseExpr <$> maybe (small expr) <*> nonEmpty (Range.exponential 1 2) whenClause <*> maybe (small expr)
     ,
@@ -377,9 +380,12 @@ cExpr = choice [
     GroupingExpr <$> nonEmpty (Range.exponential 1 4) (small expr)
   ]
 
-eitherExprOrSelect =
-  Left <$> expr <|>
-  Right <$> selectWithParens
+inParensExpr = InParensExpr <$> small eitherExprOrSelect <*> maybe indirection where
+  eitherExprOrSelect =
+    Left <$> (baseExpr inParensWithoutSelectExpr) <|>
+    Right <$> selectWithParens
+
+inParensWithoutSelectExpr = InParensExpr <$> Left <$> baseExpr inParensWithoutSelectExpr <*> maybe indirection
 
 binOp = element (toList HashSet.symbolicBinOp <> ["AND", "OR", "IS DISTINCT FROM", "IS NOT DISTINCT FROM"])
 
