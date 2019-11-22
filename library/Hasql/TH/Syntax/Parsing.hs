@@ -880,7 +880,7 @@ cExpr =
   asum
     [
       placeholderExpr,
-      headify literalExpr,
+      literalExpr,
       funcExpr,
       inParensExpr,
       caseExpr,
@@ -1184,11 +1184,10 @@ literal = asum [
       char '\''
       return (HexLiteral a)
     ,
-    do
-      a <- headify funcName
+    headify $ do
+      a <- funcName
       space
       char '('
-      endHead
       space
       b <- nonEmptyList funcArgExpr
       c <- optional (space1 *> sortClause)
