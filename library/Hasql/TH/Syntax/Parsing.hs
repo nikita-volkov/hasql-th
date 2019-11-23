@@ -1811,16 +1811,16 @@ typename =
   do
     a <- option False (string' "SETOF" *> space1 $> True)
     b <- simpleTypename
-    space1
     endHead
     asum [
         do
+          space1
           string' "ARRAY"
           c <- optional (space *> inBrackets iconst)
           return (ArrayDimTypename a b c)
         ,
         do
-          c <- optional arrayBounds
+          c <- optional (space1 *> arrayBounds)
           return (ArrayBoundsTypename a b c)
       ]
 
