@@ -3,6 +3,7 @@ module Hasql.TH.Prelude
   module Exports,
   intersperseFoldMap1,
   showAsText,
+  suffixRec,
 )
 where
 
@@ -135,3 +136,12 @@ intersperseFoldMap1 a b (c :| d) = b c <> foldMap (mappend a . b) d
 
 showAsText :: Show a => a -> Text
 showAsText = show >>> fromString
+
+{-|
+Compose a monad, which attempts to extend an value, based on the following input.
+It does that recursively until the suffix monad fails.
+-}
+suffixRec :: (Monad m, Alternative m) => m a -> (a -> m a) -> m a
+suffixRec base suffix = do
+  _base <- base
+  suffixRec (suffix _base) suffix <|> pure _base

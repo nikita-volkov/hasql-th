@@ -183,15 +183,6 @@ sepEnd1 sepP endP elP = do
     in loop []
 
 {-|
-Compose a parser, which attempts to extend a parsed value, based on the following input.
-It does that recursively until the extension parser fails.
--}
-recExtend :: (Monad m, Alternative m) => m b -> (b -> m b) -> m b
-recExtend base extension = do
-  _base <- base
-  recExtend (extension _base) extension <|> pure _base
-
-{-|
 >>> testParser (quotedString '\'') "'abc''d'"
 "abc'd"
 -}
@@ -299,12 +290,12 @@ withSelectNoParens = do
   space1
   sharedSelectNoParens (Just _with)
 
-selectClause = recExtend base extension where
+selectClause = suffixRec base suffix where
   base = asum [
       Right <$> selectWithParens,
       Left <$> baseSimpleSelect
     ]
-  extension a = Left <$> extensionSimpleSelect a
+  suffix a = Left <$> extensionSimpleSelect a
 
 {-
 simple_select:
@@ -832,7 +823,7 @@ Composite on the left:
 BinOpExpr "=" (PlaceholderExpr 1) (BinOpExpr "AND" (TypecastExpr (PlaceholderExpr 2) (Type (UnquotedName "int4") False 0 False)) (PlaceholderExpr 3))
 -}
 aExpr :: Parser Expr
-aExpr = recExtend base extension where
+aExpr = suffixRec base suffix where
   base = asum [
       defaultExpr
       ,
@@ -844,14 +835,14 @@ aExpr = recExtend base extension where
       ,
       QualOpExpr <$> qualOp <*> (space1 *> bExpr)
     ]
-  extension a = asum
+  suffix a = asum
     [
       typecastExpr a,
       binOpExpr a,
       escapableBinOpExpr a
     ]
 
-bExpr = recExtend base extension where
+bExpr = suffixRec base suffix where
   base = asum [
       cExpr
       ,
@@ -861,7 +852,7 @@ bExpr = recExtend base extension where
       ,
       QualOpExpr <$> qualOp <*> (space1 *> bExpr)
     ]
-  extension a = asum [
+  suffix a = asum [
       binOpExpr a
     ]
 
