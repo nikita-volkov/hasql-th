@@ -1,6 +1,6 @@
 module Hasql.TH.Syntax.Projections.ChildExprList where
 
-import Hasql.TH.Prelude hiding (sortBy)
+import Hasql.TH.Prelude hiding (sortBy, bit)
 import Hasql.TH.Syntax.Ast
 
 
@@ -172,6 +172,8 @@ joinQual = \ case
   UsingJoinQual _ -> []
   OnJoinQual a -> [a]
 
+exprList = toList
+
 expr :: Expr -> [Expr]
 expr = \ case
   PlaceholderExpr _ -> []
@@ -183,10 +185,75 @@ expr = \ case
   LiteralExpr a -> literal a
   InParensExpr a b -> either pure selectWithParens a <> foldable indirection b
   CaseExpr a b c -> maybeToList a <> foldable whenClause b <> maybeToList c
-  FuncExpr a -> funcApplication a
+  FuncExpr a -> funcExpr a
   ExistsSelectExpr a -> selectWithParens a
   ArraySelectExpr a -> selectWithParens a
   GroupingExpr a -> toList a
+  PlusedExpr a -> [a]
+  MinusedExpr a -> [a]
+  QualOpExpr _ a -> [a]
+
+funcExpr = \ case
+  ApplicationFuncExpr a b c d -> funcApplication a <> foldable withinGroupClause b <> foldable filterClause c <> foldable overClause d
+  SubexprFuncExpr a -> funcExprCommonSubExpr a
+
+withinGroupClause = sortClause
+
+filterClause a = [a]
+
+overClause = \ case
+  WindowOverClause a -> windowSpecification a
+  ColIdOverClause _ -> []
+
+funcExprCommonSubExpr = \ case
+  CollationForFuncExprCommonSubExpr a -> [a]
+  CurrentDateFuncExprCommonSubExpr -> []
+  CurrentTimeFuncExprCommonSubExpr _ -> []
+  CurrentTimestampFuncExprCommonSubExpr _ -> []
+  LocalTimeFuncExprCommonSubExpr _ -> []
+  LocalTimestampFuncExprCommonSubExpr _ -> []
+  CurrentRoleFuncExprCommonSubExpr -> []
+  CurrentUserFuncExprCommonSubExpr -> []
+  SessionUserFuncExprCommonSubExpr -> []
+  UserFuncExprCommonSubExpr -> []
+  CurrentCatalogFuncExprCommonSubExpr -> []
+  CurrentSchemaFuncExprCommonSubExpr -> []
+  CastFuncExprCommonSubExpr a b -> a : typename b
+  ExtractFuncExprCommonSubExpr a -> foldable extractList a
+  OverlayFuncExprCommonSubExpr a -> overlayList a
+  PositionFuncExprCommonSubExpr a -> foldable positionList a
+  SubstringFuncExprCommonSubExpr a -> foldable substrList a
+  TreatFuncExprCommonSubExpr a b -> a : typename b
+  TrimFuncExprCommonSubExpr a b -> foldable trimModifier a <> trimList b
+  NullIfFuncExprCommonSubExpr a b -> [a, b]
+  CoalesceFuncExprCommonSubExpr a -> exprList a
+  GreatestFuncExprCommonSubExpr a -> exprList a
+  LeastFuncExprCommonSubExpr a -> exprList a
+
+extractList (ExtractList a b) = extractArg a <> [b]
+
+extractArg _ = []
+
+overlayList (OverlayList a b c d) = [a, b, c] <> toList d
+
+positionList (PositionList a b) = [a, b]
+
+substrList = \ case
+  ExprSubstrList a b -> a : substrListFromFor b
+  ExprListSubstrList a -> exprList a
+
+substrListFromFor = \ case
+  FromForSubstrListFromFor a b -> [a, b]
+  ForFromSubstrListFromFor a b -> [a, b]
+  FromSubstrListFromFor a -> [a]
+  ForSubstrListFromFor a -> [a]
+
+trimModifier _ = []
+
+trimList = \ case
+  ExprFromExprListTrimList a b -> a : exprList b
+  FromExprListTrimList a -> exprList a
+  ExprListTrimList a -> exprList a  
 
 whenClause :: WhenClause -> [Expr]
 whenClause (WhenClause a b) = [a, b]
@@ -244,7 +311,9 @@ numeric = \ case
   NumericNumeric a -> foldable toList a
   BooleanNumeric -> []
 
-constBit (ConstBit _ a) = foldable toList a
+bit (Bit _ a) = foldable toList a
+
+constBit = bit
 
 constCharacter (ConstCharacter _ _) = []
 
@@ -270,3 +339,32 @@ indirectionEl = \ case
   AllIndirectionEl -> []
   ExprIndirectionEl a -> [a]
   SliceIndirectionEl a b -> toList a <> toList b
+
+-- ** Typename
+-------------------------
+
+typename = \ case
+  ArrayBoundsTypename _ a b -> simpleTypename a <> arrayBounds b
+  ArrayDimTypename _ a _ -> simpleTypename a
+
+simpleTypename = \ case
+  GenericTypeSimpleTypename a -> genericType a
+  NumericSimpleTypename a -> numeric a
+  BitSimpleTypename a -> bit a
+  CharacterSimpleTypename a -> character a
+  ConstDatetimeSimpleTypename a -> constDatetime a
+  ConstIntervalSimpleTypename a -> either (foldable interval) (const []) a
+
+arrayBounds _ = []
+
+genericType (GenericType a b c) = typeFunctionName a <> foldable attrs b <> foldable typeModifiers c
+
+typeFunctionName = error "TODO"
+
+attrs = foldable attrName
+
+attrName _ = []
+
+typeModifiers = exprList
+
+character _ = []

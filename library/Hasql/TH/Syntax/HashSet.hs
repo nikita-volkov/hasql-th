@@ -46,3 +46,25 @@ colId = unions [unreservedKeyword, colNameKeyword]
 
 {-# NOINLINE typeFunctionName #-}
 typeFunctionName = unions [unreservedKeyword, typeFuncNameKeyword]
+
+{-# NOINLINE opChars #-}
+opChars = fromList "+-*/<>=~!@#%^&|`?"
+
+{-# NOINLINE prohibitionLiftingOpChars #-}
+prohibitionLiftingOpChars = fromList "~!@#%^&|`?"
+
+{-|
+As per the following comment from the original scanner definition:
+
+/*
+ * Likewise, if what we have left is two chars, and
+ * those match the tokens ">=", "<=", "=>", "<>" or
+ * "!=", then we must return the appropriate token
+ * rather than the generic Op.
+ */
+-}
+{-# NOINLINE nonOp #-}
+nonOp = fromList [">=", "<=", "=>", "<>", "!="]
+
+{-# NOINLINE mathOp #-}
+mathOp = fromList ["<>", ">=", "!=", "<=", "+", "-", "*", "/", "%", "^", "<", ">"]

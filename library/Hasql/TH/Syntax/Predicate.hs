@@ -58,3 +58,12 @@ reservedKeyword = inSet HashSet.reservedKeyword
 
 symbolicBinOpChar :: Char -> Bool
 symbolicBinOpChar = inSet HashSet.symbolicBinOpChars
+
+-- ** Op chars
+-------------------------
+
+opChar = inSet HashSet.opChars
+
+prohibitedOpChar a = a == '+' || a == '-'
+
+prohibitionLiftingOpChar = inSet HashSet.prohibitionLiftingOpChars

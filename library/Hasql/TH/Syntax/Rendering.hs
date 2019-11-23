@@ -1,6 +1,6 @@
 module Hasql.TH.Syntax.Rendering where
 
-import Hasql.TH.Prelude hiding (expr, try, option, many, sortBy)
+import Hasql.TH.Prelude hiding (expr, try, option, many, sortBy, bit)
 import Hasql.TH.Syntax.Ast
 import Data.ByteString.FastBuilder
 import qualified Data.List.NonEmpty as NonEmpty
@@ -40,6 +40,9 @@ optLexemes = lexemes . catMaybes
 
 inParens :: Builder -> Builder
 inParens a = "(" <> a <> ")"
+
+inBrackets :: Builder -> Builder
+inBrackets a = "[" <> a <> "]"
 
 
 -- * Select
@@ -375,6 +378,12 @@ valuesClause a = "VALUES " <> commaNonEmpty (inParens . commaNonEmpty expr) a
 -- * Expr
 -------------------------
 
+exprList = commaNonEmpty aExpr
+
+aExpr = expr
+bExpr = expr
+cExpr = expr
+
 expr :: Expr -> Builder
 expr = \ case
   PlaceholderExpr a -> "$" <> intDec a
@@ -398,10 +407,42 @@ expr = \ case
       fmap caseDefault c,
       Just "END"
     ]
-  FuncExpr a -> funcApplication a
+  FuncExpr a -> funcExpr a
   ExistsSelectExpr a -> "EXISTS " <> selectWithParens a
   ArraySelectExpr a -> "ARRAY " <> selectWithParens a
   GroupingExpr a -> "GROUPING " <> inParens (commaNonEmpty expr a)
+  PlusedExpr a -> "+" <> expr a
+  MinusedExpr a -> "-" <> expr a
+  QualOpExpr a b -> qualOp a <> expr b
+
+qualOp = \ case
+  OpQualOp a -> op a
+  OperatorQualOp a -> anyOperator a
+
+op = text
+
+anyOperator = \ case
+  AllOpAnyOperator a -> allOp a
+  QualifiedAnyOperator a b -> colId a <> "." <> anyOperator b
+
+allOp = \ case
+  OpAllOp a -> op a
+  MathAllOp a -> mathOp a
+
+mathOp = \ case
+  PlusMathOp -> char7 '+'
+  MinusMathOp -> char7 '-'
+  AsteriskMathOp -> char7 '*'
+  SlashMathOp -> char7 '/'
+  PercentMathOp -> char7 '%'
+  ArrowUpMathOp -> char7 '^'
+  ArrowLeftMathOp -> char7 '<'
+  ArrowRightMathOp -> char7 '>'
+  EqualsMathOp -> char7 '='
+  LessEqualsMathOp -> "<="
+  GreaterEqualsMathOp -> ">="
+  ArrowLeftArrowRightMathOp -> "<>"
+  ExclamationEqualsMathOp -> "!="
 
 type_ :: Type -> Builder
 type_ (Type a _ b _) =
@@ -448,26 +489,116 @@ funcArgExpr = \ case
   ColonEqualsFuncArgExpr a b -> name a <> " := " <> expr b
   EqualsGreaterFuncArgExpr a b -> name a <> " => " <> expr b
 
+-- ** Func Expr
+-------------------------
+
+funcExpr = \ case
+  ApplicationFuncExpr a b c d -> optLexemes [
+      Just (funcApplication a),
+      fmap withinGroupClause b,
+      fmap filterClause c,
+      fmap overClause d
+    ]
+  SubexprFuncExpr a -> funcExprCommonSubExpr a
+
+withinGroupClause a = "WITHIN GROUP (" <> sortClause a <> ")"
+
+filterClause a = "FILTER (WHERE " <> expr a <> ")"
+
+overClause = \ case
+  WindowOverClause a -> "OVER " <> windowSpecification a
+  ColIdOverClause a -> "OVER " <> colId a
+
+funcExprCommonSubExpr = \ case
+  CollationForFuncExprCommonSubExpr a -> "COLLATION FOR (" <> expr a <> ")"
+  CurrentDateFuncExprCommonSubExpr -> "CURRENT_DATE"
+  CurrentTimeFuncExprCommonSubExpr a -> "CURRENT_TIME" <> foldMap (mappend " " . inParens . iconst) a
+  CurrentTimestampFuncExprCommonSubExpr a -> "CURRENT_TIMESTAMP" <> foldMap (mappend " " . inParens . iconst) a
+  LocalTimeFuncExprCommonSubExpr a -> "LOCALTIME" <> foldMap (mappend " " . inParens . iconst) a
+  LocalTimestampFuncExprCommonSubExpr a -> "LOCALTIMESTAMP" <> foldMap (mappend " " . inParens . iconst) a
+  CurrentRoleFuncExprCommonSubExpr -> "CURRENT_ROLE"
+  CurrentUserFuncExprCommonSubExpr -> "CURRENT_USER"
+  SessionUserFuncExprCommonSubExpr -> "SESSION_USER"
+  UserFuncExprCommonSubExpr -> "USER"
+  CurrentCatalogFuncExprCommonSubExpr -> "CURRENT_CATALOG"
+  CurrentSchemaFuncExprCommonSubExpr -> "CURRENT_SCHEMA"
+  CastFuncExprCommonSubExpr a b -> "CAST (" <> expr a <> " AS " <> typename b <> ")"
+  ExtractFuncExprCommonSubExpr a -> "EXTRACT (" <> foldMap extractList a <> ")"
+  OverlayFuncExprCommonSubExpr a -> "OVERLAY (" <> overlayList a <> ")"
+  PositionFuncExprCommonSubExpr a -> "POSITION (" <> foldMap positionList a <> ")"
+  SubstringFuncExprCommonSubExpr a -> "SUBSTRING (" <> foldMap substrList a <> ")"
+  TreatFuncExprCommonSubExpr a b -> "TREAT (" <> expr a <> " AS " <> typename b <> ")"
+  TrimFuncExprCommonSubExpr a b -> "TRIM (" <> foldMap (flip mappend " " . trimModifier) a <> trimList b <> ")"
+  NullIfFuncExprCommonSubExpr a b -> "NULLIF (" <> expr a <> ", " <> expr b <> ")"
+  CoalesceFuncExprCommonSubExpr a -> "COALESCE (" <> exprList a <> ")"
+  GreatestFuncExprCommonSubExpr a -> "GREATEST (" <> exprList a <> ")"
+  LeastFuncExprCommonSubExpr a -> "LEAST (" <> exprList a <> ")"
+
+extractList (ExtractList a b) = extractArg a <> " FROM " <> aExpr b
+
+extractArg = \ case
+  IdentExtractArg a -> ident a
+  YearExtractArg -> "YEAR"
+  MonthExtractArg -> "MONTH"
+  DayExtractArg -> "DAY"
+  HourExtractArg -> "HOUR"
+  MinuteExtractArg -> "MINUTE"
+  SecondExtractArg -> "SECOND"
+  SconstExtractArg a -> sconst a
+
+overlayList (OverlayList a b c d) = aExpr a <> " " <> overlayPlacing b <> " " <> substrFrom c <> foldMap (mappend " " . substrFor) d
+
+overlayPlacing a = "PLACING " <> aExpr a
+
+positionList (PositionList a b) = bExpr a <> " IN " <> bExpr b
+
+substrList = \ case
+  ExprSubstrList a b -> aExpr a <> " " <> substrListFromFor b
+  ExprListSubstrList a -> exprList a
+
+substrListFromFor = \ case
+  FromForSubstrListFromFor a b -> substrFrom a <> " " <> substrFor b
+  ForFromSubstrListFromFor a b -> substrFor a <> " " <> substrFrom b
+  FromSubstrListFromFor a -> substrFrom a
+  ForSubstrListFromFor a -> substrFor a
+
+substrFrom a = "FROM " <> aExpr a
+
+substrFor a = "FOR " <> aExpr a
+
+trimModifier = \ case
+  BothTrimModifier -> "BOTH"
+  LeadingTrimModifier -> "LEADING"
+  TrailingTrimModifier -> "TRAILING"
+
+trimList = \ case
+  ExprFromExprListTrimList a b -> aExpr a <> " FROM " <> exprList b
+  FromExprListTrimList a -> "FROM " <> exprList a
+  ExprListTrimList a -> exprList a
+
 
 -- * Literals
 -------------------------
 
 literal :: Literal -> Builder
 literal = \ case
-  IntLiteral a -> int64Dec a
-  FloatLiteral a -> doubleDec a
-  StringLiteral a -> stringLiteral a
+  IntLiteral a -> iconst a
+  FloatLiteral a -> fconst a
+  StringLiteral a -> sconst a
   BitLiteral a -> "B'" <> text a <> "'"
   HexLiteral a -> "X'" <> text a <> "'"
-  FuncLiteral a b c -> qualifiedName a <> foldMap (inParens . funcLiteralArgList) b <> " " <> stringLiteral c
-  ConstTypenameLiteral a b -> constTypename a <> " " <> stringLiteral b
-  StringIntervalLiteral a b -> "INTERVAL " <> stringLiteral a <> foldMap (mappend " " . interval) b
-  IntIntervalLiteral a b -> "INTERVAL " <> inParens (int64Dec a) <> " " <> stringLiteral b
+  FuncLiteral a b c -> qualifiedName a <> foldMap (inParens . funcLiteralArgList) b <> " " <> sconst c
+  ConstTypenameLiteral a b -> constTypename a <> " " <> sconst b
+  StringIntervalLiteral a b -> "INTERVAL " <> sconst a <> foldMap (mappend " " . interval) b
+  IntIntervalLiteral a b -> "INTERVAL " <> inParens (int64Dec a) <> " " <> sconst b
   BoolLiteral a -> if a then "TRUE" else "FALSE"
   NullLiteral -> "NULL"
 
-stringLiteral :: Text -> Builder
-stringLiteral a = "'" <> text (Text.replace "'" "''" a) <> "'"
+iconst = int64Dec
+
+fconst = doubleDec
+
+sconst a = "'" <> text (Text.replace "'" "''" a) <> "'"
 
 funcLiteralArgList (FuncLiteralArgList a b) = commaNonEmpty funcArgExpr a <> foldMap (mappend " " . sortClause) b
 
@@ -490,11 +621,13 @@ numeric = \ case
   NumericNumeric a -> "NUMERIC" <> foldMap (mappend " " . inParens . commaNonEmpty expr) a
   BooleanNumeric -> "BOOLEAN"
 
-constBit (ConstBit a b) = optLexemes [
+bit (Bit a b) = optLexemes [
     Just "BIT",
     bool Nothing (Just "VARYING") a,
     fmap (inParens . commaNonEmpty expr) b
   ]
+
+constBit = bit
 
 constCharacter (ConstCharacter a b) = character a <> foldMap (mappend " " . inParens . int64Dec) b
 
@@ -566,3 +699,39 @@ indirectionEl = \ case
   AllIndirectionEl -> ".*"
   ExprIndirectionEl a -> "[" <> expr a <> "]"
   SliceIndirectionEl a b -> "[" <> foldMap expr a <> ":" <> foldMap expr b <> "]"
+
+ident = name
+
+colId = name
+
+colLabel = name
+
+attrName = colLabel
+
+typeFunctionName = name
+
+
+-- * Typename
+-------------------------
+
+typename = \ case
+  ArrayBoundsTypename a b c ->
+    bool "" "SETOF " a <> simpleTypename b <> foldMap (mappend " " . arrayBounds) c
+  ArrayDimTypename a b c ->
+    bool "" "SETOF " a <> simpleTypename b <> " ARRAY" <> foldMap (inBrackets . iconst) c
+
+arrayBounds = spaceNonEmpty (inBrackets . foldMap iconst)
+
+simpleTypename = \ case
+  GenericTypeSimpleTypename a -> genericType a
+  NumericSimpleTypename a -> numeric a
+  BitSimpleTypename a -> bit a
+  CharacterSimpleTypename a -> character a
+  ConstDatetimeSimpleTypename a -> constDatetime a
+  ConstIntervalSimpleTypename a -> "INTERVAL" <> either (foldMap (mappend " " . interval)) (mappend " " . inParens . iconst) a
+
+genericType (GenericType a b c) = typeFunctionName a <> foldMap (mappend " " . attrs) b <> foldMap (mappend " " . typeModifiers) c
+
+attrs = foldMap (mappend "." . attrName)
+
+typeModifiers = inParens . exprList

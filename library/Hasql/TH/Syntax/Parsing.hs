@@ -27,8 +27,8 @@ Here's the essence of how the original parser is implemented, citing from
 -}
 module Hasql.TH.Syntax.Parsing where
 
-import Hasql.TH.Prelude hiding (aExpr, try, option, some, many, sortBy, filter, head, tail)
-import HeadedMegaparsec
+import Hasql.TH.Prelude hiding (expr, try, option, some, many, sortBy, filter, head, tail, bit)
+import HeadedMegaparsec hiding (string)
 import Control.Applicative.Combinators hiding (some)
 import Control.Applicative.Combinators.NonEmpty
 import Hasql.TH.Syntax.Ast
@@ -36,8 +36,9 @@ import Text.Megaparsec (Stream, Parsec)
 import qualified Text.Megaparsec as Megaparsec
 import qualified Text.Megaparsec.Char as MegaparsecChar
 import qualified Text.Megaparsec.Char.Lexer as MegaparsecLexer
-import qualified Hasql.TH.Syntax.Predicate as Predicate
 import qualified Hasql.TH.Syntax.HashSet as HashSet
+import qualified Hasql.TH.Syntax.Predicate as Predicate
+import qualified Hasql.TH.Syntax.Validator as Validator
 import qualified Data.Text as Text
 import qualified Text.Builder as TextBuilder
 
@@ -130,6 +131,9 @@ commaSeparator = space *> char ',' *> endHead *> space
 dotSeparator :: Parser ()
 dotSeparator = space *> char '.' *> endHead *> space
 
+inBrackets :: Parser a -> Parser a
+inBrackets p = char '[' *> space *> p <* endHead <* space <* char ']'
+
 inParens :: Parser a -> Parser a
 inParens p = char '(' *> space *> p <* endHead <* space <* char ')'
 
@@ -148,15 +152,18 @@ inParensWithLabel _result _labelParser _contentParser = do
 inParensWithClause :: Parser clause -> Parser content -> Parser content
 inParensWithClause = inParensWithLabel (const id)
 
-nonEmptyList :: Parser a -> Parser (NonEmpty a)
-nonEmptyList p = (:|) <$> (p <* endHead) <*> many (commaSeparator *> p)
-
-sepWithSpace1 :: Parser a -> Parser (NonEmpty a)
-sepWithSpace1 _parser = do
+sep1 :: Parser separator -> Parser a -> Parser (NonEmpty a)
+sep1 _separator _parser = do
   _head <- _parser
   endHead
-  _tail <- many $ space1 *> _parser
+  _tail <- many $ _separator *> _parser
   return (_head :| _tail)
+
+nonEmptyList :: Parser a -> Parser (NonEmpty a)
+nonEmptyList = sep1 commaSeparator
+
+sepWithSpace1 :: Parser a -> Parser (NonEmpty a)
+sepWithSpace1 = sep1 space1
 
 sepEnd1 :: Parser separator -> Parser end -> Parser el -> Parser (NonEmpty el, end)
 sepEnd1 sepP endP elP = do
@@ -174,6 +181,15 @@ sepEnd1 sepP endP elP = do
             loop (el : list)
         ]
     in loop []
+
+{-|
+Compose a parser, which attempts to extend a parsed value, based on the following input.
+It does that recursively until the extension parser fails.
+-}
+recExtend :: (Monad m, Alternative m) => m b -> (b -> m b) -> m b
+recExtend base extension = do
+  _base <- base
+  recExtend (extension _base) extension <|> pure _base
 
 {-|
 >>> testParser (quotedString '\'') "'abc''d'"
@@ -799,105 +815,10 @@ aliasClause = do
 
 -- * Expressions
 -------------------------
-{-
 
-a_expr:
-  | c_expr
-  | a_expr TYPECAST Typename
-  | a_expr COLLATE any_name
-  | a_expr AT TIME ZONE a_expr
-  | '+' a_expr
-  | '-' a_expr
-  | a_expr '+' a_expr
-  | a_expr '-' a_expr
-  | a_expr '*' a_expr
-  | a_expr '/' a_expr
-  | a_expr '%' a_expr
-  | a_expr '^' a_expr
-  | a_expr '<' a_expr
-  | a_expr '>' a_expr
-  | a_expr '=' a_expr
-  | a_expr LESS_EQUALS a_expr
-  | a_expr GREATER_EQUALS a_expr
-  | a_expr NOT_EQUALS a_expr
-  | a_expr qual_Op a_expr
-  | qual_Op a_expr
-  | a_expr qual_Op
-  | a_expr AND a_expr
-  | a_expr OR a_expr
-  | NOT a_expr
-  | NOT_LA a_expr
-  | a_expr LIKE a_expr
-  | a_expr LIKE a_expr ESCAPE a_expr
-  | a_expr NOT_LA LIKE a_expr
-  | a_expr NOT_LA LIKE a_expr ESCAPE a_expr
-  | a_expr ILIKE a_expr
-  | a_expr ILIKE a_expr ESCAPE a_expr
-  | a_expr NOT_LA ILIKE a_expr
-  | a_expr NOT_LA ILIKE a_expr ESCAPE a_expr
-  | a_expr SIMILAR TO a_expr
-  | a_expr SIMILAR TO a_expr ESCAPE a_expr
-  | a_expr NOT_LA SIMILAR TO a_expr
-  | a_expr NOT_LA SIMILAR TO a_expr ESCAPE a_expr
-  | a_expr IS NULL_P
-  | a_expr ISNULL
-  | a_expr IS NOT NULL_P
-  | a_expr NOTNULL
-  | row OVERLAPS row
-  | a_expr IS TRUE_P
-  | a_expr IS NOT TRUE_P
-  | a_expr IS FALSE_P
-  | a_expr IS NOT FALSE_P
-  | a_expr IS UNKNOWN
-  | a_expr IS NOT UNKNOWN
-  | a_expr IS DISTINCT FROM a_expr
-  | a_expr IS NOT DISTINCT FROM a_expr
-  | a_expr IS OF '(' type_list ')'
-  | a_expr IS NOT OF '(' type_list ')'
-  | a_expr BETWEEN opt_asymmetric b_expr AND a_expr
-  | a_expr NOT_LA BETWEEN opt_asymmetric b_expr AND a_expr
-  | a_expr BETWEEN SYMMETRIC b_expr AND a_expr
-  | a_expr NOT_LA BETWEEN SYMMETRIC b_expr AND a_expr
-  | a_expr IN_P in_expr
-  | a_expr NOT_LA IN_P in_expr
-  | a_expr subquery_Op sub_type select_with_parens
-  | a_expr subquery_Op sub_type '(' a_expr ')'
-  | UNIQUE select_with_parens
-  | a_expr IS DOCUMENT_P
-  | a_expr IS NOT DOCUMENT_P
-  | DEFAULT
+exprList = nonEmptyList aExpr
 
-b_expr:
-  | c_expr
-  | b_expr TYPECAST Typename
-  | '+' b_expr
-  | '-' b_expr
-  | b_expr '+' b_expr
-  | b_expr '-' b_expr
-  | b_expr '*' b_expr
-  | b_expr '/' b_expr
-  | b_expr '%' b_expr
-  | b_expr '^' b_expr
-  | b_expr '<' b_expr
-  | b_expr '>' b_expr
-  | b_expr '=' b_expr
-  | b_expr LESS_EQUALS b_expr
-  | b_expr GREATER_EQUALS b_expr
-  | b_expr NOT_EQUALS b_expr
-  | b_expr qual_Op b_expr
-  | qual_Op b_expr
-  | b_expr qual_Op
-  | b_expr IS DISTINCT FROM b_expr
-  | b_expr IS NOT DISTINCT FROM b_expr
-  | b_expr IS OF '(' type_list ')'
-  | b_expr IS NOT OF '(' type_list ')'
-  | b_expr IS DOCUMENT_P
-  | b_expr IS NOT DOCUMENT_P
-
--}
-
-
-exprListInParens = inParens (nonEmptyList aExpr)
+exprListInParens = inParens exprList
 
 {-|
 Notice that the tree constructed by this parser does not reflect
@@ -914,37 +835,40 @@ Composite on the left:
 BinOpExpr "=" (PlaceholderExpr 1) (BinOpExpr "AND" (TypecastExpr (PlaceholderExpr 2) (Type (UnquotedName "int4") False 0 False)) (PlaceholderExpr 3))
 -}
 aExpr :: Parser Expr
-aExpr = label "expression" $ do
-  _left <- terminatingExpr
-  loopingExpr _left <|> pure _left
-  where
-    loopingExpr _left = do
-      _expr <- asum
-        [
-          typecastExpr _left,
-          binOpExpr _left,
-          escapableBinOpExpr _left
-        ]
-      loopingExpr _expr <|> pure _expr
-    terminatingExpr = defaultExpr <|> cExpr
+aExpr = recExtend base extension where
+  base = asum [
+      defaultExpr
+      ,
+      cExpr
+      ,
+      PlusedExpr <$> (char '+' *> endHead *> space *> bExpr)
+      ,
+      MinusedExpr <$> (char '-' *> endHead *> space *> bExpr)
+      ,
+      QualOpExpr <$> qualOp <*> (space1 *> bExpr)
+    ]
+  extension a = asum
+    [
+      typecastExpr a,
+      binOpExpr a,
+      escapableBinOpExpr a
+    ]
+
+bExpr = recExtend base extension where
+  base = asum [
+      cExpr
+      ,
+      PlusedExpr <$> (char '+' *> endHead *> space *> bExpr)
+      ,
+      MinusedExpr <$> (char '-' *> endHead *> space *> bExpr)
+      ,
+      QualOpExpr <$> qualOp <*> (space1 *> bExpr)
+    ]
+  extension a = asum [
+      binOpExpr a
+    ]
 
 {-
-c_expr:
-  | columnref
-  | AexprConst
-  | PARAM opt_indirection
-  | '(' a_expr ')' opt_indirection
-  | case_expr
-  | func_expr
-  | select_with_parens
-  | select_with_parens indirection
-  | EXISTS select_with_parens
-  | ARRAY select_with_parens
-  | ARRAY array_expr
-  | explicit_row
-  | implicit_row
-  | GROUPING '(' expr_list ')'
-
 TODO: Add missing cases.
 -}
 cExpr :: Parser Expr
@@ -953,7 +877,7 @@ cExpr =
     [
       placeholderExpr,
       literalExpr,
-      funcExpr,
+      funcExprExpr,
       inParensExpr,
       caseExpr,
       existsSelectExpr,
@@ -961,6 +885,42 @@ cExpr =
       groupingExpr,
       columnRefExpr
     ]
+
+qualOp = asum [
+    OpQualOp <$> op,
+    OperatorQualOp <$> inParensWithClause (string' "operator") anyOperator
+  ]
+
+op = do
+  a <- takeWhile1P Nothing Predicate.opChar
+  case Validator.op a of
+    Nothing -> return a
+    Just err -> fail (Text.unpack err)
+
+anyOperator = asum [
+    AllOpAnyOperator <$> allOp,
+    QualifiedAnyOperator <$> colId <*> (space *> char '.' *> space *> anyOperator)
+  ]
+
+allOp = asum [
+    OpAllOp <$> op,
+    MathAllOp <$> mathOp
+  ]
+
+mathOp = asum [
+    ArrowLeftArrowRightMathOp <$ string' "<>",
+    GreaterEqualsMathOp <$ string' ">=",
+    ExclamationEqualsMathOp <$ string' "!=",
+    LessEqualsMathOp <$ string' "<=",
+    PlusMathOp <$ char '+',
+    MinusMathOp <$ char '-',
+    AsteriskMathOp <$ char '*',
+    SlashMathOp <$ char '/',
+    PercentMathOp <$ char '%',
+    ArrowUpMathOp <$ char '^',
+    ArrowLeftMathOp <$ char '<',
+    ArrowRightMathOp <$ char '>'
+  ]
 
 placeholderExpr :: Parser Expr
 placeholderExpr = PlaceholderExpr <$> (char '$' *> decimal)
@@ -1060,14 +1020,145 @@ elseClause = do
   space1
   return a
 
-{-
-func_expr:
-  | func_application within_group_clause filter_clause over_clause
-  | func_expr_common_subexpr
-TODO: Handle the remaining stuff
--}
-funcExpr :: Parser Expr
-funcExpr = FuncExpr <$> funcApplication
+funcExprExpr :: Parser Expr
+funcExprExpr = FuncExpr <$> funcExpr
+
+funcExpr = asum [
+    SubexprFuncExpr <$> funcExprCommonSubExpr,
+    do
+      a <- funcApplication
+      endHead
+      b <- optional (space1 *> withinGroupClause)
+      c <- optional (space1 *> filterClause)
+      d <- optional (space1 *> overClause)
+      return (ApplicationFuncExpr a b c d)
+  ]
+
+withinGroupClause = do
+  keyphrase "within group"
+  endHead
+  space
+  inParens sortClause
+
+filterClause = do
+  string' "filter"
+  endHead
+  space
+  inParens (string' "where" *> space1 *> aExpr)
+
+overClause = do
+  string' "over"
+  space1
+  endHead
+  asum [
+      WindowOverClause <$> windowSpecification,
+      ColIdOverClause <$> colId
+    ]
+
+funcExprCommonSubExpr = asum [
+    CollationForFuncExprCommonSubExpr <$> (inParensWithClause (keyphrase "collation for") aExpr)
+    ,
+    CurrentDateFuncExprCommonSubExpr <$ string' "current_date"
+    ,
+    CurrentTimeFuncExprCommonSubExpr <$> labeledIconst "current_time"
+    ,
+    CurrentTimestampFuncExprCommonSubExpr <$> labeledIconst "current_timestamp"
+    ,
+    LocalTimeFuncExprCommonSubExpr <$> labeledIconst "localtime"
+    ,
+    LocalTimestampFuncExprCommonSubExpr <$> labeledIconst "localtimestamp"
+    ,
+    CurrentRoleFuncExprCommonSubExpr <$ string' "current_role"
+    ,
+    CurrentUserFuncExprCommonSubExpr <$ string' "current_user"
+    ,
+    SessionUserFuncExprCommonSubExpr <$ string' "session_user"
+    ,
+    UserFuncExprCommonSubExpr <$ string' "user"
+    ,
+    CurrentCatalogFuncExprCommonSubExpr <$ string' "current_catalog"
+    ,
+    CurrentSchemaFuncExprCommonSubExpr <$ string' "current_schema"
+    ,
+    inParensWithClause (string' "cast") (CastFuncExprCommonSubExpr <$> aExpr <*> (space1 *> string' "as" *> space1 *> typename))
+    ,
+    inParensWithClause (string' "extract") (ExtractFuncExprCommonSubExpr <$> optional extractList)
+    ,
+    inParensWithClause (string' "overlay") (OverlayFuncExprCommonSubExpr <$> overlayList)
+    ,
+    inParensWithClause (string' "position") (PositionFuncExprCommonSubExpr <$> optional positionList)
+    ,
+    inParensWithClause (string' "substring") (SubstringFuncExprCommonSubExpr <$> optional substrList)
+    ,
+    inParensWithClause (string' "treat") (TreatFuncExprCommonSubExpr <$> aExpr <*> (space1 *> string' "as" *> space1 *> typename))
+    ,
+    inParensWithClause (string' "trim") (TrimFuncExprCommonSubExpr <$> optional (trimModifier <* space1) <*> trimList)
+    ,
+    inParensWithClause (string' "nullif") (NullIfFuncExprCommonSubExpr <$> aExpr <*> (space1 *> aExpr))
+    ,
+    inParensWithClause (string' "coalesce") (CoalesceFuncExprCommonSubExpr <$> exprList)
+    ,
+    inParensWithClause (string' "greatest") (GreatestFuncExprCommonSubExpr <$> exprList)
+    ,
+    inParensWithClause (string' "least") (LeastFuncExprCommonSubExpr <$> exprList)
+  ]
+  where
+    labeledIconst _label = string' _label *> endHead *> optional (space *> inParens iconst)
+
+extractList = ExtractList <$> extractArg <*> (space1 *> string' "FROM" *> space1 *> aExpr)
+
+extractArg = asum [
+    IdentExtractArg <$> ident,
+    YearExtractArg <$ string' "year",
+    MonthExtractArg <$ string' "month",
+    DayExtractArg <$ string' "day",
+    HourExtractArg <$ string' "hour",
+    MinuteExtractArg <$ string' "minute",
+    SecondExtractArg <$ string' "second",
+    SconstExtractArg <$> sconst
+  ]
+
+overlayList = do
+  a <- aExpr
+  space1
+  b <- overlayPlacing
+  space1
+  c <- substrFrom
+  d <- optional (space1 *> substrFor)
+  return (OverlayList a b c d)
+
+overlayPlacing = string' "placing" *> space1 *> endHead *> aExpr
+
+positionList = PositionList <$> bExpr <*> (space1 *> string' "IN" *> space1 *> bExpr)
+
+substrList = asum [
+    ExprSubstrList <$> wrapToHead aExpr <*> (space1 *> substrListFromFor),
+    ExprListSubstrList <$> exprList
+  ]
+
+substrListFromFor = asum [
+    FromForSubstrListFromFor <$> substrFrom <*> (space1 *> substrFor),
+    ForFromSubstrListFromFor <$> substrFor <*> (space1 *> substrFrom),
+    FromSubstrListFromFor <$> substrFrom,
+    ForSubstrListFromFor <$> substrFor
+  ]
+
+substrFrom = string' "from" *> space1 *> endHead *> aExpr
+
+substrFor = string' "for" *> space1 *> endHead *> aExpr
+
+trimModifier =
+  BothTrimModifier <$ string' "both" <|>
+  LeadingTrimModifier <$ string' "leading" <|>
+  TrailingTrimModifier <$ string' "trailing"
+
+trimList = asum [
+    ExprFromExprListTrimList <$> wrapToHead aExpr <*> (space1 *> string' "from" *> space1 *> endHead *> exprList)
+    ,
+    FromExprListTrimList <$> (string' "from" *> space1 *> endHead *> exprList)
+    ,
+    ExprListTrimList <$> exprList
+  ]
 
 funcApplication :: Parser FuncApplication
 funcApplication = inParensWithLabel FuncApplication funcName (optional funcApplicationParams)
@@ -1121,7 +1212,7 @@ param_name:
 funcArgExpr :: Parser FuncArgExpr
 funcArgExpr = asum [
     do
-      a <- wrapToHead typeFuncName
+      a <- wrapToHead typeFunctionName
       space
       asum [
           do
@@ -1301,11 +1392,13 @@ numeric = asum [
     BooleanNumeric <$ string' "boolean"
   ]
 
-constBit = do
+bit = do
   string' "bit"
   a <- option False (True <$ space1 <* string' "varying")
   b <- optional (space1 *> exprListInParens)
-  return (ConstBit a b)
+  return (Bit a b)
+
+constBit = bit
 
 constCharacter = ConstCharacter <$> (character <* endHead) <*> optional (space *> inParens iconst)
 
@@ -1392,7 +1485,7 @@ Type (UnquotedName "int4") True 2 False
 -}
 type_ :: Parser Type
 type_ = label "type" $ do
-  _baseName <- typeFuncName
+  _baseName <- typeFunctionName
   endHead
   _baseNullable <- option False (True <$ space <* char '?')
   _arrayLevels <- fmap length $ many $ space *> char '[' *> endHead *> space *> char ']'
@@ -1614,7 +1707,7 @@ func_name:
 -}
 funcName =
   IndirectedQualifiedName <$> wrapToHead colId <*> (space *> indirection) <|>
-  SimpleQualifiedName <$> typeFuncName
+  SimpleQualifiedName <$> typeFunctionName
 
 {-
 type_function_name:
@@ -1622,7 +1715,7 @@ type_function_name:
   | unreserved_keyword
   | type_func_name_keyword
 -}
-typeFuncName =
+typeFunctionName =
   ident <|>
   keywordNameFromSet (HashSet.unreservedKeyword <> HashSet.typeFuncNameKeyword)
 
@@ -1712,3 +1805,52 @@ Consume a keyphrase, ignoring case and types of spaces between words.
 -}
 keyphrase :: Text -> Parser Text
 keyphrase a = Text.words a & fmap (void . MegaparsecChar.string') & intersperse MegaparsecChar.space1 & sequence_ & fmap (const (Text.toUpper a)) & Megaparsec.label (show a) & parse
+
+
+-- * Typename
+-------------------------
+
+typename =
+  do
+    a <- option False (string' "SETOF" *> space1 $> True)
+    b <- simpleTypename
+    space1
+    endHead
+    asum [
+        do
+          string' "ARRAY"
+          c <- optional (space *> inBrackets iconst)
+          return (ArrayDimTypename a b c)
+        ,
+        do
+          c <- optional arrayBounds
+          return (ArrayBoundsTypename a b c)
+      ]
+
+arrayBounds = sep1 space (inBrackets (optional iconst))
+
+simpleTypename = asum [
+    GenericTypeSimpleTypename <$> genericType,
+    NumericSimpleTypename <$> numeric,
+    BitSimpleTypename <$> bit,
+    CharacterSimpleTypename <$> character,
+    ConstDatetimeSimpleTypename <$> constDatetime,
+    do
+      string' "interval"
+      endHead
+      asum [
+          ConstIntervalSimpleTypename <$> Right <$> (space *> inParens iconst),
+          ConstIntervalSimpleTypename <$> Left <$> (space *> optional interval)
+        ]
+  ]
+
+genericType = do
+  a <- typeFunctionName
+  endHead
+  b <- optional (space1 *> attrs)
+  c <- optional (space1 *> typeModifiers)
+  return (GenericType a b c)
+
+attrs = sep1 (space *> char '.' *> space) attrName
+
+typeModifiers = inParens exprList
