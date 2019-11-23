@@ -730,7 +730,7 @@ simpleTypename = \ case
   ConstDatetimeSimpleTypename a -> constDatetime a
   ConstIntervalSimpleTypename a -> "INTERVAL" <> either (foldMap (mappend " " . interval)) (mappend " " . inParens . iconst) a
 
-genericType (GenericType a b c) = typeFunctionName a <> foldMap (mappend " " . attrs) b <> foldMap (mappend " " . typeModifiers) c
+genericType (GenericType a b c) = typeFunctionName a <> foldMap attrs b <> foldMap (mappend " " . typeModifiers) c
 
 attrs = foldMap (mappend "." . attrName)
 
