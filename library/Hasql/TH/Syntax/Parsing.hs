@@ -1844,10 +1844,10 @@ simpleTypename = asum [
 genericType = do
   a <- typeFunctionName
   endHead
-  b <- optional (space1 *> attrs)
+  b <- optional (space *> attrs)
   c <- optional (space1 *> typeModifiers)
   return (GenericType a b c)
 
-attrs = sep1 (space *> char '.' *> space) attrName
+attrs = some (char '.' *> endHead *> space *> attrName)
 
 typeModifiers = inParens exprList
