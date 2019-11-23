@@ -299,15 +299,12 @@ withSelectNoParens = do
   space1
   sharedSelectNoParens (Just _with)
 
-selectClause = do
-  a <- asum [
+selectClause = recExtend base extension where
+  base = asum [
       Right <$> selectWithParens,
-      Left <$> headfulSimpleSelect
+      Left <$> baseSimpleSelect
     ]
-  asum [
-      Left <$> headlessSimpleSelect a,
-      pure a
-    ]
+  extension a = Left <$> extensionSimpleSelect a
 
 {-
 simple_select:
@@ -324,8 +321,8 @@ simple_select:
   |  select_clause EXCEPT all_or_distinct select_clause
 -}
 
-headfulSimpleSelect :: Parser SimpleSelect
-headfulSimpleSelect = asum [
+baseSimpleSelect :: Parser SimpleSelect
+baseSimpleSelect = asum [
     do
       string' "select"
       parse $ Megaparsec.notFollowedBy $ Megaparsec.satisfy $ isAlphaNum
@@ -342,8 +339,8 @@ headfulSimpleSelect = asum [
     ValuesSimpleSelect <$> valuesClause
   ]
 
-headlessSimpleSelect :: SelectClause -> Parser SimpleSelect
-headlessSimpleSelect _headSelectClause = do
+extensionSimpleSelect :: SelectClause -> Parser SimpleSelect
+extensionSimpleSelect _headSelectClause = do
   _op <- space1 *> selectBinOp <* space1
   endHead
   _allOrDistinct <- optional (allOrDistinct <* space1)
