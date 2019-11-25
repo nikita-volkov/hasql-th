@@ -825,35 +825,28 @@ BinOpExpr "=" (PlaceholderExpr 1) (BinOpExpr "AND" (TypecastExpr (PlaceholderExp
 aExpr :: Parser Expr
 aExpr = suffixRec base suffix where
   base = asum [
-      defaultExpr
-      ,
-      cExpr
-      ,
-      PlusedExpr <$> (char '+' *> endHead *> space *> bExpr)
-      ,
-      MinusedExpr <$> (char '-' *> endHead *> space *> bExpr)
-      ,
-      QualOpExpr <$> qualOp <*> (space1 *> bExpr)
+      defaultExpr,
+      cExpr,
+      plusedExpr aExpr,
+      minusedExpr aExpr,
+      qualOpExpr aExpr
     ]
   suffix a = asum
     [
       typecastExpr a,
-      binOpExpr a,
+      binOpExpr a aExpr,
       escapableBinOpExpr a
     ]
 
 bExpr = suffixRec base suffix where
   base = asum [
-      cExpr
-      ,
-      PlusedExpr <$> (char '+' *> endHead *> space *> bExpr)
-      ,
-      MinusedExpr <$> (char '-' *> endHead *> space *> bExpr)
-      ,
-      QualOpExpr <$> qualOp <*> (space1 *> bExpr)
+      cExpr,
+      plusedExpr bExpr,
+      minusedExpr bExpr,
+      qualOpExpr bExpr
     ]
   suffix a = asum [
-      binOpExpr a
+      binOpExpr a bExpr
     ]
 
 {-
@@ -874,41 +867,11 @@ cExpr =
       columnRefExpr
     ]
 
-qualOp = asum [
-    OpQualOp <$> op,
-    OperatorQualOp <$> inParensWithClause (string' "operator") anyOperator
-  ]
+plusedExpr expr = PlusedExpr <$> (char '+' *> endHead *> space *> expr)
 
-op = do
-  a <- takeWhile1P Nothing Predicate.opChar
-  case Validator.op a of
-    Nothing -> return a
-    Just err -> fail (Text.unpack err)
+minusedExpr expr = MinusedExpr <$> (char '-' *> endHead *> space *> expr)
 
-anyOperator = asum [
-    AllOpAnyOperator <$> allOp,
-    QualifiedAnyOperator <$> colId <*> (space *> char '.' *> space *> anyOperator)
-  ]
-
-allOp = asum [
-    OpAllOp <$> op,
-    MathAllOp <$> mathOp
-  ]
-
-mathOp = asum [
-    ArrowLeftArrowRightMathOp <$ string' "<>",
-    GreaterEqualsMathOp <$ string' ">=",
-    ExclamationEqualsMathOp <$ string' "!=",
-    LessEqualsMathOp <$ string' "<=",
-    PlusMathOp <$ char '+',
-    MinusMathOp <$ char '-',
-    AsteriskMathOp <$ char '*',
-    SlashMathOp <$ char '/',
-    PercentMathOp <$ char '%',
-    ArrowUpMathOp <$ char '^',
-    ArrowLeftMathOp <$ char '<',
-    ArrowRightMathOp <$ char '>'
-  ]
+qualOpExpr expr = QualOpExpr <$> qualOp <*> (space1 *> expr)
 
 placeholderExpr :: Parser Expr
 placeholderExpr = PlaceholderExpr <$> (char '$' *> decimal)
@@ -925,19 +888,10 @@ typecastExpr _left = do
   _type <- type_
   return (TypecastExpr _left _type)
 
-binOpExpr :: Expr -> Parser Expr
-binOpExpr _a = do
+binOpExpr _a _bParser = do
   _binOp <- label "binary operator" (space *> symbolicBinOp <* space <|> space1 *> lexicalBinOp <* space1)
-  _b <- aExpr
+  _b <- _bParser
   return (BinOpExpr _binOp _a _b)
-
-symbolicBinOp :: Parser Text
-symbolicBinOp =
-  takeWhile1P Nothing Predicate.symbolicBinOpChar &
-  filter (\ a -> "Unknown binary operator: " <> show a) (Predicate.inSet HashSet.symbolicBinOp)
-
-lexicalBinOp :: Parser Text
-lexicalBinOp = asum $ fmap keyphrase $ ["and", "or", "is distinct from", "is not distinct from"]
 
 escapableBinOpExpr :: Expr -> Parser Expr
 escapableBinOpExpr _a = do
@@ -988,6 +942,22 @@ caseExpr = label "case expression" $ do
   string' "end"
   pure $ CaseExpr _arg _whenClauses _default
 
+funcExprExpr :: Parser Expr
+funcExprExpr = FuncExpr <$> funcExpr
+
+existsSelectExpr :: Parser Expr
+existsSelectExpr = string' "exists" *> space *> (ExistsSelectExpr <$> selectWithParens)
+
+arraySelectExpr :: Parser Expr
+arraySelectExpr = string' "array" *> space *> (ArraySelectExpr <$> selectWithParens)
+
+groupingExpr :: Parser Expr
+groupingExpr = inParensWithClause (string' "grouping") (GroupingExpr <$> nonEmptyList aExpr)
+
+
+-- *
+-------------------------
+
 whenClause :: Parser WhenClause
 whenClause = do
   string' "when"
@@ -1007,9 +977,6 @@ elseClause = do
   a <- aExpr
   space1
   return a
-
-funcExprExpr :: Parser Expr
-funcExprExpr = FuncExpr <$> funcExpr
 
 funcExpr = asum [
     SubexprFuncExpr <$> funcExprCommonSubExpr,
@@ -1236,14 +1203,53 @@ sortBy = do
 order :: Parser Order
 order = string' "asc" $> AscOrder <|> string' "desc" $> DescOrder
 
-existsSelectExpr :: Parser Expr
-existsSelectExpr = string' "exists" *> space *> (ExistsSelectExpr <$> selectWithParens)
 
-arraySelectExpr :: Parser Expr
-arraySelectExpr = string' "array" *> space *> (ArraySelectExpr <$> selectWithParens)
+-- * Ops
+-------------------------
 
-groupingExpr :: Parser Expr
-groupingExpr = inParensWithClause (string' "grouping") (GroupingExpr <$> nonEmptyList aExpr)
+symbolicBinOp :: Parser Text
+symbolicBinOp =
+  takeWhile1P Nothing Predicate.symbolicBinOpChar &
+  filter (\ a -> "Unknown binary operator: " <> show a) (Predicate.inSet HashSet.symbolicBinOp)
+
+lexicalBinOp :: Parser Text
+lexicalBinOp = asum $ fmap keyphrase $ ["and", "or", "is distinct from", "is not distinct from"]
+
+qualOp = asum [
+    OpQualOp <$> op,
+    OperatorQualOp <$> inParensWithClause (string' "operator") anyOperator
+  ]
+
+op = do
+  a <- takeWhile1P Nothing Predicate.opChar
+  case Validator.op a of
+    Nothing -> return a
+    Just err -> fail (Text.unpack err)
+
+anyOperator = asum [
+    AllOpAnyOperator <$> allOp,
+    QualifiedAnyOperator <$> colId <*> (space *> char '.' *> space *> anyOperator)
+  ]
+
+allOp = asum [
+    OpAllOp <$> op,
+    MathAllOp <$> mathOp
+  ]
+
+mathOp = asum [
+    ArrowLeftArrowRightMathOp <$ string' "<>",
+    GreaterEqualsMathOp <$ string' ">=",
+    ExclamationEqualsMathOp <$ string' "!=",
+    LessEqualsMathOp <$ string' "<=",
+    PlusMathOp <$ char '+',
+    MinusMathOp <$ char '-',
+    AsteriskMathOp <$ char '*',
+    SlashMathOp <$ char '/',
+    PercentMathOp <$ char '%',
+    ArrowUpMathOp <$ char '^',
+    ArrowLeftMathOp <$ char '<',
+    ArrowRightMathOp <$ char '>'
+  ]
 
 
 -- * Literals
