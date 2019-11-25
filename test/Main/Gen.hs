@@ -2,7 +2,7 @@ module Main.Gen where
 
 import Hasql.TH.Prelude hiding (maybe, bool, sortBy, filter, bit)
 import Hasql.TH.Syntax.Ast
-import Hedgehog (Gen)
+import Hedgehog (Gen, MonadGen)
 import Hedgehog.Gen
 import qualified Hedgehog.Range as Range
 import qualified Data.Text as Text
@@ -314,7 +314,9 @@ forLockingStrength = element [
 
 exprList = nonEmpty (Range.exponential 1 7) expr
 
-baseExpr inParensExpr =
+expr = aExpr
+
+baseAExpr inParensExpr =
   recursive choice terminatingHeadfulExprList (recursiveHeadfulExprList <> recursiveHeadlessExprList)
   where
     headfulExpr = recursive choice terminatingHeadfulExprList recursiveHeadfulExprList
@@ -340,25 +342,28 @@ baseExpr inParensExpr =
         ,
         GroupingExpr <$> nonEmpty (Range.exponential 1 4) (small expr)
         ,
-        PlusedExpr <$> small expr
+        plusedExpr expr
         ,
-        MinusedExpr <$> small expr
+        minusedExpr expr
         ,
-        QualOpExpr <$> qualOp <*> small expr
+        qualOpExpr expr
       ]
     recursiveHeadlessExprList = [
-        TypecastExpr <$> small headfulExpr <*> type_
-        ,
-        BinOpExpr <$> binOp <*> small headfulExpr <*> small expr
-        ,
-        EscapableBinOpExpr <$> bool <*> escapableBinOp <*> small headfulExpr <*> small headfulExpr <*> maybe (small headfulExpr)
+        typecastExpr headfulExpr,
+        binOpExpr headfulExpr,
+        escapableBinOpExpr headfulExpr
       ]
 
-expr = baseExpr inParensExpr
+aExpr = baseAExpr inParensExpr
 
-aExpr = expr
-
-bExpr = expr
+bExpr = choice [
+    cExpr,
+    typecastExpr bExpr,
+    plusedExpr bExpr,
+    minusedExpr bExpr,
+    qualOpExpr bExpr,
+    binOpExpr bExpr
+  ]
 
 {-
 c_expr:
@@ -393,20 +398,26 @@ cExpr = choice [
     ArraySelectExpr <$> small selectWithParens
     ,
     GroupingExpr <$> nonEmpty (Range.exponential 1 4) (small expr)
-    ,
-    PlusedExpr <$> small expr
-    ,
-    MinusedExpr <$> small expr
-    ,
-    QualOpExpr <$> qualOp <*> small expr
   ]
+
+typecastExpr expr = TypecastExpr <$> small expr <*> type_
+
+binOpExpr expr = BinOpExpr <$> binOp <*> small expr <*> small expr
+
+escapableBinOpExpr expr = EscapableBinOpExpr <$> bool <*> escapableBinOp <*> small expr <*> small expr <*> maybe (small expr)
+
+plusedExpr expr = PlusedExpr <$> small expr
+
+minusedExpr expr = MinusedExpr <$> small expr
+
+qualOpExpr expr = QualOpExpr <$> qualOp <*> small expr
 
 inParensExpr = InParensExpr <$> small eitherExprOrSelect <*> maybe indirection where
   eitherExprOrSelect =
-    Left <$> (baseExpr inParensWithoutSelectExpr) <|>
+    Left <$> (baseAExpr inParensWithoutSelectExpr) <|>
     Right <$> selectWithParens
 
-inParensWithoutSelectExpr = InParensExpr <$> Left <$> baseExpr inParensWithoutSelectExpr <*> maybe indirection
+inParensWithoutSelectExpr = InParensExpr <$> Left <$> baseAExpr inParensWithoutSelectExpr <*> maybe indirection
 
 binOp = element (toList HashSet.symbolicBinOp <> ["AND", "OR", "IS DISTINCT FROM", "IS NOT DISTINCT FROM"])
 
