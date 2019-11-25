@@ -411,13 +411,13 @@ expr = \ case
   ExistsSelectExpr a -> "EXISTS " <> selectWithParens a
   ArraySelectExpr a -> "ARRAY " <> selectWithParens a
   GroupingExpr a -> "GROUPING " <> inParens (commaNonEmpty expr a)
-  PlusedExpr a -> "+" <> expr a
-  MinusedExpr a -> "-" <> expr a
-  QualOpExpr a b -> qualOp a <> expr b
+  PlusedExpr a -> "+ " <> expr a
+  MinusedExpr a -> "- " <> expr a
+  QualOpExpr a b -> qualOp a <> " " <> expr b
 
 qualOp = \ case
   OpQualOp a -> op a
-  OperatorQualOp a -> anyOperator a
+  OperatorQualOp a -> "OPERATOR (" <> anyOperator a <> ")"
 
 op = text
 
