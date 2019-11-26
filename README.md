@@ -34,7 +34,7 @@ The parser and renderer get heavily tested using the following property: renderi
 
 Unfortunately Postgres doesn't export it's own parser in any of its distributions, so there's no C-library to link to and wrap.
 
-Isolating the original C-code and including it in a Haskell project is also not an option, because it's heavily based on code generators and a complex make-file instructions. Maintaining such a codebase also seems like a non-viable option.
+Isolating the original C-code and including it in a Haskell project is also not an option, because it's heavily based on code generators and complex make-file instructions. Maintaining such a codebase also seems like a non-viable option.
 
 Fortunately the original parser is implemented using a declarative notation (the one which the mentioned code generators work with). It being declarative makes the process of porting to Haskell quite straight-forward. 
 
