@@ -105,7 +105,7 @@ targets = nonEmpty (Range.exponential 1 8) target
 target = choice [
     pure AsteriskTarget,
     AliasedExprTarget <$> aExpr <*> name,
-    ImplicitlyAliasedExprTarget <$> aExpr <*> name,
+    ImplicitlyAliasedExprTarget <$> prefixAExpr <*> name,
     ExprTarget <$> aExpr
   ]
 
@@ -216,7 +216,7 @@ windowClause = nonEmpty (Range.exponential 1 8) windowDefinition
 
 windowDefinition = WindowDefinition <$> name <*> windowSpecification
 
-windowSpecification = WindowSpecification <$> maybe name <*> maybe (nonEmpty (Range.exponential 1 8) aExpr) <*> maybe sortClause <*> maybe frameClause
+windowSpecification = WindowSpecification <$> maybe name <*> maybe (nonEmpty (Range.exponential 1 8) nonSuffixOpAExpr) <*> maybe sortClause <*> maybe frameClause
 
 frameClause = FrameClause <$> frameClauseMode <*> frameExtent <*> maybe windowExclusionClause
 
@@ -231,8 +231,8 @@ frameBound = choice [
     pure UnboundedPrecedingFrameBound,
     pure UnboundedFollowingFrameBound,
     pure CurrentRowFrameBound,
-    PrecedingFrameBound <$> aExpr,
-    FollowingFrameBound <$> aExpr
+    PrecedingFrameBound <$> prefixAExpr,
+    FollowingFrameBound <$> prefixAExpr
   ]
 
 windowExclusionClause = element [CurrentRowWindowExclusionClause, GroupWindowExclusionClause, TiesWindowExclusionClause, NoOthersWindowExclusionClause]
@@ -249,7 +249,7 @@ valuesClause = nonEmpty (Range.exponential 1 8) (nonEmpty (Range.exponential 1 8
 
 sortClause = nonEmpty (Range.exponential 1 8) sortBy
 
-sortBy = SortBy <$> aExpr <*> maybe order
+sortBy = SortBy <$> nonSuffixOpAExpr <*> maybe order
 
 order = element [AscOrder, DescOrder]
 
@@ -329,12 +329,12 @@ aExpr = recursive choice [
     AndAExpr <$> prefixAExpr <*> aExpr,
     OrAExpr <$> prefixAExpr <*> aExpr,
     NotAExpr <$> aExpr,
-    VerbalExprBinOpAExpr <$> prefixAExpr <*> bool <*> verbalExprBinOp <*> aExpr <*> maybe aExpr,
+    VerbalExprBinOpAExpr <$> prefixAExpr <*> bool <*> verbalExprBinOp <*> prefixAExpr <*> maybe aExpr,
     ReversableOpAExpr <$> prefixAExpr <*> bool <*> aExprReversableOp,
     IsnullAExpr <$> prefixAExpr,
     NotnullAExpr <$> prefixAExpr,
     OverlapsAExpr <$> row <*> row,
-    SubqueryAExpr <$> prefixAExpr <*> subqueryOp <*> subType <*> choice [Left <$> selectWithParens, Right <$> aExpr],
+    SubqueryAExpr <$> prefixAExpr <*> subqueryOp <*> subType <*> choice [Left <$> selectWithParens, Right <$> nonSelectAExpr],
     UniqueAExpr <$> selectWithParens
   ]
 
@@ -342,6 +342,50 @@ prefixAExpr = choice [
     CExprAExpr <$> cExpr,
     pure DefaultAExpr,
     OverlapsAExpr <$> row <*> row,
+    UniqueAExpr <$> selectWithParens
+  ]
+
+nonSuffixOpAExpr = recursive choice [
+    CExprAExpr <$> cExpr,
+    pure DefaultAExpr
+  ] [
+    TypecastAExpr <$> prefixAExpr <*> typecastTypename,
+    CollateAExpr <$> prefixAExpr <*> anyName,
+    AtTimeZoneAExpr <$> prefixAExpr <*> aExpr,
+    PlusAExpr <$> aExpr,
+    MinusAExpr <$> aExpr,
+    SymbolicBinOpAExpr <$> prefixAExpr <*> symbolicExprBinOp <*> aExpr,
+    PrefixQualOpAExpr <$> qualOp <*> aExpr,
+    AndAExpr <$> prefixAExpr <*> aExpr,
+    OrAExpr <$> prefixAExpr <*> aExpr,
+    NotAExpr <$> aExpr,
+    VerbalExprBinOpAExpr <$> prefixAExpr <*> bool <*> verbalExprBinOp <*> prefixAExpr <*> maybe aExpr,
+    ReversableOpAExpr <$> prefixAExpr <*> bool <*> aExprReversableOp,
+    IsnullAExpr <$> prefixAExpr,
+    NotnullAExpr <$> prefixAExpr,
+    OverlapsAExpr <$> row <*> row,
+    SubqueryAExpr <$> prefixAExpr <*> subqueryOp <*> subType <*> choice [Left <$> selectWithParens, Right <$> nonSelectAExpr],
+    UniqueAExpr <$> selectWithParens
+  ]
+
+nonSelectAExpr = choice [
+    TypecastAExpr <$> prefixAExpr <*> typecastTypename,
+    CollateAExpr <$> prefixAExpr <*> anyName,
+    AtTimeZoneAExpr <$> prefixAExpr <*> aExpr,
+    PlusAExpr <$> aExpr,
+    MinusAExpr <$> aExpr,
+    SymbolicBinOpAExpr <$> prefixAExpr <*> symbolicExprBinOp <*> aExpr,
+    PrefixQualOpAExpr <$> qualOp <*> aExpr,
+    SuffixQualOpAExpr <$> prefixAExpr <*> qualOp,
+    AndAExpr <$> prefixAExpr <*> aExpr,
+    OrAExpr <$> prefixAExpr <*> aExpr,
+    NotAExpr <$> aExpr,
+    VerbalExprBinOpAExpr <$> prefixAExpr <*> bool <*> verbalExprBinOp <*> prefixAExpr <*> maybe aExpr,
+    ReversableOpAExpr <$> prefixAExpr <*> bool <*> aExprReversableOp,
+    IsnullAExpr <$> prefixAExpr,
+    NotnullAExpr <$> prefixAExpr,
+    OverlapsAExpr <$> row <*> row,
+    SubqueryAExpr <$> prefixAExpr <*> subqueryOp <*> subType <*> choice [Left <$> selectWithParens, Right <$> nonSelectAExpr],
     UniqueAExpr <$> selectWithParens
   ]
 
@@ -365,7 +409,7 @@ cExpr = recursive choice [
   ] [
     AexprConstCExpr <$> aexprConst,
     ParamCExpr <$> integral (Range.linear 1 19) <*> maybe indirection,
-    InParensCExpr <$> aExpr <*> maybe indirection,
+    InParensCExpr <$> nonSelectAExpr <*> maybe indirection,
     CaseCExpr <$> caseExpr,
     FuncCExpr <$> funcExpr,
     SelectWithParensCExpr <$> selectWithParens <*> maybe indirection,
@@ -532,8 +576,6 @@ symbolicExprBinOp = choice [
   ]
 
 binOp = element (toList HashSet.symbolicBinOp <> ["AND", "OR", "IS DISTINCT FROM", "IS NOT DISTINCT FROM"])
-
-escapableBinOp = element ["LIKE", "ILIKE", "SIMILAR TO"]
 
 verbalExprBinOp = enumBounded
 
@@ -703,18 +745,15 @@ keywordNotInSet = \ set -> notInSet set $ do
     startList = "abcdefghijklmnopqrstuvwxyz_" <> List.filter isLower (enumFromTo '\200' '\377')
     contList = startList <> "0123456789$"
 
-ident = choice [
-    QuotedIdent <$> text (Range.linear 1 30) quotedChar,
-    UnquotedIdent <$> keywordNotInSet HashSet.keyword
-  ]
+ident = identWithSet HashSet.keyword
 
-typeName = nameWithSet HashSet.typeFunctionName
+typeName = identWithSet HashSet.typeFunctionName
 
-name = nameWithSet HashSet.colId
+name = identWithSet HashSet.colId
 
-nameWithSet set = choice [
-    QuotedIdent <$> text (Range.linear 1 30) quotedChar,
-    UnquotedIdent <$> (keywordNotInSet . HashSet.difference HashSet.keyword) set
+identWithSet set = frequency [
+    (95,) $ UnquotedIdent <$> (keywordNotInSet . HashSet.difference HashSet.keyword) set,
+    (5,) $ QuotedIdent <$> text (Range.linear 1 30) quotedChar
   ]
 
 qualifiedName = choice [

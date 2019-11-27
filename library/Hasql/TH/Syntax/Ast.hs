@@ -1159,7 +1159,6 @@ data AexprConst =
   deriving (Show, Generic, Eq, Ord)
 
 {-
-  |  func_name Sconst
   |  func_name '(' func_arg_list opt_sort_clause ')' Sconst
 -}
 data FuncConstArgs = FuncConstArgs (NonEmpty FuncArgExpr) (Maybe SortClause)

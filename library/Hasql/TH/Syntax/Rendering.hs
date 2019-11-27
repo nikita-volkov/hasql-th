@@ -352,18 +352,18 @@ aExpr = \ case
   TypecastAExpr a b -> aExpr a <> " :: " <> typecastTypename b
   CollateAExpr a b -> aExpr a <> " COLLATE " <> anyName b
   AtTimeZoneAExpr a b -> aExpr a <> " AT TIME ZONE " <> aExpr b
-  PlusAExpr a -> "+" <> aExpr a
-  MinusAExpr a -> "-" <> aExpr a
+  PlusAExpr a -> "+ " <> aExpr a
+  MinusAExpr a -> "- " <> aExpr a
   SymbolicBinOpAExpr a b c -> aExpr a <> " " <> symbolicExprBinOp b <> " " <> aExpr c
-  PrefixQualOpAExpr a b -> qualOp a <> aExpr b
-  SuffixQualOpAExpr a b -> aExpr a <> qualOp b
+  PrefixQualOpAExpr a b -> qualOp a <> " " <> aExpr b
+  SuffixQualOpAExpr a b -> aExpr a <> " " <> qualOp b
   AndAExpr a b -> aExpr a <> " AND " <> aExpr b
   OrAExpr a b -> aExpr a <> " OR " <> aExpr b
   NotAExpr a -> "NOT " <> aExpr a
   VerbalExprBinOpAExpr a b c d e -> aExpr a <> " " <> verbalExprBinOp b c <> " " <> aExpr d <> foldMap (mappend " ESCAPE " . aExpr) e
-  ReversableOpAExpr a b c -> aExpr a <> aExprReversableOp b c
-  IsnullAExpr a -> "ISNULL " <> aExpr a
-  NotnullAExpr a -> "NOTNULL " <> aExpr a
+  ReversableOpAExpr a b c -> aExpr a <> " " <> aExprReversableOp b c
+  IsnullAExpr a -> aExpr a <> " ISNULL"
+  NotnullAExpr a -> aExpr a <> " NOTNULL"
   OverlapsAExpr a b -> row a <> " OVERLAPS " <> row b
   SubqueryAExpr a b c d -> aExpr a <> " " <> subqueryOp b <> " " <> subType c <> " " <> either selectWithParens (inParens . aExpr) d
   UniqueAExpr a -> "UNIQUE " <> selectWithParens a
@@ -372,10 +372,10 @@ aExpr = \ case
 bExpr = \ case
   CExprBExpr a -> cExpr a
   TypecastBExpr a b -> bExpr a <> " :: " <> typecastTypename b
-  PlusBExpr a -> "+" <> bExpr a
-  MinusBExpr a -> "-" <> bExpr a
+  PlusBExpr a -> "+ " <> bExpr a
+  MinusBExpr a -> "- " <> bExpr a
   SymbolicBinOpBExpr a b c -> bExpr a <> " " <> symbolicExprBinOp b <> " " <> bExpr c
-  QualOpBExpr a b -> qualOp a <> bExpr b
+  QualOpBExpr a b -> qualOp a <> " " <> bExpr b
   IsOpBExpr a b c -> bExpr a <> " " <> bExprIsOp b c
 
 cExpr = \ case
@@ -419,7 +419,7 @@ subqueryOp = \ case
   LikeSubqueryOp a -> bool "" "NOT " a <> "LIKE"
   IlikeSubqueryOp a -> bool "" "NOT " a <> "ILIKE"
 
-bExprIsOp a = mappend (bool "IS" "IS NOT" a) . \ case
+bExprIsOp a = mappend (bool "IS " "IS NOT " a) . \ case
   DistinctFromBExprIsOp b -> "DISTINCT FROM " <> bExpr b
   OfBExprIsOp a -> "OF " <> inParens (typeList a)
   DocumentBExprIsOp -> "DOCUMENT"

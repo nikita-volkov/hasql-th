@@ -745,15 +745,24 @@ BinOpExpr "=" (PlaceholderExpr 1) (BinOpExpr "AND" (TypecastExpr (PlaceholderExp
 aExpr = suffixRec base suffix where
   base = asum [
       DefaultAExpr <$ string' "default",
-      CExprAExpr <$> cExpr,
+      UniqueAExpr <$> (string' "unique" *> space1 *> selectWithParens),
+      OverlapsAExpr <$> wrapToHead row <*> (space1 *> string' "overlaps" *> space1 *> endHead *> row),
+      qualOpExpr aExpr PrefixQualOpAExpr,
       PlusAExpr <$> plusedExpr aExpr,
       MinusAExpr <$> minusedExpr aExpr,
-      qualOpExpr aExpr PrefixQualOpAExpr,
       NotAExpr <$> (string' "not" *> space1 *> aExpr),
-      OverlapsAExpr <$> (row <* endHead) <*> (space1 *> string' "overlaps" *> space1 *> row),
-      UniqueAExpr <$> selectWithParens
+      CExprAExpr <$> cExpr
     ]
   suffix a = asum [
+      do
+        space1
+        b <- wrapToHead subqueryOp
+        space1
+        c <- wrapToHead subType
+        space
+        d <- Left <$> wrapToHead selectWithParens <|> Right <$> inParens aExpr
+        return (SubqueryAExpr a b c d)
+      ,
       typecastExpr a TypecastAExpr
       ,
       CollateAExpr a <$> (space1 *> string' "collate" *> space1 *> endHead *> anyName)
@@ -762,7 +771,7 @@ aExpr = suffixRec base suffix where
       ,
       symbolicBinOpExpr a aExpr SymbolicBinOpAExpr
       ,
-      SuffixQualOpAExpr a <$> (space1 *> qualOp)
+      SuffixQualOpAExpr a <$> (space *> qualOp)
       ,
       AndAExpr a <$> (space1 *> string' "and" *> space1 *> endHead *> aExpr)
       ,
@@ -777,6 +786,7 @@ aExpr = suffixRec base suffix where
             SimilarToVerbalExprBinOp <$ keyphrase "similar to"
           ]
         space1
+        endHead
         d <- aExpr
         e <- optional (space1 *> string' "escape" *> space1 *> endHead *> aExpr)
         return (VerbalExprBinOpAExpr a b c d e)
@@ -799,6 +809,7 @@ aExpr = suffixRec base suffix where
         return (ReversableOpAExpr a b c)
       ,
       do
+        space1
         b <- trueIfPresent (string' "not" *> space1)
         string' "between"
         space1
@@ -816,6 +827,7 @@ aExpr = suffixRec base suffix where
         return (ReversableOpAExpr a b (c d e))
       ,
       do
+        space1
         b <- trueIfPresent (string' "not" *> space1)
         string' "in"
         space
@@ -825,24 +837,14 @@ aExpr = suffixRec base suffix where
       IsnullAExpr a <$ (space1 *> string' "isnull")
       ,
       NotnullAExpr a <$ (space1 *> string' "notnull")
-      ,
-      do
-        space1
-        b <- subqueryOp
-        space1
-        endHead
-        c <- subType
-        space
-        d <- Left <$> selectWithParens <|> Right <$> inParens aExpr
-        return (SubqueryAExpr a b c d)
     ]
 
 bExpr = suffixRec base suffix where
   base = asum [
-      CExprBExpr <$> cExpr,
+      qualOpExpr bExpr QualOpBExpr,
       PlusBExpr <$> plusedExpr bExpr,
       MinusBExpr <$> minusedExpr bExpr,
-      qualOpExpr bExpr QualOpBExpr
+      CExprBExpr <$> cExpr
     ]
   suffix a = asum [
       typecastExpr a TypecastBExpr,
@@ -882,19 +884,19 @@ cExpr = asum [
           fmap (fmap (ArrayCExpr . Left) . pure) selectWithParens
         ]
     ,
+    do
+      a <- wrapToHead selectWithParens
+      endHead
+      b <- optional (space *> indirection)
+      return (SelectWithParensCExpr a b)
+    ,
     InParensCExpr <$> (inParens aExpr <* endHead) <*> optional (space *> indirection)
     ,
-    AexprConstCExpr <$> aexprConst
+    AexprConstCExpr <$> wrapToHead aexprConst
     ,
     FuncCExpr <$> funcExpr
     ,
     ColumnrefCExpr <$> columnref
-    ,
-    do
-      a <- selectWithParens
-      endHead
-      b <- optional (space *> indirection)
-      return (SelectWithParensCExpr a b)
   ]
 
 
@@ -920,7 +922,7 @@ subType = asum [
 inExpr = SelectInExpr <$> selectWithParens <|> ExprListInExpr <$> inParens exprList
 
 symbolicBinOpExpr _a _bParser _constr = do
-  _binOp <- label "binary operator" (space *> symbolicExprBinOp <* space)
+  _binOp <- label "binary operator" (space *> wrapToHead symbolicExprBinOp <* space)
   _b <- _bParser
   return (_constr _a _binOp _b)
 
@@ -936,7 +938,7 @@ plusedExpr expr = char '+' *> space *> expr
 
 minusedExpr expr = char '-' *> space *> expr
 
-qualOpExpr expr constr = constr <$> wrapToHead qualOp <*> (space1 *> expr)
+qualOpExpr expr constr = constr <$> wrapToHead qualOp <*> (space *> expr)
 
 row = ExplicitRowRow <$> explicitRow <|> ImplicitRowRow <$> implicitRow
 
@@ -1033,13 +1035,13 @@ funcExprCommonSubExpr = asum [
     ,
     CurrentDateFuncExprCommonSubExpr <$ string' "current_date"
     ,
-    CurrentTimeFuncExprCommonSubExpr <$> labeledIconst "current_time"
-    ,
     CurrentTimestampFuncExprCommonSubExpr <$> labeledIconst "current_timestamp"
     ,
-    LocalTimeFuncExprCommonSubExpr <$> labeledIconst "localtime"
+    CurrentTimeFuncExprCommonSubExpr <$> labeledIconst "current_time"
     ,
     LocalTimestampFuncExprCommonSubExpr <$> labeledIconst "localtimestamp"
+    ,
+    LocalTimeFuncExprCommonSubExpr <$> labeledIconst "localtime"
     ,
     CurrentRoleFuncExprCommonSubExpr <$ string' "current_role"
     ,
@@ -1067,7 +1069,7 @@ funcExprCommonSubExpr = asum [
     ,
     inParensWithClause (string' "trim") (TrimFuncExprCommonSubExpr <$> optional (trimModifier <* space1) <*> trimList)
     ,
-    inParensWithClause (string' "nullif") (NullIfFuncExprCommonSubExpr <$> aExpr <*> (space1 *> aExpr))
+    inParensWithClause (string' "nullif") (NullIfFuncExprCommonSubExpr <$> aExpr <*> (commaSeparator *> aExpr))
     ,
     inParensWithClause (string' "coalesce") (CoalesceFuncExprCommonSubExpr <$> exprList)
     ,
@@ -1081,14 +1083,14 @@ funcExprCommonSubExpr = asum [
 extractList = ExtractList <$> extractArg <*> (space1 *> string' "FROM" *> space1 *> aExpr)
 
 extractArg = asum [
-    IdentExtractArg <$> ident,
     YearExtractArg <$ string' "year",
     MonthExtractArg <$ string' "month",
     DayExtractArg <$ string' "day",
     HourExtractArg <$ string' "hour",
     MinuteExtractArg <$ string' "minute",
     SecondExtractArg <$ string' "second",
-    SconstExtractArg <$> sconst
+    SconstExtractArg <$> sconst,
+    IdentExtractArg <$> ident
   ]
 
 overlayList = do
@@ -1110,10 +1112,25 @@ substrList = asum [
   ]
 
 substrListFromFor = asum [
-    FromForSubstrListFromFor <$> substrFrom <*> (space1 *> substrFor),
-    ForFromSubstrListFromFor <$> substrFor <*> (space1 *> substrFrom),
-    FromSubstrListFromFor <$> substrFrom,
-    ForSubstrListFromFor <$> substrFor
+    do
+      a <- substrFrom
+      asum [
+          do
+            b <- space1 *> substrFor
+            return (FromForSubstrListFromFor a b)
+          ,
+          return (FromSubstrListFromFor a)
+        ]
+    ,
+    do
+      a <- substrFor
+      asum [
+          do
+            b <- space1 *> substrFrom
+            return (ForFromSubstrListFromFor a b)
+          ,
+          return (ForSubstrListFromFor a)
+        ]
   ]
 
 substrFrom = string' "from" *> space1 *> endHead *> aExpr
@@ -1202,8 +1219,8 @@ funcArgExpr = asum [
 -------------------------
 
 symbolicExprBinOp =
-  MathSymbolicExprBinOp <$> mathOp <|>
-  QualSymbolicExprBinOp <$> qualOp
+  QualSymbolicExprBinOp <$> qualOp <|>
+  MathSymbolicExprBinOp <$> mathOp
 
 lexicalExprBinOp = asum $ fmap keyphrase $ ["and", "or", "is distinct from", "is not distinct from"]
 
@@ -1240,7 +1257,8 @@ mathOp = asum [
     PercentMathOp <$ char '%',
     ArrowUpMathOp <$ char '^',
     ArrowLeftMathOp <$ char '<',
-    ArrowRightMathOp <$ char '>'
+    ArrowRightMathOp <$ char '>',
+    EqualsMathOp <$ char '='
   ]
 
 
@@ -1310,7 +1328,7 @@ aexprConst = asum [
     ,
     BoolAexprConst False <$ string' "false"
     ,
-    NullAexprConst <$ string' "null"
+    NullAexprConst <$ string' "null" <* parse (Megaparsec.notFollowedBy MegaparsecChar.alphaNumChar)
     ,
     either IAexprConst FAexprConst <$> iconstOrFconst
     ,
@@ -1808,18 +1826,18 @@ typename =
 arrayBounds = sep1 space (inBrackets (optional iconst))
 
 simpleTypename = asum [
-    GenericTypeSimpleTypename <$> genericType,
-    NumericSimpleTypename <$> numeric,
-    BitSimpleTypename <$> bit,
-    CharacterSimpleTypename <$> character,
-    ConstDatetimeSimpleTypename <$> constDatetime,
     do
       string' "interval"
       endHead
       asum [
           ConstIntervalSimpleTypename <$> Right <$> (space *> inParens iconst),
-          ConstIntervalSimpleTypename <$> Left <$> (space *> optional interval)
-        ]
+          ConstIntervalSimpleTypename <$> Left <$> optional (space *> interval)
+        ],
+    NumericSimpleTypename <$> numeric,
+    BitSimpleTypename <$> bit,
+    CharacterSimpleTypename <$> character,
+    ConstDatetimeSimpleTypename <$> constDatetime,
+    GenericTypeSimpleTypename <$> genericType
   ]
 
 genericType = do

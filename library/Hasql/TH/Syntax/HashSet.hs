@@ -64,7 +64,7 @@ As per the following comment from the original scanner definition:
  */
 -}
 {-# NOINLINE nonOp #-}
-nonOp = fromList [">=", "<=", "=>", "<>", "!="]
+nonOp = fromList [">=", "<=", "=>", "<>", "!="] <> mathOp
 
 {-# NOINLINE mathOp #-}
-mathOp = fromList ["<>", ">=", "!=", "<=", "+", "-", "*", "/", "%", "^", "<", ">"]
+mathOp = fromList ["<>", ">=", "!=", "<=", "+", "-", "*", "/", "%", "^", "<", ">", "="]

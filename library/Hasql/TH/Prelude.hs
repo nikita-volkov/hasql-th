@@ -127,8 +127,8 @@ showAsText :: Show a => a -> Text
 showAsText = show >>> fromString
 
 {-|
-Compose a monad, which attempts to extend an value, based on the following input.
-It does that recursively until the suffix monad fails.
+Compose a monad, which attempts to extend a value, based on the following input.
+It does that recursively until the suffix alternative fails.
 -}
 suffixRec :: (Monad m, Alternative m) => m a -> (a -> m a) -> m a
 suffixRec base suffix = do
