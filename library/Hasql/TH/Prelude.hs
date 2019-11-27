@@ -1,7 +1,6 @@
 module Hasql.TH.Prelude
 ( 
   module Exports,
-  intersperseFoldMap1,
   showAsText,
   suffixRec,
 )
@@ -123,16 +122,6 @@ import Data.UUID as Exports (UUID)
 -------------------------
 import Data.CaseInsensitive as Exports (CI, FoldCase)
 
-
-{-|
->>> intersperseFoldMap1 ", " id (fromList ["a"])
-"a"
-
->>> intersperseFoldMap1 ", " id (fromList ["a", "b", "c"])
-"a, b, c"
--}
-intersperseFoldMap1 :: Monoid m => m -> (a -> m) -> NonEmpty a -> m
-intersperseFoldMap1 a b (c :| d) = b c <> foldMap (mappend a . b) d
 
 showAsText :: Show a => a -> Text
 showAsText = show >>> fromString

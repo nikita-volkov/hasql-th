@@ -13,19 +13,19 @@ import qualified Data.IntMap.Strict as IntMap
 >>> test = either fail (return . preparableStmt) . P.run P.preparableStmt
 
 >>> test "select $1 :: INT4"
-Right [Type (UnquotedName "int4") False 0 False]
+Right [TypecastTypename (UnquotedIdent "int4") False 0 False]
 
 >>> test "select $1 :: int4, a + $2 :: text[]?"
-Right [Type (UnquotedName "int4") False 0 False,Type (UnquotedName "text") False 1 True]
+Right [TypecastTypename (UnquotedIdent "int4") False 0 False,TypecastTypename (UnquotedIdent "text") False 1 True]
 
 >>> test "select $1 :: int4, a + $2 :: text?[]?"
-Right [Type (UnquotedName "int4") False 0 False,Type (UnquotedName "text") True 1 True]
+Right [TypecastTypename (UnquotedIdent "int4") False 0 False,TypecastTypename (UnquotedIdent "text") True 1 True]
 
 >>> test "select $1"
 Left "Placeholder $1 misses an explicit typecast"
 
 >>> test "select $2 :: int4, $1 :: int4, $2 :: int4"
-Right [Type (UnquotedName "int4") False 0 False,Type (UnquotedName "int4") False 0 False]
+Right [TypecastTypename (UnquotedIdent "int4") False 0 False,TypecastTypename (UnquotedIdent "int4") False 0 False]
 
 >>> test "select $1 :: int4, $1 :: text"
 Left "Placeholder $1 has conflicting type annotations"
@@ -37,10 +37,10 @@ Left "Placeholder $2 has conflicting type annotations"
 Left "You've missed placeholder $2"
 
 -}
-preparableStmt :: PreparableStmt -> Either Text [Type]
+preparableStmt :: PreparableStmt -> Either Text [TypecastTypename]
 preparableStmt = placeholderTypeMap <=< PlaceholderTypeMap.preparableStmt
 
-placeholderTypeMap :: IntMap Type -> Either Text [Type]
+placeholderTypeMap :: IntMap TypecastTypename -> Either Text [TypecastTypename]
 placeholderTypeMap a = do
   zipWithM (\ a b -> if a == b then Right () else Left ("You've missed placeholder $" <> showAsText b))
     (IntMap.keys a) [1..]

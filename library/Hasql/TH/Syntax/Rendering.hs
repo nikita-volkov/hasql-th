@@ -1,8 +1,9 @@
 module Hasql.TH.Syntax.Rendering where
 
-import Hasql.TH.Prelude hiding (expr, try, option, many, sortBy, bit)
+import Hasql.TH.Prelude hiding (aExpr, try, option, many, sortBy, bit)
 import Hasql.TH.Syntax.Ast
 import Data.ByteString.FastBuilder
+import qualified Hasql.TH.Extras.NonEmpty as NonEmpty
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
@@ -27,10 +28,10 @@ text :: Text -> Builder
 text = stringUtf8 . Text.unpack
 
 commaNonEmpty :: (a -> Builder) -> NonEmpty a -> Builder
-commaNonEmpty = intersperseFoldMap1 ", "
+commaNonEmpty = NonEmpty.intersperseFoldMap ", "
 
 spaceNonEmpty :: (a -> Builder) -> NonEmpty a -> Builder
-spaceNonEmpty = intersperseFoldMap1 " "
+spaceNonEmpty = NonEmpty.intersperseFoldMap " "
 
 lexemes :: [Builder] -> Builder
 lexemes = mconcat . intersperse " "
@@ -48,16 +49,13 @@ inBrackets a = "[" <> a <> "]"
 -- * Select
 -------------------------
 
-preparableStmt :: PreparableStmt -> Builder
 preparableStmt = \ case
   SelectPreparableStmt a -> selectStmt a
 
-selectStmt :: SelectStmt -> Builder
 selectStmt = \ case
   Left a -> selectNoParens a
   Right a -> selectWithParens a
 
-selectNoParens :: SelectNoParens -> Builder
 selectNoParens (SelectNoParens a b c d e) =
   optLexemes
     [
@@ -78,8 +76,8 @@ withClause (WithClause a b) =
 commonTableExpr (CommonTableExpr a b c d) =
   optLexemes
     [
-      Just (name a),
-      fmap (inParens . commaNonEmpty name) b,
+      Just (ident a),
+      fmap (inParens . commaNonEmpty ident) b,
       Just "AS",
       fmap materialization c,
       Just (inParens (preparableStmt d))
@@ -94,7 +92,7 @@ selectLimit = \ case
   OffsetSelectLimit a -> offsetClause a
 
 limitClause = \ case
-  LimitLimitClause a b -> "LIMIT " <> selectLimitValue a <> foldMap (mappend ", " . expr) b
+  LimitLimitClause a b -> "LIMIT " <> selectLimitValue a <> foldMap (mappend ", " . aExpr) b
   FetchOnlyLimitClause a b c ->
     optLexemes
       [
@@ -110,17 +108,17 @@ firstOrNext = bool "FIRST" "NEXT"
 rowOrRows = bool "ROW" "ROWS"
 
 selectFetchFirstValue = \ case
-  ExprSelectFetchFirstValue a -> expr a
+  ExprSelectFetchFirstValue a -> cExpr a
   NumSelectFetchFirstValue a b -> bool "+" "-" a <> intOrFloat b
 
 intOrFloat = either int64Dec doubleDec
 
 selectLimitValue = \ case
-  ExprSelectLimitValue a -> expr a
+  ExprSelectLimitValue a -> aExpr a
   AllSelectLimitValue -> "ALL"
 
 offsetClause = \ case
-  ExprOffsetClause a -> "OFFSET " <> expr a
+  ExprOffsetClause a -> "OFFSET " <> aExpr a
   FetchFirstOffsetClause a b -> "OFFSET " <> selectFetchFirstValue a <> " " <> rowOrRows b
 
 forLockingClause = \ case
@@ -145,10 +143,8 @@ lockedRelsList a = "OF " <> commaNonEmpty qualifiedName a
 
 nowaitOrSkip = bool "NOWAIT" "SKIP LOCKED"
 
-selectClause :: SelectClause -> Builder
 selectClause = either simpleSelect selectWithParens
 
-simpleSelect :: SimpleSelect -> Builder
 simpleSelect = \ case
   NormalSimpleSelect a b c d e f g ->
     optLexemes
@@ -170,30 +166,25 @@ selectBinOp = \ case
   IntersectSelectBinOp -> "INTERSECT"
   ExceptSelectBinOp -> "EXCEPT"
 
-targeting :: Targeting -> Builder
 targeting = \ case
   NormalTargeting a -> commaNonEmpty target a
   AllTargeting a -> "ALL" <> foldMap (mappend " " . commaNonEmpty target) a
   DistinctTargeting a b -> "DISTINCT" <> foldMap (mappend " " . onExpressionsClause) a <> " " <> commaNonEmpty target b
 
-onExpressionsClause :: NonEmpty Expr -> Builder
-onExpressionsClause a = "ON (" <> commaNonEmpty expr a <> ")"
+onExpressionsClause a = "ON (" <> commaNonEmpty aExpr a <> ")"
 
-target :: Target -> Builder
 target = \ case
-  AliasedExprTarget a b -> expr a <> " AS " <> name b
-  ImplicitlyAliasedExprTarget a b -> expr a <> " " <> name b
-  ExprTarget a -> expr a
+  AliasedExprTarget a b -> aExpr a <> " AS " <> ident b
+  ImplicitlyAliasedExprTarget a b -> aExpr a <> " " <> ident b
+  ExprTarget a -> aExpr a
   AsteriskTarget -> "*"
 
 
 -- * Select Into
 -------------------------
 
-intoClause :: IntoClause -> Builder
 intoClause a = "INTO " <> optTempTableName a
 
-optTempTableName :: OptTempTableName -> Builder
 optTempTableName = \ case
   TemporaryOptTempTableName a b -> optLexemes [Just "TEMPORARY", bool Nothing (Just "TABLE") a, Just (qualifiedName b)]
   TempOptTempTableName a b -> optLexemes [Just "TEMP", bool Nothing (Just "TABLE") a, Just (qualifiedName b)]
@@ -209,10 +200,8 @@ optTempTableName = \ case
 -- * From
 -------------------------
 
-fromClause :: FromClause -> Builder
 fromClause a = "FROM " <> commaNonEmpty tableRef a
 
-tableRef :: TableRef -> Builder
 tableRef = \ case
   RelationExprTableRef a b ->
     optLexemes
@@ -231,21 +220,18 @@ tableRef = \ case
     Just c -> inParens (joinedTable a) <> " " <> aliasClause c
     Nothing -> joinedTable a
 
-relationExpr :: RelationExpr -> Builder
 relationExpr = \ case
   SimpleRelationExpr a b -> qualifiedName a <> bool "" " *" b
   OnlyRelationExpr a b -> "ONLY " <> bool qualifiedName (inParens . qualifiedName) b a
 
-aliasClause :: AliasClause -> Builder
 aliasClause (AliasClause a b) =
   optLexemes
     [
       Just "AS",
-      Just (name a),
-      fmap (inParens . commaNonEmpty name) b
+      Just (ident a),
+      fmap (inParens . commaNonEmpty ident) b
     ]
 
-joinedTable :: JoinedTable -> Builder
 joinedTable = \ case
   InParensJoinedTable a -> inParens (joinedTable a)
   MethJoinedTable a b c -> case a of
@@ -253,71 +239,60 @@ joinedTable = \ case
     QualJoinMeth d e -> tableRef b <> foldMap (mappend " " . joinType) d <> " JOIN " <> tableRef c <> " " <> joinQual e
     NaturalJoinMeth d -> tableRef b <> " NATURAL" <> foldMap (mappend " " . joinType) d <> " JOIN " <> tableRef c
 
-joinType :: JoinType -> Builder
 joinType = \ case
   FullJoinType a -> "FULL" <> if a then " OUTER" else ""
   LeftJoinType a -> "LEFT" <> if a then " OUTER" else ""
   RightJoinType a -> "RIGHT" <> if a then " OUTER" else ""
   InnerJoinType -> "INNER"
 
-joinQual :: JoinQual -> Builder
 joinQual = \ case
-  UsingJoinQual a -> "USING (" <> commaNonEmpty name a <> ")" 
-  OnJoinQual a -> "ON " <> expr a
+  UsingJoinQual a -> "USING (" <> commaNonEmpty ident a <> ")" 
+  OnJoinQual a -> "ON " <> aExpr a
 
 
 -- * Where
 -------------------------
 
-whereClause :: Expr -> Builder
-whereClause a = "WHERE " <> expr a
+whereClause a = "WHERE " <> aExpr a
 
 
 -- * Group By
 -------------------------
 
-groupClause :: GroupClause -> Builder
 groupClause a = "GROUP BY " <> commaNonEmpty groupByItem a
 
-groupByItem :: GroupByItem -> Builder
 groupByItem = \ case
-  ExprGroupByItem a -> expr a
+  ExprGroupByItem a -> aExpr a
   EmptyGroupingSetGroupByItem -> "()"
-  RollupGroupByItem a -> "ROLLUP (" <> commaNonEmpty expr a <> ")"
-  CubeGroupByItem a -> "CUBE (" <> commaNonEmpty expr a <> ")"
+  RollupGroupByItem a -> "ROLLUP (" <> commaNonEmpty aExpr a <> ")"
+  CubeGroupByItem a -> "CUBE (" <> commaNonEmpty aExpr a <> ")"
   GroupingSetsGroupByItem a -> "GROUPING SETS (" <> commaNonEmpty groupByItem a <> ")"
 
 
 -- * Having
 -------------------------
 
-havingClause :: Expr -> Builder
-havingClause a = "HAVING " <> expr a
+havingClause a = "HAVING " <> aExpr a
 
 
 -- * Window
 -------------------------
 
-windowClause :: NonEmpty WindowDefinition -> Builder
 windowClause a = "WINDOW " <> commaNonEmpty windowDefinition a
 
-windowDefinition :: WindowDefinition -> Builder
-windowDefinition (WindowDefinition a b) = name a <> " AS " <> windowSpecification b
+windowDefinition (WindowDefinition a b) = ident a <> " AS " <> windowSpecification b
 
-windowSpecification :: WindowSpecification -> Builder
 windowSpecification (WindowSpecification a b c d) =
   inParens $ optLexemes
     [
-      fmap name a,
+      fmap ident a,
       fmap partitionClause b,
       fmap sortClause c,
       fmap frameClause d
     ]
 
-partitionClause :: NonEmpty Expr -> Builder
-partitionClause a = "PARTITION BY " <> commaNonEmpty expr a
+partitionClause a = "PARTITION BY " <> commaNonEmpty aExpr a
 
-frameClause :: FrameClause -> Builder
 frameClause (FrameClause a b c) =
   optLexemes
     [
@@ -326,26 +301,22 @@ frameClause (FrameClause a b c) =
       fmap windowExclusionCause c
     ]
 
-frameClauseMode :: FrameClauseMode -> Builder
 frameClauseMode = \ case
   RangeFrameClauseMode -> "RANGE"
   RowsFrameClauseMode -> "ROWS"
   GroupsFrameClauseMode -> "GROUPS"
 
-frameExtent :: FrameExtent -> Builder
 frameExtent = \ case
   SingularFrameExtent a -> frameBound a
   BetweenFrameExtent a b -> "BETWEEN " <> frameBound a <> " AND " <> frameBound b
 
-frameBound :: FrameBound -> Builder
 frameBound = \ case
   UnboundedPrecedingFrameBound -> "UNBOUNDED PRECEDING"
   UnboundedFollowingFrameBound -> "UNBOUNDED FOLLOWING"
   CurrentRowFrameBound -> "CURRENT ROW"
-  PrecedingFrameBound a -> expr a <> " PRECEDING"
-  FollowingFrameBound a -> expr a <> " FOLLOWING"
+  PrecedingFrameBound a -> aExpr a <> " PRECEDING"
+  FollowingFrameBound a -> aExpr a <> " FOLLOWING"
 
-windowExclusionCause :: WindowExclusionClause -> Builder
 windowExclusionCause = \ case
   CurrentRowWindowExclusionClause -> "EXCLUDE CURRENT ROW"
   GroupWindowExclusionClause -> "EXCLUDE GROUP"
@@ -356,13 +327,10 @@ windowExclusionCause = \ case
 -- * Order By
 -------------------------
 
-sortClause :: NonEmpty SortBy -> Builder
 sortClause a = "ORDER BY " <> commaNonEmpty sortBy a
 
-sortBy :: SortBy -> Builder
-sortBy (SortBy a b) = optLexemes [Just (expr a), fmap order b]
+sortBy (SortBy a b) = optLexemes [Just (aExpr a), fmap order b]
 
-order :: Order -> Builder
 order = \ case
   AscOrder -> "ASC"
   DescOrder -> "DESC"
@@ -371,49 +339,94 @@ order = \ case
 -- * Values
 -------------------------
 
-valuesClause :: ValuesClause -> Builder
-valuesClause a = "VALUES " <> commaNonEmpty (inParens . commaNonEmpty expr) a
+valuesClause a = "VALUES " <> commaNonEmpty (inParens . commaNonEmpty aExpr) a
 
 
--- * Expr
+-- * Exprs
 -------------------------
 
 exprList = commaNonEmpty aExpr
 
-aExpr = expr
-bExpr = expr
-cExpr = expr
+aExpr = \ case
+  CExprAExpr a -> cExpr a
+  TypecastAExpr a b -> aExpr a <> " :: " <> typecastTypename b
+  CollateAExpr a b -> aExpr a <> " COLLATE " <> anyName b
+  AtTimeZoneAExpr a b -> aExpr a <> " AT TIME ZONE " <> aExpr b
+  PlusAExpr a -> "+" <> aExpr a
+  MinusAExpr a -> "-" <> aExpr a
+  SymbolicBinOpAExpr a b c -> aExpr a <> " " <> symbolicExprBinOp b <> " " <> aExpr c
+  PrefixQualOpAExpr a b -> qualOp a <> aExpr b
+  SuffixQualOpAExpr a b -> aExpr a <> qualOp b
+  AndAExpr a b -> aExpr a <> " AND " <> aExpr b
+  OrAExpr a b -> aExpr a <> " OR " <> aExpr b
+  NotAExpr a -> "NOT " <> aExpr a
+  VerbalExprBinOpAExpr a b c d e -> aExpr a <> " " <> verbalExprBinOp b c <> " " <> aExpr d <> foldMap (mappend " ESCAPE " . aExpr) e
+  ReversableOpAExpr a b c -> aExpr a <> aExprReversableOp b c
+  IsnullAExpr a -> "ISNULL " <> aExpr a
+  NotnullAExpr a -> "NOTNULL " <> aExpr a
+  OverlapsAExpr a b -> row a <> " OVERLAPS " <> row b
+  SubqueryAExpr a b c d -> aExpr a <> " " <> subqueryOp b <> " " <> subType c <> " " <> either selectWithParens (inParens . aExpr) d
+  UniqueAExpr a -> "UNIQUE " <> selectWithParens a
+  DefaultAExpr -> "DEFAULT"
 
-expr :: Expr -> Builder
-expr = \ case
-  PlaceholderExpr a -> "$" <> intDec a
-  TypecastExpr a b -> expr a <> " :: " <> type_ b
-  BinOpExpr a b c -> expr b <> " " <> text a <> " " <> expr c
-  EscapableBinOpExpr a b c d e -> optLexemes [
-      Just (expr c),
-      if a then Just "NOT" else Nothing,
-      Just (text b),
-      Just (expr d),
-      fmap (mappend "ESCAPE " . expr) e
-    ]
-  DefaultExpr -> "DEFAULT"
-  QualifiedNameExpr a -> qualifiedName a
-  LiteralExpr a -> literal a
-  InParensExpr a b -> either (inParens . expr) selectWithParens a <> foldMap indirection b
-  CaseExpr a b c -> optLexemes [
-      Just "CASE",
-      fmap expr a,
-      Just (spaceNonEmpty whenClause b),
-      fmap caseDefault c,
-      Just "END"
-    ]
-  FuncExpr a -> funcExpr a
-  ExistsSelectExpr a -> "EXISTS " <> selectWithParens a
-  ArraySelectExpr a -> "ARRAY " <> selectWithParens a
-  GroupingExpr a -> "GROUPING " <> inParens (commaNonEmpty expr a)
-  PlusedExpr a -> "+ " <> expr a
-  MinusedExpr a -> "- " <> expr a
-  QualOpExpr a b -> qualOp a <> " " <> expr b
+bExpr = \ case
+  CExprBExpr a -> cExpr a
+  TypecastBExpr a b -> bExpr a <> " :: " <> typecastTypename b
+  PlusBExpr a -> "+" <> bExpr a
+  MinusBExpr a -> "-" <> bExpr a
+  SymbolicBinOpBExpr a b c -> bExpr a <> " " <> symbolicExprBinOp b <> " " <> bExpr c
+  QualOpBExpr a b -> qualOp a <> bExpr b
+  IsOpBExpr a b c -> bExpr a <> " " <> bExprIsOp b c
+
+cExpr = \ case
+  ColumnrefCExpr a -> columnref a
+  AexprConstCExpr a -> aexprConst a
+  ParamCExpr a b -> "$" <> intDec a <> foldMap indirection b
+  InParensCExpr a b -> inParens (aExpr a) <> foldMap indirection b
+  CaseCExpr a -> caseExpr a
+  FuncCExpr a -> funcExpr a
+  SelectWithParensCExpr a b -> selectWithParens a <> foldMap indirection b
+  ExistsCExpr a -> "EXISTS " <> selectWithParens a
+  ArrayCExpr a -> "ARRAY " <> either selectWithParens arrayExpr a
+  ExplicitRowCExpr a -> explicitRow a
+  ImplicitRowCExpr a -> implicitRow a
+  GroupingCExpr a -> "GROUPING " <> inParens (exprList a)
+
+
+-- * Ops
+-------------------------
+
+aExprReversableOp a = \ case
+  NullAExprReversableOp -> bool "IS " "IS NOT " a <> "NULL"
+  TrueAExprReversableOp -> bool "IS " "IS NOT " a <> "TRUE"
+  FalseAExprReversableOp -> bool "IS " "IS NOT " a <> "FALSE"
+  UnknownAExprReversableOp -> bool "IS " "IS NOT " a <> "UNKNOWN"
+  DistinctFromAExprReversableOp b -> bool "IS " "IS NOT " a <> "DISTINCT FROM " <> aExpr b
+  OfAExprReversableOp b -> bool "IS " "IS NOT " a <> "OF " <> inParens (typeList b)
+  BetweenAExprReversableOp b c d -> bool "" "NOT " a <> bool "BETWEEN " "BETWEEN ASYMMETRIC " b <> bExpr c <> " AND " <> aExpr d
+  BetweenSymmetricAExprReversableOp b c -> bool "" "NOT " a <> "BETWEEN SYMMETRIC " <> bExpr b <> " AND " <> aExpr c
+  InAExprReversableOp b -> bool "" "NOT " a <> "IN " <> inExpr b
+  DocumentAExprReversableOp -> bool "IS " "IS NOT " a <> "DOCUMENT"
+
+verbalExprBinOp a = mappend (bool "" "NOT " a) . \ case
+  LikeVerbalExprBinOp -> "LIKE"
+  IlikeVerbalExprBinOp -> "ILIKE"
+  SimilarToVerbalExprBinOp -> "SIMILAR TO"
+
+subqueryOp = \ case
+  AllSubqueryOp a -> allOp a
+  AnySubqueryOp a -> "OPERATOR " <> inParens (anyOperator a)
+  LikeSubqueryOp a -> bool "" "NOT " a <> "LIKE"
+  IlikeSubqueryOp a -> bool "" "NOT " a <> "ILIKE"
+
+bExprIsOp a = mappend (bool "IS" "IS NOT" a) . \ case
+  DistinctFromBExprIsOp b -> "DISTINCT FROM " <> bExpr b
+  OfBExprIsOp a -> "OF " <> inParens (typeList a)
+  DocumentBExprIsOp -> "DOCUMENT"
+
+symbolicExprBinOp = \ case
+  MathSymbolicExprBinOp a -> mathOp a
+  QualSymbolicExprBinOp a -> qualOp a
 
 qualOp = \ case
   OpQualOp a -> op a
@@ -444,22 +457,44 @@ mathOp = \ case
   ArrowLeftArrowRightMathOp -> "<>"
   ExclamationEqualsMathOp -> "!="
 
-type_ :: Type -> Builder
-type_ (Type a _ b _) =
-  name a <>
-  fold (replicate b "[]")
 
-whenClause :: WhenClause -> Builder
-whenClause (WhenClause a b) = "WHEN " <> expr a <> " THEN " <> expr b
+-- *
+-------------------------
 
-caseDefault :: Expr -> Builder
-caseDefault a = "ELSE " <> expr a
+inExpr = \ case
+  SelectInExpr a -> selectWithParens a
+  ExprListInExpr a -> inParens (exprList a)
 
-funcApplication :: FuncApplication -> Builder
+caseExpr (CaseExpr a b c) = optLexemes [
+    Just "CASE",
+    fmap aExpr a,
+    Just (spaceNonEmpty whenClause b),
+    fmap caseDefault c,
+    Just "END"
+  ]
+
+whenClause (WhenClause a b) = "WHEN " <> aExpr a <> " THEN " <> aExpr b
+
+caseDefault a = "ELSE " <> aExpr a
+
+arrayExpr = inBrackets . \ case
+  ExprListArrayExpr a -> exprList a
+  ArrayExprListArrayExpr a -> arrayExprList a
+  EmptyArrayExpr -> mempty
+
+arrayExprList = commaNonEmpty arrayExpr
+
+row = \ case
+  ExplicitRowRow a -> explicitRow a
+  ImplicitRowRow a -> implicitRow a
+
+explicitRow a = "ROW " <> inParens (foldMap exprList a)
+
+implicitRow (ImplicitRow a b) = inParens (exprList a <> ", " <> aExpr b)
+
 funcApplication (FuncApplication a b) =
-  qualifiedName a <> "(" <> foldMap funcApplicationParams b <> ")"
+  funcName a <> "(" <> foldMap funcApplicationParams b <> ")"
 
-funcApplicationParams :: FuncApplicationParams -> Builder
 funcApplicationParams = \ case
   NormalFuncApplicationParams a b c ->
     optLexemes
@@ -478,16 +513,14 @@ funcApplicationParams = \ case
       ]
   StarFuncApplicationParams -> "*"
 
-allOrDistinct :: Bool -> Builder
 allOrDistinct = \ case
   False -> "ALL"
   True -> "DISTINCT"
 
-funcArgExpr :: FuncArgExpr -> Builder
 funcArgExpr = \ case
-  ExprFuncArgExpr a -> expr a
-  ColonEqualsFuncArgExpr a b -> name a <> " := " <> expr b
-  EqualsGreaterFuncArgExpr a b -> name a <> " => " <> expr b
+  ExprFuncArgExpr a -> aExpr a
+  ColonEqualsFuncArgExpr a b -> ident a <> " := " <> aExpr b
+  EqualsGreaterFuncArgExpr a b -> ident a <> " => " <> aExpr b
 
 -- ** Func Expr
 -------------------------
@@ -503,14 +536,14 @@ funcExpr = \ case
 
 withinGroupClause a = "WITHIN GROUP (" <> sortClause a <> ")"
 
-filterClause a = "FILTER (WHERE " <> expr a <> ")"
+filterClause a = "FILTER (WHERE " <> aExpr a <> ")"
 
 overClause = \ case
   WindowOverClause a -> "OVER " <> windowSpecification a
   ColIdOverClause a -> "OVER " <> colId a
 
 funcExprCommonSubExpr = \ case
-  CollationForFuncExprCommonSubExpr a -> "COLLATION FOR (" <> expr a <> ")"
+  CollationForFuncExprCommonSubExpr a -> "COLLATION FOR (" <> aExpr a <> ")"
   CurrentDateFuncExprCommonSubExpr -> "CURRENT_DATE"
   CurrentTimeFuncExprCommonSubExpr a -> "CURRENT_TIME" <> foldMap (mappend " " . inParens . iconst) a
   CurrentTimestampFuncExprCommonSubExpr a -> "CURRENT_TIMESTAMP" <> foldMap (mappend " " . inParens . iconst) a
@@ -522,14 +555,14 @@ funcExprCommonSubExpr = \ case
   UserFuncExprCommonSubExpr -> "USER"
   CurrentCatalogFuncExprCommonSubExpr -> "CURRENT_CATALOG"
   CurrentSchemaFuncExprCommonSubExpr -> "CURRENT_SCHEMA"
-  CastFuncExprCommonSubExpr a b -> "CAST (" <> expr a <> " AS " <> typename b <> ")"
+  CastFuncExprCommonSubExpr a b -> "CAST (" <> aExpr a <> " AS " <> typename b <> ")"
   ExtractFuncExprCommonSubExpr a -> "EXTRACT (" <> foldMap extractList a <> ")"
   OverlayFuncExprCommonSubExpr a -> "OVERLAY (" <> overlayList a <> ")"
   PositionFuncExprCommonSubExpr a -> "POSITION (" <> foldMap positionList a <> ")"
   SubstringFuncExprCommonSubExpr a -> "SUBSTRING (" <> foldMap substrList a <> ")"
-  TreatFuncExprCommonSubExpr a b -> "TREAT (" <> expr a <> " AS " <> typename b <> ")"
+  TreatFuncExprCommonSubExpr a b -> "TREAT (" <> aExpr a <> " AS " <> typename b <> ")"
   TrimFuncExprCommonSubExpr a b -> "TRIM (" <> foldMap (flip mappend " " . trimModifier) a <> trimList b <> ")"
-  NullIfFuncExprCommonSubExpr a b -> "NULLIF (" <> expr a <> ", " <> expr b <> ")"
+  NullIfFuncExprCommonSubExpr a b -> "NULLIF (" <> aExpr a <> ", " <> aExpr b <> ")"
   CoalesceFuncExprCommonSubExpr a -> "COALESCE (" <> exprList a <> ")"
   GreatestFuncExprCommonSubExpr a -> "GREATEST (" <> exprList a <> ")"
   LeastFuncExprCommonSubExpr a -> "LEAST (" <> exprList a <> ")"
@@ -577,22 +610,21 @@ trimList = \ case
   ExprListTrimList a -> exprList a
 
 
--- * Literals
+-- * AexprConsts
 -------------------------
 
-literal :: Literal -> Builder
-literal = \ case
-  IntLiteral a -> iconst a
-  FloatLiteral a -> fconst a
-  StringLiteral a -> sconst a
-  BitLiteral a -> "B'" <> text a <> "'"
-  HexLiteral a -> "X'" <> text a <> "'"
-  FuncLiteral a b c -> qualifiedName a <> foldMap (inParens . funcLiteralArgList) b <> " " <> sconst c
-  ConstTypenameLiteral a b -> constTypename a <> " " <> sconst b
-  StringIntervalLiteral a b -> "INTERVAL " <> sconst a <> foldMap (mappend " " . interval) b
-  IntIntervalLiteral a b -> "INTERVAL " <> inParens (int64Dec a) <> " " <> sconst b
-  BoolLiteral a -> if a then "TRUE" else "FALSE"
-  NullLiteral -> "NULL"
+aexprConst = \ case
+  IAexprConst a -> iconst a
+  FAexprConst a -> fconst a
+  SAexprConst a -> sconst a
+  BAexprConst a -> "B'" <> text a <> "'"
+  XAexprConst a -> "X'" <> text a <> "'"
+  FuncAexprConst a b c -> funcName a <> foldMap (inParens . funcAexprConstArgList) b <> " " <> sconst c
+  ConstTypenameAexprConst a b -> constTypename a <> " " <> sconst b
+  StringIntervalAexprConst a b -> "INTERVAL " <> sconst a <> foldMap (mappend " " . interval) b
+  IntIntervalAexprConst a b -> "INTERVAL " <> inParens (int64Dec a) <> " " <> sconst b
+  BoolAexprConst a -> if a then "TRUE" else "FALSE"
+  NullAexprConst -> "NULL"
 
 iconst = int64Dec
 
@@ -600,7 +632,7 @@ fconst = doubleDec
 
 sconst a = "'" <> text (Text.replace "'" "''" a) <> "'"
 
-funcLiteralArgList (FuncLiteralArgList a b) = commaNonEmpty funcArgExpr a <> foldMap (mappend " " . sortClause) b
+funcAexprConstArgList (FuncConstArgs a b) = commaNonEmpty funcArgExpr a <> foldMap (mappend " " . sortClause) b
 
 constTypename = \ case
   NumericConstTypename a -> numeric a
@@ -616,15 +648,15 @@ numeric = \ case
   RealNumeric -> "REAL"
   FloatNumeric a -> "FLOAT" <> foldMap (mappend " " . inParens . int64Dec) a
   DoublePrecisionNumeric -> "DOUBLE PRECISION"
-  DecimalNumeric a -> "DECIMAL" <> foldMap (mappend " " . inParens . commaNonEmpty expr) a
-  DecNumeric a -> "DEC" <> foldMap (mappend " " . inParens . commaNonEmpty expr) a
-  NumericNumeric a -> "NUMERIC" <> foldMap (mappend " " . inParens . commaNonEmpty expr) a
+  DecimalNumeric a -> "DECIMAL" <> foldMap (mappend " " . inParens . commaNonEmpty aExpr) a
+  DecNumeric a -> "DEC" <> foldMap (mappend " " . inParens . commaNonEmpty aExpr) a
+  NumericNumeric a -> "NUMERIC" <> foldMap (mappend " " . inParens . commaNonEmpty aExpr) a
   BooleanNumeric -> "BOOLEAN"
 
 bit (Bit a b) = optLexemes [
     Just "BIT",
     bool Nothing (Just "VARYING") a,
-    fmap (inParens . commaNonEmpty expr) b
+    fmap (inParens . commaNonEmpty aExpr) b
   ]
 
 constBit = bit
@@ -655,7 +687,6 @@ timezone = \ case
   False -> "WITH TIME ZONE"
   True -> "WITHOUT TIME ZONE"
 
-interval :: Interval -> Builder
 interval = \ case
   YearInterval -> "YEAR"
   MonthInterval -> "MONTH"
@@ -671,7 +702,6 @@ interval = \ case
   HourToSecondInterval a -> "HOUR TO " <> intervalSecond a
   MinuteToSecondInterval a -> "MINUTE TO " <> intervalSecond a
 
-intervalSecond :: IntervalSecond -> Builder
 intervalSecond = \ case
   Nothing -> "SECOND" 
   Just a -> "SECOND " <> inParens (int64Dec a)
@@ -680,39 +710,45 @@ intervalSecond = \ case
 -- * Names and refs
 -------------------------
 
-name :: Name -> Builder
-name = \ case
-  QuotedName a -> char7 '"' <> text (Text.replace "\"" "\"\"" a) <> char7 '"'
-  UnquotedName a -> text a
+columnref (Columnref a b) = colId a <> foldMap indirection b
 
-qualifiedName :: QualifiedName -> Builder
+ident = \ case
+  QuotedIdent a -> char7 '"' <> text (Text.replace "\"" "\"\"" a) <> char7 '"'
+  UnquotedIdent a -> text a
+
 qualifiedName = \ case
-  SimpleQualifiedName a -> name a
-  IndirectedQualifiedName a b -> name a <> indirection b
+  SimpleQualifiedName a -> ident a
+  IndirectedQualifiedName a b -> ident a <> indirection b
 
-indirection :: Indirection -> Builder
 indirection = foldMap indirectionEl
 
-indirectionEl :: IndirectionEl -> Builder
 indirectionEl = \ case
-  AttrNameIndirectionEl a -> "." <> name a
+  AttrNameIndirectionEl a -> "." <> ident a
   AllIndirectionEl -> ".*"
-  ExprIndirectionEl a -> "[" <> expr a <> "]"
-  SliceIndirectionEl a b -> "[" <> foldMap expr a <> ":" <> foldMap expr b <> "]"
+  ExprIndirectionEl a -> "[" <> aExpr a <> "]"
+  SliceIndirectionEl a b -> "[" <> foldMap aExpr a <> ":" <> foldMap aExpr b <> "]"
 
-ident = name
+colId = ident
 
-colId = name
-
-colLabel = name
+colLabel = ident
 
 attrName = colLabel
 
-typeFunctionName = name
+typeFunctionName = ident
+
+funcName = \ case
+  TypeFuncName a -> typeFunctionName a
+  IndirectedFuncName a b -> colId a <> indirection b
+
+anyName (AnyName a b) = colId a <> foldMap attrs b
 
 
--- * Typename
+-- * Types
 -------------------------
+
+typecastTypename (TypecastTypename a _ b _) =
+  ident a <>
+  fold (replicate b "[]")
 
 typename = \ case
   ArrayBoundsTypename a b c ->
@@ -735,3 +771,10 @@ genericType (GenericType a b c) = typeFunctionName a <> foldMap attrs b <> foldM
 attrs = foldMap (mappend "." . attrName)
 
 typeModifiers = inParens . exprList
+
+typeList = commaNonEmpty typename
+
+subType = \ case
+  AnySubType -> "ANY"
+  SomeSubType -> "SOME"
+  AllSubType -> "ALL"

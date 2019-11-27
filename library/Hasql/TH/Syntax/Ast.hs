@@ -114,7 +114,7 @@ distinct_clause:
 data Targeting =
   NormalTargeting (NonEmpty Target) |
   AllTargeting (Maybe (NonEmpty Target)) |
-  DistinctTargeting (Maybe (NonEmpty Expr)) (NonEmpty Target)
+  DistinctTargeting (Maybe ExprList) (NonEmpty Target)
   deriving (Show, Generic, Eq, Ord)
 
 {-
@@ -125,9 +125,9 @@ target_el:
   |  '*'
 -}
 data Target =
-  AliasedExprTarget Expr Name |
-  ImplicitlyAliasedExprTarget Expr Name |
-  ExprTarget Expr |
+  AliasedExprTarget AExpr Ident |
+  ImplicitlyAliasedExprTarget AExpr Ident |
+  ExprTarget AExpr |
   AsteriskTarget
   deriving (Show, Generic, Eq, Ord)
 
@@ -156,7 +156,7 @@ opt_materialized:
   | NOT MATERIALIZED
   | EMPTY
 -}
-data CommonTableExpr = CommonTableExpr Name (Maybe (NonEmpty Name)) (Maybe Bool) PreparableStmt
+data CommonTableExpr = CommonTableExpr Ident (Maybe (NonEmpty Ident)) (Maybe Bool) PreparableStmt
   deriving (Show, Generic, Eq, Ord)
 
 type IntoClause = OptTempTableName
@@ -206,10 +206,10 @@ grouping_sets_clause:
   |  GROUPING SETS '(' group_by_list ')'
 -}
 data GroupByItem =
-  ExprGroupByItem Expr |
+  ExprGroupByItem AExpr |
   EmptyGroupingSetGroupByItem |
-  RollupGroupByItem (NonEmpty Expr) |
-  CubeGroupByItem (NonEmpty Expr) |
+  RollupGroupByItem ExprList |
+  CubeGroupByItem ExprList |
   GroupingSetsGroupByItem (NonEmpty GroupByItem)
   deriving (Show, Generic, Eq, Ord)
 
@@ -220,7 +220,7 @@ having_clause:
   |  EMPTY
 @
 -}
-type HavingClause = Expr
+type HavingClause = AExpr
 
 {-|
 @
@@ -241,7 +241,7 @@ window_definition:
   |  ColId AS window_specification
 @
 -}
-data WindowDefinition = WindowDefinition Name WindowSpecification
+data WindowDefinition = WindowDefinition Ident WindowSpecification
   deriving (Show, Generic, Eq, Ord)
 
 {-|
@@ -259,8 +259,12 @@ opt_partition_clause:
   |  EMPTY
 @
 -}
-data WindowSpecification = WindowSpecification (Maybe Name) (Maybe (NonEmpty Expr)) (Maybe SortClause) (Maybe FrameClause)
+data WindowSpecification = WindowSpecification (Maybe ExistingWindowName) (Maybe PartitionClause) (Maybe SortClause) (Maybe FrameClause)
   deriving (Show, Generic, Eq, Ord)
+
+type ExistingWindowName = ColId
+
+type PartitionClause = ExprList
 
 {-
 opt_frame_clause:
@@ -302,8 +306,8 @@ data FrameBound =
   UnboundedPrecedingFrameBound |
   UnboundedFollowingFrameBound |
   CurrentRowFrameBound |
-  PrecedingFrameBound Expr |
-  FollowingFrameBound Expr
+  PrecedingFrameBound AExpr |
+  FollowingFrameBound AExpr
   deriving (Show, Generic, Eq, Ord)
 
 {-
@@ -326,7 +330,7 @@ values_clause:
   |  VALUES '(' expr_list ')'
   |  values_clause ',' '(' expr_list ')'
 -}
-type ValuesClause = NonEmpty (NonEmpty Expr)
+type ValuesClause = NonEmpty ExprList
 
 {-|
 
@@ -350,7 +354,7 @@ sortby:
 TODO: Add qual_all_Op support
 TODO: Add opt_nulls_order support
 -}
-data SortBy = SortBy Expr (Maybe Order)
+data SortBy = SortBy AExpr (Maybe Order)
   deriving (Show, Generic, Eq, Ord)
 
 data Order = AscOrder | DescOrder
@@ -386,7 +390,7 @@ row_or_rows:
   | ROWS
 -}
 data LimitClause =
-  LimitLimitClause SelectLimitValue (Maybe Expr) |
+  LimitLimitClause SelectLimitValue (Maybe AExpr) |
   FetchOnlyLimitClause Bool (Maybe SelectFetchFirstValue) Bool
   deriving (Show, Generic, Eq, Ord)
 
@@ -397,7 +401,7 @@ select_fetch_first_value:
   | '-' I_or_F_const
 -}
 data SelectFetchFirstValue =
-  ExprSelectFetchFirstValue Expr |
+  ExprSelectFetchFirstValue CExpr |
   NumSelectFetchFirstValue Bool (Either Int64 Double)
   deriving (Show, Generic, Eq, Ord)
 
@@ -407,7 +411,7 @@ select_limit_value:
   | ALL
 -}
 data SelectLimitValue =
-  ExprSelectLimitValue Expr |
+  ExprSelectLimitValue AExpr |
   AllSelectLimitValue
   deriving (Show, Generic, Eq, Ord)
 
@@ -422,7 +426,7 @@ row_or_rows:
   | ROWS
 -}
 data OffsetClause =
-  ExprOffsetClause Expr |
+  ExprOffsetClause AExpr |
   FetchFirstOffsetClause SelectFetchFirstValue Bool
   deriving (Show, Generic, Eq, Ord)
 
@@ -525,7 +529,7 @@ alias_clause:
   |  ColId '(' name_list ')'
   |  ColId
 -}
-data AliasClause = AliasClause Name (Maybe (NonEmpty Name))
+data AliasClause = AliasClause Ident (Maybe (NonEmpty Ident))
   deriving (Show, Generic, Eq, Ord)
 
 {-
@@ -575,33 +579,29 @@ join_qual:
   |  ON a_expr
 -}
 data JoinQual =
-  UsingJoinQual (NonEmpty Name) |
-  OnJoinQual Expr
+  UsingJoinQual (NonEmpty Ident) |
+  OnJoinQual AExpr
   deriving (Show, Generic, Eq, Ord)
 
 
 -- * Where
 -------------------------
 
-type WhereClause = Expr
+type WhereClause = AExpr
 
 {-
 | WHERE a_expr
 | WHERE CURRENT_P OF cursor_name
 | /*EMPTY*/
 -}
-newtype WhereOrCurrentClause = WhereOrCurrentClause (Maybe (Either Expr Name))
+newtype WhereOrCurrentClause = WhereOrCurrentClause (Maybe (Either AExpr Ident))
   deriving (Show, Generic, Eq, Ord)
 
 
 -- * Expression
 -------------------------
 
-type AExpr = Expr
-type BExpr = Expr
-type CExpr = Expr
-
-type ExprList = NonEmpty Expr
+type ExprList = NonEmpty AExpr
 
 {-
 a_expr:
@@ -669,6 +669,31 @@ a_expr:
   | a_expr IS DOCUMENT_P
   | a_expr IS NOT DOCUMENT_P
   | DEFAULT
+-}
+data AExpr =
+  CExprAExpr CExpr |
+  TypecastAExpr AExpr TypecastTypename |
+  CollateAExpr AExpr AnyName |
+  AtTimeZoneAExpr AExpr AExpr |
+  PlusAExpr AExpr |
+  MinusAExpr AExpr |
+  SymbolicBinOpAExpr AExpr SymbolicExprBinOp AExpr |
+  PrefixQualOpAExpr QualOp AExpr |
+  SuffixQualOpAExpr AExpr QualOp |
+  AndAExpr AExpr AExpr |
+  OrAExpr AExpr AExpr |
+  NotAExpr AExpr |
+  VerbalExprBinOpAExpr AExpr Bool VerbalExprBinOp AExpr (Maybe AExpr) |
+  ReversableOpAExpr AExpr Bool AExprReversableOp |
+  IsnullAExpr AExpr |
+  NotnullAExpr AExpr |
+  OverlapsAExpr Row Row |
+  SubqueryAExpr AExpr SubqueryOp SubType (Either SelectWithParens AExpr) |
+  UniqueAExpr SelectWithParens |
+  DefaultAExpr
+  deriving (Show, Generic, Eq, Ord)
+
+{-
 b_expr:
   | c_expr
   | b_expr TYPECAST Typename
@@ -695,6 +720,18 @@ b_expr:
   | b_expr IS NOT OF '(' type_list ')'
   | b_expr IS DOCUMENT_P
   | b_expr IS NOT DOCUMENT_P
+-}
+data BExpr =
+  CExprBExpr CExpr |
+  TypecastBExpr BExpr TypecastTypename |
+  PlusBExpr BExpr |
+  MinusBExpr BExpr |
+  SymbolicBinOpBExpr BExpr SymbolicExprBinOp BExpr |
+  QualOpBExpr QualOp BExpr |
+  IsOpBExpr BExpr Bool BExprIsOp
+  deriving (Show, Generic, Eq, Ord)
+
+{-
 c_expr:
   | columnref
   | AexprConst
@@ -711,38 +748,85 @@ c_expr:
   | implicit_row
   | GROUPING '(' expr_list ')'
 -}
-data Expr =
-  PlaceholderExpr Int |
-  TypecastExpr Expr Type |
-  BinOpExpr Text Expr Expr |
-  EscapableBinOpExpr Bool Text Expr Expr (Maybe Expr) |
-  DefaultExpr |
-  QualifiedNameExpr QualifiedName |
-  LiteralExpr Literal |
-  {-
-  | '(' a_expr ')' opt_indirection
+data CExpr =
+  ColumnrefCExpr Columnref |
+  AexprConstCExpr AexprConst |
+  ParamCExpr Int (Maybe Indirection) |
+  InParensCExpr AExpr (Maybe Indirection) |
+  CaseCExpr CaseExpr |
+  FuncCExpr FuncExpr |
+  SelectWithParensCExpr SelectWithParens (Maybe Indirection) |
+  ExistsCExpr SelectWithParens |
+  ArrayCExpr (Either SelectWithParens ArrayExpr) |
+  ExplicitRowCExpr ExplicitRow |
+  ImplicitRowCExpr ImplicitRow |
+  GroupingCExpr ExprList
+  deriving (Show, Generic, Eq, Ord)
+
+-- **
+-------------------------
+
+{-
+in_expr:
   | select_with_parens
-  | select_with_parens indirection
-  -}
-  InParensExpr (Either Expr SelectWithParens) (Maybe Indirection) |
-  {-
-  case_expr:
-    |  CASE case_arg when_clause_list case_default END_P
-  case_default:
-    |  ELSE a_expr
-    |  EMPTY
-  case_arg:
-    |  a_expr
-    |  EMPTY
-  -}
-  CaseExpr (Maybe Expr) (NonEmpty WhenClause) (Maybe Expr) |
-  FuncExpr FuncExpr |
-  ExistsSelectExpr SelectWithParens |
-  ArraySelectExpr SelectWithParens |
-  GroupingExpr (NonEmpty Expr) |
-  PlusedExpr Expr |
-  MinusedExpr Expr |
-  QualOpExpr QualOp Expr
+  | '(' expr_list ')'
+-}
+data InExpr =
+  SelectInExpr SelectWithParens |
+  ExprListInExpr ExprList
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+sub_type:
+  | ANY
+  | SOME
+  | ALL
+-}
+data SubType = AnySubType | SomeSubType | AllSubType
+  deriving (Show, Generic, Eq, Ord, Enum, Bounded)
+
+{-
+array_expr:
+  | '[' expr_list ']'
+  | '[' array_expr_list ']'
+  | '[' ']'
+-}
+data ArrayExpr =
+  ExprListArrayExpr ExprList |
+  ArrayExprListArrayExpr ArrayExprList |
+  EmptyArrayExpr
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+array_expr_list:
+  | array_expr
+  | array_expr_list ',' array_expr
+-}
+type ArrayExprList = NonEmpty ArrayExpr
+
+{-
+row:
+  | ROW '(' expr_list ')'
+  | ROW '(' ')'
+  | '(' expr_list ',' a_expr ')'
+-}
+data Row =
+  ExplicitRowRow ExplicitRow |
+  ImplicitRowRow ImplicitRow
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+explicit_row:
+  | ROW '(' expr_list ')'
+  | ROW '(' ')'
+-}
+type ExplicitRow = Maybe ExprList
+
+{-
+implicit_row:
+  | '(' expr_list ',' a_expr ')'
+-}
+data ImplicitRow = ImplicitRow ExprList AExpr
   deriving (Show, Generic, Eq, Ord)
 
 {-
@@ -767,7 +851,7 @@ filter_clause:
   | FILTER '(' WHERE a_expr ')'
   | EMPTY
 -}
-type FilterClause = Expr
+type FilterClause = AExpr
 
 {-
 over_clause:
@@ -828,7 +912,7 @@ func_expr_common_subexpr:
 TODO: Implement the XML cases
 -}
 data FuncExprCommonSubExpr =
-  CollationForFuncExprCommonSubExpr Expr |
+  CollationForFuncExprCommonSubExpr AExpr |
   CurrentDateFuncExprCommonSubExpr |
   CurrentTimeFuncExprCommonSubExpr (Maybe Int64) |
   CurrentTimestampFuncExprCommonSubExpr (Maybe Int64) |
@@ -840,14 +924,14 @@ data FuncExprCommonSubExpr =
   UserFuncExprCommonSubExpr |
   CurrentCatalogFuncExprCommonSubExpr |
   CurrentSchemaFuncExprCommonSubExpr |
-  CastFuncExprCommonSubExpr Expr Typename |
+  CastFuncExprCommonSubExpr AExpr Typename |
   ExtractFuncExprCommonSubExpr (Maybe ExtractList) |
   OverlayFuncExprCommonSubExpr OverlayList |
   PositionFuncExprCommonSubExpr (Maybe PositionList) |
   SubstringFuncExprCommonSubExpr (Maybe SubstrList) |
-  TreatFuncExprCommonSubExpr Expr Typename |
+  TreatFuncExprCommonSubExpr AExpr Typename |
   TrimFuncExprCommonSubExpr (Maybe TrimModifier) TrimList |
-  NullIfFuncExprCommonSubExpr Expr Expr |
+  NullIfFuncExprCommonSubExpr AExpr AExpr |
   CoalesceFuncExprCommonSubExpr ExprList |
   GreatestFuncExprCommonSubExpr ExprList |
   LeastFuncExprCommonSubExpr ExprList
@@ -858,7 +942,7 @@ extract_list:
   | extract_arg FROM a_expr
   | EMPTY
 -}
-data ExtractList = ExtractList ExtractArg Expr
+data ExtractList = ExtractList ExtractArg AExpr
   deriving (Show, Generic, Eq, Ord)
 
 {-
@@ -964,12 +1048,39 @@ data TrimList =
   ExprListTrimList ExprList
   deriving (Show, Generic, Eq, Ord)
 
+{-
+case_expr:
+  | CASE case_arg when_clause_list case_default END_P
+-}
+data CaseExpr = CaseExpr (Maybe CaseArg) WhenClauseList (Maybe CaseDefault)
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+case_arg:
+  | a_expr
+  | EMPTY
+-}
+type CaseArg = AExpr
+
+{-
+when_clause_list:
+  | when_clause
+  | when_clause_list when_clause
+-}
+type WhenClauseList = NonEmpty WhenClause
+
+{-
+case_default:
+  | ELSE a_expr
+  | EMPTY
+-}
+type CaseDefault = AExpr
 
 {-
 when_clause:
   |  WHEN a_expr THEN a_expr
 -}
-data WhenClause = WhenClause Expr Expr
+data WhenClause = WhenClause AExpr AExpr
   deriving (Show, Generic, Eq, Ord)
 
 {-
@@ -982,7 +1093,7 @@ func_application:
   |  func_name '(' DISTINCT func_arg_list opt_sort_clause ')'
   |  func_name '(' '*' ')'
 -}
-data FuncApplication = FuncApplication QualifiedName (Maybe FuncApplicationParams)
+data FuncApplication = FuncApplication FuncName (Maybe FuncApplicationParams)
   deriving (Show, Generic, Eq, Ord)
 
 {-
@@ -1002,19 +1113,20 @@ data FuncApplicationParams =
   deriving (Show, Generic, Eq, Ord)
 
 data FuncArgExpr =
-  ExprFuncArgExpr Expr |
-  ColonEqualsFuncArgExpr Name Expr |
-  EqualsGreaterFuncArgExpr Name Expr
+  ExprFuncArgExpr AExpr |
+  ColonEqualsFuncArgExpr Ident AExpr |
+  EqualsGreaterFuncArgExpr Ident AExpr
   deriving (Show, Generic, Eq, Ord)
 
 
 -- * Constants
 -------------------------
 
-type AexprConst = Literal
 type Sconst = Text
 type Iconst = Int64
 type Fconst = Double
+type Bconst = Text
+type Xconst = Text
 
 {-|
 AexprConst:
@@ -1032,21 +1144,25 @@ AexprConst:
   |  FALSE_P
   |  NULL_P
 -}
-data Literal =
-  IntLiteral Int64 |
-  FloatLiteral Double |
-  StringLiteral Text |
-  BitLiteral Text |
-  HexLiteral Text |
-  FuncLiteral QualifiedName (Maybe FuncLiteralArgList) Text |
-  ConstTypenameLiteral ConstTypename Text |
-  StringIntervalLiteral Text (Maybe Interval) |
-  IntIntervalLiteral Int64 Text |
-  BoolLiteral Bool |
-  NullLiteral
+data AexprConst =
+  IAexprConst Iconst |
+  FAexprConst Fconst |
+  SAexprConst Sconst |
+  BAexprConst Bconst |
+  XAexprConst Xconst |
+  FuncAexprConst FuncName (Maybe FuncConstArgs) Sconst |
+  ConstTypenameAexprConst ConstTypename Sconst |
+  StringIntervalAexprConst Sconst (Maybe Interval) |
+  IntIntervalAexprConst Iconst Sconst |
+  BoolAexprConst Bool |
+  NullAexprConst
   deriving (Show, Generic, Eq, Ord)
 
-data FuncLiteralArgList = FuncLiteralArgList (NonEmpty FuncArgExpr) (Maybe SortClause)
+{-
+  |  func_name Sconst
+  |  func_name '(' func_arg_list opt_sort_clause ')' Sconst
+-}
+data FuncConstArgs = FuncConstArgs (NonEmpty FuncArgExpr) (Maybe SortClause)
   deriving (Show, Generic, Eq, Ord)
 
 {-
@@ -1091,9 +1207,9 @@ data Numeric =
   RealNumeric |
   FloatNumeric (Maybe Int64) |
   DoublePrecisionNumeric |
-  DecimalNumeric (Maybe (NonEmpty Expr)) |
-  DecNumeric (Maybe (NonEmpty Expr)) |
-  NumericNumeric (Maybe (NonEmpty Expr)) |
+  DecimalNumeric (Maybe TypeModifiers) |
+  DecNumeric (Maybe TypeModifiers) |
+  NumericNumeric (Maybe TypeModifiers) |
   BooleanNumeric
   deriving (Show, Generic, Eq, Ord)
 
@@ -1211,31 +1327,14 @@ interval_second:
 type IntervalSecond = Maybe Int64
 
 
--- * Type
--------------------------
-
-{-|
-Consists of:
-
-- Value/element type name
-- Value/element nullability marker
-- Array dimensions amount
-- Array nullability marker
--}
-data Type = Type Name Bool Int Bool
-  deriving (Show, Generic, Eq, Ord)
-
-
 -- * Names & References
 -------------------------
-
-data Name = QuotedName Text | UnquotedName Text
-  deriving (Show, Generic, Eq, Ord)
 
 {-
 IDENT
 -}
-type Ident = Name
+data Ident = QuotedIdent Text | UnquotedIdent Text
+  deriving (Show, Generic, Eq, Ord)
 
 {-
 ColId:
@@ -1243,7 +1342,7 @@ ColId:
   | unreserved_keyword
   | col_name_keyword
 -}
-type ColId = Name
+type ColId = Ident
 
 {-
 ColLabel:
@@ -1253,7 +1352,33 @@ ColLabel:
   | type_func_name_keyword
   | reserved_keyword
 -}
-type ColLabel = Name
+type ColLabel = Ident
+
+{-
+columnref:
+  | ColId
+  | ColId indirection
+-}
+data Columnref = Columnref ColId (Maybe Indirection)
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+any_name:
+  | ColId
+  | ColId attrs
+-}
+data AnyName = AnyName ColId (Maybe Attrs)
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+func_name:
+  | type_function_name
+  | ColId indirection
+-}
+data FuncName =
+  TypeFuncName TypeFunctionName |
+  IndirectedFuncName ColId Indirection
+  deriving (Show, Generic, Eq, Ord)
 
 {-
 type_function_name:
@@ -1261,7 +1386,7 @@ type_function_name:
   | unreserved_keyword
   | type_func_name_keyword
 -}
-type TypeFunctionName = Name
+type TypeFunctionName = Ident
 
 {-
 columnref:
@@ -1272,8 +1397,8 @@ qualified_name:
   | ColId indirection
 -}
 data QualifiedName =
-  SimpleQualifiedName Name |
-  IndirectedQualifiedName Name Indirection
+  SimpleQualifiedName Ident |
+  IndirectedQualifiedName Ident Indirection
   deriving (Show, Generic, Eq, Ord)
 
 {-
@@ -1294,14 +1419,29 @@ opt_slice_bound:
   |  EMPTY
 -}
 data IndirectionEl =
-  AttrNameIndirectionEl Name |
+  AttrNameIndirectionEl Ident |
   AllIndirectionEl |
-  ExprIndirectionEl Expr |
-  SliceIndirectionEl (Maybe Expr) (Maybe Expr)
+  ExprIndirectionEl AExpr |
+  SliceIndirectionEl (Maybe AExpr) (Maybe AExpr)
   deriving (Show, Generic, Eq, Ord)
 
--- ** Typename
+
+-- * Types
 -------------------------
+
+{-|
+The only custom extension required for
+support of nullability markers in typecasted types.
+
+Consists of:
+
+- Value/element type name
+- Value/element nullability marker
+- Array dimensions amount
+- Array nullability marker
+-}
+data TypecastTypename = TypecastTypename Ident Bool Int Bool
+  deriving (Show, Generic, Eq, Ord)
 
 {-
 Typename:
@@ -1373,6 +1513,13 @@ opt_type_modifiers:
   | EMPTY
 -}
 type TypeModifiers = ExprList
+
+{-
+type_list:
+  | Typename
+  | type_list ',' Typename
+-}
+type TypeList = NonEmpty Typename
 
 
 -- * Operators
@@ -1464,3 +1611,69 @@ data MathOp =
   ArrowLeftArrowRightMathOp |
   ExclamationEqualsMathOp
   deriving (Show, Generic, Eq, Ord, Enum, Bounded)
+
+data SymbolicExprBinOp =
+  MathSymbolicExprBinOp MathOp |
+  QualSymbolicExprBinOp QualOp
+  deriving (Show, Generic, Eq, Ord)
+
+data VerbalExprBinOp =
+  LikeVerbalExprBinOp |
+  IlikeVerbalExprBinOp |
+  SimilarToVerbalExprBinOp
+  deriving (Show, Generic, Eq, Ord, Enum, Bounded)
+
+{-
+  | a_expr IS NULL_P
+  | a_expr IS TRUE_P
+  | a_expr IS FALSE_P
+  | a_expr IS UNKNOWN
+  | a_expr IS DISTINCT FROM a_expr
+  | a_expr IS OF '(' type_list ')'
+  | a_expr BETWEEN opt_asymmetric b_expr AND a_expr
+  | a_expr BETWEEN SYMMETRIC b_expr AND a_expr
+  | a_expr IN_P in_expr
+  | a_expr IS DOCUMENT_P
+-}
+data AExprReversableOp =
+  NullAExprReversableOp |
+  TrueAExprReversableOp |
+  FalseAExprReversableOp |
+  UnknownAExprReversableOp |
+  DistinctFromAExprReversableOp AExpr |
+  OfAExprReversableOp TypeList |
+  BetweenAExprReversableOp Bool BExpr AExpr |
+  BetweenSymmetricAExprReversableOp BExpr AExpr |
+  InAExprReversableOp InExpr |
+  DocumentAExprReversableOp
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+  | b_expr IS DISTINCT FROM b_expr
+  | b_expr IS NOT DISTINCT FROM b_expr
+  | b_expr IS OF '(' type_list ')'
+  | b_expr IS NOT OF '(' type_list ')'
+  | b_expr IS DOCUMENT_P
+  | b_expr IS NOT DOCUMENT_P
+-}
+data BExprIsOp =
+  DistinctFromBExprIsOp BExpr |
+  OfBExprIsOp TypeList |
+  DocumentBExprIsOp
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+subquery_Op:
+  | all_Op
+  | OPERATOR '(' any_operator ')'
+  | LIKE
+  | NOT_LA LIKE
+  | ILIKE
+  | NOT_LA ILIKE
+-}
+data SubqueryOp =
+  AllSubqueryOp AllOp |
+  AnySubqueryOp AnyOperator |
+  LikeSubqueryOp Bool |
+  IlikeSubqueryOp Bool
+  deriving (Show, Generic, Eq, Ord)

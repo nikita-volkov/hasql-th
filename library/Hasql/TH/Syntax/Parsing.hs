@@ -31,8 +31,11 @@ import Hasql.TH.Prelude hiding (expr, try, option, some, many, sortBy, filter, h
 import HeadedMegaparsec hiding (string)
 import Control.Applicative.Combinators hiding (some)
 import Control.Applicative.Combinators.NonEmpty
+import Hasql.TH.Extras.HeadedMegaparsec hiding (run)
 import Hasql.TH.Syntax.Ast
 import Text.Megaparsec (Stream, Parsec)
+import qualified Hasql.TH.Extras.HeadedMegaparsec as Extras
+import qualified Hasql.TH.Extras.NonEmpty as NonEmpty
 import qualified Text.Megaparsec as Megaparsec
 import qualified Text.Megaparsec.Char as MegaparsecChar
 import qualified Text.Megaparsec.Char.Lexer as MegaparsecLexer
@@ -40,6 +43,7 @@ import qualified Hasql.TH.Syntax.HashSet as HashSet
 import qualified Hasql.TH.Syntax.Predicate as Predicate
 import qualified Hasql.TH.Syntax.Validator as Validator
 import qualified Data.Text as Text
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Text.Builder as TextBuilder
 
 
@@ -55,71 +59,7 @@ type Parser = HeadedParsec Void Text
 -------------------------
 
 run :: Parser a -> Text -> Either String a
-run p = first Megaparsec.errorBundlePretty . Megaparsec.runParser (toParsec p <* Megaparsec.eof) ""
-
-
--- * Primitives
--------------------------
-
-{-|
-Lifted megaparsec\'s `Megaparsec.eof`.
--}
-eof :: (Ord err, Stream strm) => HeadedParsec err strm ()
-eof = parse Megaparsec.eof
-
-{-|
-Lifted megaparsec\'s `Megaparsec.space`.
--}
-space :: (Ord err, Stream strm, Megaparsec.Token strm ~ Char) => HeadedParsec err strm ()
-space = parse MegaparsecChar.space
-
-{-|
-Lifted megaparsec\'s `Megaparsec.space1`.
--}
-space1 :: (Ord err, Stream strm, Megaparsec.Token strm ~ Char) => HeadedParsec err strm ()
-space1 = parse MegaparsecChar.space1
-
-{-|
-Lifted megaparsec\'s `Megaparsec.char`.
--}
-char :: (Ord err, Stream strm, Megaparsec.Token strm ~ Char) => Char -> HeadedParsec err strm Char
-char a = parse (MegaparsecChar.char a)
-
-{-|
-Lifted megaparsec\'s `Megaparsec.char'`.
--}
-char' :: (Ord err, Stream strm, Megaparsec.Token strm ~ Char) => Char -> HeadedParsec err strm Char
-char' a = parse (MegaparsecChar.char' a)
-
-{-|
-Lifted megaparsec\'s `Megaparsec.string`.
--}
-string :: (Ord err, Stream strm) => Megaparsec.Tokens strm -> HeadedParsec err strm (Megaparsec.Tokens strm)
-string = parse . MegaparsecChar.string
-
-{-|
-Lifted megaparsec\'s `Megaparsec.string'`.
--}
-string' :: (Ord err, Stream strm, FoldCase (Megaparsec.Tokens strm)) => Megaparsec.Tokens strm -> HeadedParsec err strm (Megaparsec.Tokens strm)
-string' = parse . MegaparsecChar.string'
-
-{-|
-Lifted megaparsec\'s `Megaparsec.takeWhileP`.
--}
-takeWhileP :: (Ord err, Stream strm) => Maybe String -> (Megaparsec.Token strm -> Bool) -> HeadedParsec err strm (Megaparsec.Tokens strm)
-takeWhileP label predicate = parse (Megaparsec.takeWhileP label predicate)
-
-{-|
-Lifted megaparsec\'s `Megaparsec.takeWhile1P`.
--}
-takeWhile1P :: (Ord err, Stream strm) => Maybe String -> (Megaparsec.Token strm -> Bool) -> HeadedParsec err strm (Megaparsec.Tokens strm)
-takeWhile1P label predicate = parse (Megaparsec.takeWhile1P label predicate)
-
-decimal :: (Ord err, Stream strm, Megaparsec.Token strm ~ Char, Integral decimal) => HeadedParsec err strm decimal
-decimal = parse MegaparsecLexer.decimal
-
-float :: (Ord err, Stream strm, Megaparsec.Token strm ~ Char, RealFloat float) => HeadedParsec err strm float
-float = parse MegaparsecLexer.float
+run = Extras.run
 
 
 -- * Helpers
@@ -134,8 +74,14 @@ dotSeparator = space *> char '.' *> endHead *> space
 inBrackets :: Parser a -> Parser a
 inBrackets p = char '[' *> space *> p <* endHead <* space <* char ']'
 
+inBracketsCont :: Parser a -> Parser (Parser a)
+inBracketsCont p = char '[' *> endHead *> pure (space *> p <* endHead <* space <* char ']')
+
 inParens :: Parser a -> Parser a
 inParens p = char '(' *> space *> p <* endHead <* space <* char ')'
+
+inParensCont :: Parser a -> Parser (Parser a)
+inParensCont p = char '(' *> endHead *> pure (space *> p <* endHead <* space <* char ')')
 
 inParensWithLabel :: (label -> content -> result) -> Parser label -> Parser content -> Parser result
 inParensWithLabel _result _labelParser _contentParser = do
@@ -152,35 +98,8 @@ inParensWithLabel _result _labelParser _contentParser = do
 inParensWithClause :: Parser clause -> Parser content -> Parser content
 inParensWithClause = inParensWithLabel (const id)
 
-sep1 :: Parser separator -> Parser a -> Parser (NonEmpty a)
-sep1 _separator _parser = do
-  _head <- _parser
-  endHead
-  _tail <- many $ _separator *> _parser
-  return (_head :| _tail)
-
-nonEmptyList :: Parser a -> Parser (NonEmpty a)
-nonEmptyList = sep1 commaSeparator
-
-sepWithSpace1 :: Parser a -> Parser (NonEmpty a)
-sepWithSpace1 = sep1 space1
-
-sepEnd1 :: Parser separator -> Parser end -> Parser el -> Parser (NonEmpty el, end)
-sepEnd1 sepP endP elP = do
-  headEl <- elP
-  let
-    loop !list = do
-      sepP
-      asum [
-          do
-            end <- endP
-            return (headEl :| reverse list, end)
-          ,
-          do
-            el <- elP
-            loop (el : list)
-        ]
-    in loop []
+trueIfPresent :: Parser a -> Parser Bool
+trueIfPresent p = option False (True <$ p)
 
 {-|
 >>> testParser (quotedString '\'') "'abc''d'"
@@ -212,10 +131,8 @@ quasiQuote p = space *> p <* endHead <* space <* eof
 -- * PreparableStmt
 -------------------------
 
-preparableStmt :: Parser PreparableStmt
 preparableStmt = selectPreparableStmt
 
-selectPreparableStmt :: Parser PreparableStmt
 selectPreparableStmt = SelectPreparableStmt <$> selectStmt
 
 
@@ -229,7 +146,7 @@ selectPreparableStmt = SelectPreparableStmt <$> selectStmt
 ...NormalSimpleSelect Nothing Nothing Nothing Nothing Nothing Nothing Nothing...
 
 >>> test "select distinct 1"
-...DistinctTargeting Nothing (ExprTarget (LiteralExpr (IntLiteral 1)) :| [])...
+...DistinctTargeting Nothing (ExprTarget (AexprConstExpr (IAexprConst 1)) :| [])...
 
 >>> test "select $1"
 ...NormalTargeting (ExprTarget (PlaceholderExpr 1) :| [])...
@@ -238,16 +155,16 @@ selectPreparableStmt = SelectPreparableStmt <$> selectStmt
 ...BinOpExpr "+" (PlaceholderExpr 1) (PlaceholderExpr 2)...
 
 >>> test "select a, b"
-...ExprTarget (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "a"))) :| [ExprTarget (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "b")))]...
+...ExprTarget (QualifiedNameExpr (SimpleQualifiedName (UnquotedIdent "a"))) :| [ExprTarget (QualifiedNameExpr (SimpleQualifiedName (UnquotedIdent "b")))]...
 
 >>> test "select $1 :: text"
-...TypecastExpr (PlaceholderExpr 1) (Type (UnquotedName "text") False 0 False)...
+...TypecastExpr (PlaceholderExpr 1) (TypecastTypename (UnquotedIdent "text") False 0 False)...
 
 >>> test "select 1"
-...ExprTarget (LiteralExpr (IntLiteral 1))...
+...ExprTarget (AexprConstExpr (IAexprConst 1))...
 
 >>> test "select id"
-...ExprTarget (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "id")))...
+...ExprTarget (QualifiedNameExpr (SimpleQualifiedName (UnquotedIdent "id")))...
 
 >>> test "select id from user"
 1:20:
@@ -257,14 +174,12 @@ selectPreparableStmt = SelectPreparableStmt <$> selectStmt
 Reserved keyword "user" used as an identifier. If that's what you intend, you have to wrap it in double quotes.
 
 >>> test "select id :: int4 from \"user\""
-...TypecastExpr (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "id"))) (Type (UnquotedName "int4") False 0 False)...
+...TypecastExpr (QualifiedNameExpr (SimpleQualifiedName (UnquotedIdent "id"))) (TypecastTypename (UnquotedIdent "int4") False 0 False)...
 -}
-selectStmt :: Parser SelectStmt
 selectStmt = Left <$> selectNoParens <|> Right <$> selectWithParens
 
 selectWithParens = inParens (WithParensSelectWithParens <$> selectWithParens <|> NoParensSelectWithParens <$> selectNoParens)
 
-selectNoParens :: Parser SelectNoParens
 selectNoParens = withSelectNoParens <|> simpleSelectNoParens
 
 sharedSelectNoParens _with = do
@@ -312,7 +227,6 @@ simple_select:
   |  select_clause EXCEPT all_or_distinct select_clause
 -}
 
-baseSimpleSelect :: Parser SimpleSelect
 baseSimpleSelect = asum [
     do
       string' "select"
@@ -320,17 +234,16 @@ baseSimpleSelect = asum [
       endHead
       _targeting <- optional (space1 *> targeting)
       _intoClause <- optional (space1 *> string' "into" *> endHead *> space1 *> optTempTableName)
-      _fromClause <- optional (space1 *> string' "from" *> endHead *> space1 *> nonEmptyList tableRef)
+      _fromClause <- optional (space1 *> string' "from" *> endHead *> space1 *> sep1 commaSeparator tableRef)
       _whereClause <- optional (space1 *> string' "where" *> endHead *> space1 *> aExpr)
-      _groupClause <- optional (space1 *> keyphrase "group by" *> endHead *> space1 *> nonEmptyList groupByItem)
+      _groupClause <- optional (space1 *> keyphrase "group by" *> endHead *> space1 *> sep1 commaSeparator groupByItem)
       _havingClause <- optional (space1 *> string' "having" *> endHead *> space1 *> aExpr)
-      _windowClause <- optional (space1 *> string' "window" *> endHead *> space1 *> nonEmptyList windowDefinition)
+      _windowClause <- optional (space1 *> string' "window" *> endHead *> space1 *> sep1 commaSeparator windowDefinition)
       return (NormalSimpleSelect _targeting _intoClause _fromClause _whereClause _groupClause _havingClause _windowClause)
     ,
     ValuesSimpleSelect <$> valuesClause
   ]
 
-extensionSimpleSelect :: SelectClause -> Parser SimpleSelect
 extensionSimpleSelect _headSelectClause = do
   _op <- space1 *> selectBinOp <* space1
   endHead
@@ -349,11 +262,11 @@ selectBinOp = asum [
 valuesClause = do
   string' "values"
   space
-  nonEmptyList $ do
+  sep1 commaSeparator $ do
     char '('
     endHead
     space
-    _a <- nonEmptyList aExpr
+    _a <- sep1 commaSeparator aExpr
     space
     char ')'
     return _a
@@ -363,12 +276,12 @@ withClause = label "with clause" $ do
   space1
   endHead
   _recursive <- option False (True <$ string' "recursive" <* space1)
-  _cteList <- nonEmptyList commonTableExpr
+  _cteList <- sep1 commaSeparator commonTableExpr
   return (WithClause _recursive _cteList)
 
 commonTableExpr = label "common table expression" $ do
   _name <- colId <* space <* endHead
-  _nameList <- optional (inParens (nonEmptyList colId) <* space1)
+  _nameList <- optional (inParens (sep1 commaSeparator colId) <* space1)
   string' "as"
   space1
   _materialized <- optional (materialized <* space1)
@@ -392,7 +305,6 @@ distinct_clause:
   |  DISTINCT
   |  DISTINCT ON '(' expr_list ')'
 -}
-targeting :: Parser Targeting
 targeting = distinct <|> allWithTargetList <|> all <|> normal where
   normal = NormalTargeting <$> targetList
   allWithTargetList = do
@@ -408,12 +320,11 @@ targeting = distinct <|> allWithTargetList <|> all <|> normal where
     _targetList <- targetList
     return (DistinctTargeting _optOn _targetList)
 
-targetList :: Parser (NonEmpty Target)
-targetList = nonEmptyList target
+targetList = sep1 commaSeparator target
 
 {-|
 >>> testParser target "a.b as c"
-AliasedExprTarget (QualifiedNameExpr (IndirectedQualifiedName (UnquotedName "a") (AttrNameIndirectionEl (UnquotedName "b") :| []))) (UnquotedName "c")
+AliasedExprTarget (QualifiedNameExpr (IndirectedQualifiedName (UnquotedIdent "a") (AttrNameIndirectionEl (UnquotedIdent "b") :| []))) (UnquotedIdent "c")
 -}
 {-
 target_el:
@@ -422,7 +333,6 @@ target_el:
   |  a_expr
   |  '*'
 -}
-target :: Parser Target
 target = label "target" $ asum [
     do
       _expr <- aExpr
@@ -441,12 +351,11 @@ target = label "target" $ asum [
     AsteriskTarget <$ char '*'
   ]
 
-onExpressionsClause :: Parser (NonEmpty Expr)
 onExpressionsClause = do
   string' "on"
   space1
   endHead
-  inParens (nonEmptyList aExpr)
+  inParens (sep1 commaSeparator aExpr)
 
 
 -- * Into clause details
@@ -464,7 +373,6 @@ OptTempTableName:
   | TABLE qualified_name
   | qualified_name
 -}
-optTempTableName :: Parser OptTempTableName
 optTempTableName = asum [
     do
       a <- asum [
@@ -493,12 +401,11 @@ optTempTableName = asum [
 -- * Group by details
 -------------------------
 
-groupByItem :: Parser GroupByItem
 groupByItem = asum [
     EmptyGroupingSetGroupByItem <$ (char '(' *> space *> char ')'),
-    RollupGroupByItem <$> (string' "rollup" *> endHead *> space *> inParens (nonEmptyList aExpr)),
-    CubeGroupByItem <$> (string' "cube" *> endHead *> space *> inParens (nonEmptyList aExpr)),
-    GroupingSetsGroupByItem <$> (keyphrase "grouping sets" *> endHead *> space *> inParens (nonEmptyList groupByItem)),
+    RollupGroupByItem <$> (string' "rollup" *> endHead *> space *> inParens (sep1 commaSeparator aExpr)),
+    CubeGroupByItem <$> (string' "cube" *> endHead *> space *> inParens (sep1 commaSeparator aExpr)),
+    GroupingSetsGroupByItem <$> (keyphrase "grouping sets" *> endHead *> space *> inParens (sep1 commaSeparator groupByItem)),
     ExprGroupByItem <$> aExpr
   ]
 
@@ -506,7 +413,6 @@ groupByItem = asum [
 -- * Window clause details
 -------------------------
 
-windowDefinition :: Parser WindowDefinition
 windowDefinition = WindowDefinition <$> (colId <* space1 <* string' "as" <* space1 <* endHead) <*> windowSpecification
 
 {-
@@ -514,7 +420,6 @@ window_specification:
   |  '(' opt_existing_window_name opt_partition_clause
             opt_sort_clause opt_frame_clause ')'
 -}
-windowSpecification :: Parser WindowSpecification
 windowSpecification = inParens $ asum [
     do
       a <- frameClause
@@ -541,7 +446,7 @@ windowSpecification = inParens $ asum [
     pure (WindowSpecification Nothing Nothing Nothing Nothing)
   ]
 
-partitionByClause = keyphrase "partition by" *> space1 *> endHead *> nonEmptyList aExpr
+partitionByClause = keyphrase "partition by" *> space1 *> endHead *> sep1 commaSeparator aExpr
 
 {-
 opt_frame_clause:
@@ -615,7 +520,6 @@ JoinTableRef (MethJoinedTable (QualJoinMeth...
 
 TODO: Add support for missing cases.
 -}
-tableRef :: Parser TableRef
 tableRef = label "table reference" $ do
   _tr <- nonTrailingTableRef
   (space1 *> trailingTableRef _tr) <|> pure _tr
@@ -676,7 +580,6 @@ trailingTableRef _tableRef =
 | ONLY qualified_name
 | ONLY '(' qualified_name ')'
 -}
-relationExpr :: Parser RelationExpr
 relationExpr =
   label "relation expression" $
   asum
@@ -777,7 +680,7 @@ joinType = asum [
     outerAfterSpace = (space1 *> string' "outer") $> True <|> pure False
 
 joinQual = asum [
-    string' "using" *> space1 *> inParens (nonEmptyList colId) <&> UsingJoinQual
+    string' "using" *> space1 *> inParens (sep1 commaSeparator colId) <&> UsingJoinQual
     ,
     string' "on" *> space1 *> aExpr <&> OnJoinQual
   ]
@@ -794,17 +697,34 @@ name_list:
 name:
   |  ColId
 -}
-aliasClause :: Parser AliasClause
 aliasClause = do
   _alias <- (string' "as" *> space1 *> endHead *> colId) <|> colId
-  _columnAliases <- optional (space1 *> inParens (nonEmptyList colId))
+  _columnAliases <- optional (space1 *> inParens (sep1 commaSeparator colId))
   return (AliasClause _alias _columnAliases)
+
+
+-- * Sorting
+-------------------------
+
+sortClause = do
+  keyphrase "order by"
+  endHead
+  space1
+  a <- sep1 commaSeparator sortBy
+  return a
+
+sortBy = do
+  _expr <- aExpr
+  _optOrder <- optional (space1 *> order)
+  return (SortBy _expr _optOrder)
+
+order = string' "asc" $> AscOrder <|> string' "desc" $> DescOrder
 
 
 -- * Expressions
 -------------------------
 
-exprList = nonEmptyList aExpr
+exprList = sep1 commaSeparator aExpr
 
 exprListInParens = inParens exprList
 
@@ -816,149 +736,247 @@ so we're not bothering with that.
 
 Composite on the right:
 >>> testParser aExpr "$1 = $2 :: int4"
-BinOpExpr "=" (PlaceholderExpr 1) (TypecastExpr (PlaceholderExpr 2) (Type (UnquotedName "int4") False 0 False))
+BinOpExpr "=" (PlaceholderExpr 1) (TypecastExpr (PlaceholderExpr 2) (TypecastTypename (UnquotedIdent "int4") False 0 False))
 
 Composite on the left:
 >>> testParser aExpr "$1 = $2 :: int4 and $3"
-BinOpExpr "=" (PlaceholderExpr 1) (BinOpExpr "AND" (TypecastExpr (PlaceholderExpr 2) (Type (UnquotedName "int4") False 0 False)) (PlaceholderExpr 3))
+BinOpExpr "=" (PlaceholderExpr 1) (BinOpExpr "AND" (TypecastExpr (PlaceholderExpr 2) (TypecastTypename (UnquotedIdent "int4") False 0 False)) (PlaceholderExpr 3))
 -}
-aExpr :: Parser Expr
 aExpr = suffixRec base suffix where
   base = asum [
-      defaultExpr,
-      cExpr,
-      plusedExpr aExpr,
-      minusedExpr aExpr,
-      qualOpExpr aExpr
+      DefaultAExpr <$ string' "default",
+      CExprAExpr <$> cExpr,
+      PlusAExpr <$> plusedExpr aExpr,
+      MinusAExpr <$> minusedExpr aExpr,
+      qualOpExpr aExpr PrefixQualOpAExpr,
+      NotAExpr <$> (string' "not" *> space1 *> aExpr),
+      OverlapsAExpr <$> (row <* endHead) <*> (space1 *> string' "overlaps" *> space1 *> row),
+      UniqueAExpr <$> selectWithParens
     ]
-  suffix a = asum
-    [
-      typecastExpr a,
-      binOpExpr a aExpr,
-      escapableBinOpExpr a
+  suffix a = asum [
+      typecastExpr a TypecastAExpr
+      ,
+      CollateAExpr a <$> (space1 *> string' "collate" *> space1 *> endHead *> anyName)
+      ,
+      AtTimeZoneAExpr a <$> (space1 *> keyphrase "at time zone" *> space1 *> endHead *> aExpr)
+      ,
+      symbolicBinOpExpr a aExpr SymbolicBinOpAExpr
+      ,
+      SuffixQualOpAExpr a <$> (space1 *> qualOp)
+      ,
+      AndAExpr a <$> (space1 *> string' "and" *> space1 *> endHead *> aExpr)
+      ,
+      OrAExpr a <$> (space1 *> string' "or" *> space1 *> endHead *> aExpr)
+      ,
+      do
+        space1
+        b <- trueIfPresent (string' "not" *> space1)
+        c <- asum [
+            LikeVerbalExprBinOp <$ string' "like",
+            IlikeVerbalExprBinOp <$ string' "ilike",
+            SimilarToVerbalExprBinOp <$ keyphrase "similar to"
+          ]
+        space1
+        d <- aExpr
+        e <- optional (space1 *> string' "escape" *> space1 *> endHead *> aExpr)
+        return (VerbalExprBinOpAExpr a b c d e)
+      ,
+      do
+        space1
+        string' "is"
+        space1
+        endHead
+        b <- trueIfPresent (string' "not" *> space1)
+        c <- asum [
+            NullAExprReversableOp <$ string' "null",
+            TrueAExprReversableOp <$ string' "true",
+            FalseAExprReversableOp <$ string' "false",
+            UnknownAExprReversableOp <$ string' "unknown",
+            DistinctFromAExprReversableOp <$> (string' "distinct" *> space1 *> string' "from" *> space1 *> endHead *> aExpr),
+            OfAExprReversableOp <$> (string' "of" *> space1 *> endHead *> inParens typeList),
+            DocumentAExprReversableOp <$ string' "document"
+          ]
+        return (ReversableOpAExpr a b c)
+      ,
+      do
+        b <- trueIfPresent (string' "not" *> space1)
+        string' "between"
+        space1
+        endHead
+        c <- asum [
+            BetweenSymmetricAExprReversableOp <$ (string' "symmetric" *> space1),
+            BetweenAExprReversableOp True <$ (string' "asymmetric" *> space1),
+            pure (BetweenAExprReversableOp False)
+          ]
+        d <- bExpr
+        space1
+        string' "and"
+        space1
+        e <- aExpr
+        return (ReversableOpAExpr a b (c d e))
+      ,
+      do
+        b <- trueIfPresent (string' "not" *> space1)
+        string' "in"
+        space
+        c <- InAExprReversableOp <$> inExpr
+        return (ReversableOpAExpr a b c)
+      ,
+      IsnullAExpr a <$ (space1 *> string' "isnull")
+      ,
+      NotnullAExpr a <$ (space1 *> string' "notnull")
+      ,
+      do
+        space1
+        b <- subqueryOp
+        space1
+        endHead
+        c <- subType
+        space
+        d <- Left <$> selectWithParens <|> Right <$> inParens aExpr
+        return (SubqueryAExpr a b c d)
     ]
 
 bExpr = suffixRec base suffix where
   base = asum [
-      cExpr,
-      plusedExpr bExpr,
-      minusedExpr bExpr,
-      qualOpExpr bExpr
+      CExprBExpr <$> cExpr,
+      PlusBExpr <$> plusedExpr bExpr,
+      MinusBExpr <$> minusedExpr bExpr,
+      qualOpExpr bExpr QualOpBExpr
     ]
   suffix a = asum [
-      binOpExpr a bExpr
+      typecastExpr a TypecastBExpr,
+      symbolicBinOpExpr a bExpr SymbolicBinOpBExpr,
+      do
+        space1
+        string' "is"
+        space1
+        endHead
+        b <- trueIfPresent (string' "not" *> space1)
+        c <- asum [
+            DistinctFromBExprIsOp <$> (keyphrase "distinct from" *> space1 *> endHead *> bExpr),
+            OfBExprIsOp <$> (string' "of" *> space1 *> endHead *> inParens typeList),
+            DocumentBExprIsOp <$ string' "document"
+          ]
+        return (IsOpBExpr a b c)
     ]
 
-{-
-TODO: Add missing cases.
--}
-cExpr :: Parser Expr
-cExpr =
-  asum
-    [
-      placeholderExpr,
-      literalExpr,
-      funcExprExpr,
-      inParensExpr,
-      caseExpr,
-      existsSelectExpr,
-      arraySelectExpr,
-      groupingExpr,
-      columnRefExpr
-    ]
-
-plusedExpr expr = PlusedExpr <$> (char '+' *> endHead *> space *> expr)
-
-minusedExpr expr = MinusedExpr <$> (char '-' *> endHead *> space *> expr)
-
-qualOpExpr expr = QualOpExpr <$> qualOp <*> (space1 *> expr)
-
-placeholderExpr :: Parser Expr
-placeholderExpr = PlaceholderExpr <$> (char '$' *> decimal)
-
-inParensExpr :: Parser Expr
-inParensExpr = InParensExpr <$> (Right <$> selectWithParens <|> Left <$> inParens aExpr) <*> optional (space *> indirection)
-
-typecastExpr :: Expr -> Parser Expr
-typecastExpr _left = do
-  space
-  string "::"
-  endHead
-  space
-  _type <- type_
-  return (TypecastExpr _left _type)
-
-binOpExpr _a _bParser = do
-  _binOp <- label "binary operator" (space *> symbolicBinOp <* space <|> space1 *> lexicalBinOp <* space1)
-  _b <- _bParser
-  return (BinOpExpr _binOp _a _b)
-
-escapableBinOpExpr :: Expr -> Parser Expr
-escapableBinOpExpr _a = do
-  space1
-  _not <- option False $ True <$ string' "not" <* space1
-  _op <- asum $ fmap keyphrase $ ["like", "ilike", "similar to"]
-  space1
-  endHead
-  _b <- aExpr
-  _escaping <- optional $ do
-    space1
-    string' "escape"
-    space1
-    endHead
-    _c <- aExpr
-    return _c
-  return (EscapableBinOpExpr _not (Text.toUpper _op) _a _b _escaping)
-
-defaultExpr :: Parser Expr
-defaultExpr = DefaultExpr <$ string' "default"
-
-columnRefExpr :: Parser Expr
-columnRefExpr = QualifiedNameExpr <$> columnRef
-
-literalExpr :: Parser Expr
-literalExpr = LiteralExpr <$> literal
-
-{-|
-Full specification:
-
->>> testParser caseExpr "CASE WHEN a = b THEN c WHEN d THEN e ELSE f END"
-CaseExpr Nothing (WhenClause (BinOpExpr "=" (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "a"))) (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "b")))) (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "c"))) :| [WhenClause (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "d"))) (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "e")))]) (Just (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "f"))))
-
-Implicit argument:
-
->>> testParser caseExpr "CASE a WHEN b THEN c ELSE d END"
-CaseExpr (Just (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "a")))) (WhenClause (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "b"))) (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "c"))) :| []) (Just (QualifiedNameExpr (SimpleQualifiedName (UnquotedName "d"))))
--}
-caseExpr :: Parser Expr
-caseExpr = label "case expression" $ do
-  string' "case"
-  space1
-  endHead
-  _arg <- optional (aExpr <* space1)
-  _whenClauses <- sepWithSpace1 whenClause
-  space1
-  _default <- optional elseClause
-  string' "end"
-  pure $ CaseExpr _arg _whenClauses _default
-
-funcExprExpr :: Parser Expr
-funcExprExpr = FuncExpr <$> funcExpr
-
-existsSelectExpr :: Parser Expr
-existsSelectExpr = string' "exists" *> space *> (ExistsSelectExpr <$> selectWithParens)
-
-arraySelectExpr :: Parser Expr
-arraySelectExpr = string' "array" *> space *> (ArraySelectExpr <$> selectWithParens)
-
-groupingExpr :: Parser Expr
-groupingExpr = inParensWithClause (string' "grouping") (GroupingExpr <$> nonEmptyList aExpr)
+cExpr = asum [
+    ParamCExpr <$> (char '$' *> decimal <* endHead) <*> optional (space *> indirection)
+    ,
+    CaseCExpr <$> caseExpr
+    ,
+    ImplicitRowCExpr <$> implicitRow
+    ,
+    ExplicitRowCExpr <$> explicitRow
+    ,
+    inParensWithClause (string' "grouping") (GroupingCExpr <$> sep1 commaSeparator aExpr)
+    ,
+    string' "exists" *> space *> (ExistsCExpr <$> selectWithParens)
+    ,
+    do
+      string' "array"
+      space
+      join $ asum [
+          fmap (fmap (ArrayCExpr . Right)) arrayExprCont,
+          fmap (fmap (ArrayCExpr . Left) . pure) selectWithParens
+        ]
+    ,
+    InParensCExpr <$> (inParens aExpr <* endHead) <*> optional (space *> indirection)
+    ,
+    AexprConstCExpr <$> aexprConst
+    ,
+    FuncCExpr <$> funcExpr
+    ,
+    ColumnrefCExpr <$> columnref
+    ,
+    do
+      a <- selectWithParens
+      endHead
+      b <- optional (space *> indirection)
+      return (SelectWithParensCExpr a b)
+  ]
 
 
 -- *
 -------------------------
 
-whenClause :: Parser WhenClause
+subqueryOp = asum [
+    AnySubqueryOp <$> (string' "operator" *> space *> endHead *> inParens anyOperator)
+    ,
+    do
+      a <- trueIfPresent (string' "not" *> space1)
+      LikeSubqueryOp a <$ string' "like" <|> IlikeSubqueryOp a <$ string' "ilike"
+    ,
+    AllSubqueryOp <$> allOp
+  ]
+
+subType = asum [
+    AnySubType <$ string' "any",
+    SomeSubType <$ string' "some",
+    AllSubType <$ string' "all"
+  ]
+
+inExpr = SelectInExpr <$> selectWithParens <|> ExprListInExpr <$> inParens exprList
+
+symbolicBinOpExpr _a _bParser _constr = do
+  _binOp <- label "binary operator" (space *> symbolicExprBinOp <* space)
+  _b <- _bParser
+  return (_constr _a _binOp _b)
+
+typecastExpr _prefix _constr = do
+  space
+  string "::"
+  endHead
+  space
+  _type <- typecastTypename
+  return (_constr _prefix _type)
+
+plusedExpr expr = char '+' *> space *> expr
+
+minusedExpr expr = char '-' *> space *> expr
+
+qualOpExpr expr constr = constr <$> wrapToHead qualOp <*> (space1 *> expr)
+
+row = ExplicitRowRow <$> explicitRow <|> ImplicitRowRow <$> implicitRow
+
+explicitRow = string' "row" *> space *> inParens (optional exprList)
+
+implicitRow = inParens $ do
+  a <- wrapToHead aExpr
+  commaSeparator
+  b <- exprList
+  return $ case NonEmpty.consAndUnsnoc a b of
+    (c, d) -> ImplicitRow c d
+
+arrayExprCont = inBracketsCont $ asum [
+    ArrayExprListArrayExpr <$> sep1 commaSeparator (join arrayExprCont),
+    ExprListArrayExpr <$> exprList,
+    pure EmptyArrayExpr
+  ]
+
+{-|
+Full specification:
+
+>>> testParser caseExpr "CASE WHEN a = b THEN c WHEN d THEN e ELSE f END"
+CaseExpr Nothing (WhenClause (BinOpExpr "=" (QualifiedNameExpr (SimpleQualifiedName (UnquotedIdent "a"))) (QualifiedNameExpr (SimpleQualifiedName (UnquotedIdent "b")))) (QualifiedNameExpr (SimpleQualifiedName (UnquotedIdent "c"))) :| [WhenClause (QualifiedNameExpr (SimpleQualifiedName (UnquotedIdent "d"))) (QualifiedNameExpr (SimpleQualifiedName (UnquotedIdent "e")))]) (Just (QualifiedNameExpr (SimpleQualifiedName (UnquotedIdent "f"))))
+
+Implicit argument:
+
+>>> testParser caseExpr "CASE a WHEN b THEN c ELSE d END"
+CaseExpr (Just (QualifiedNameExpr (SimpleQualifiedName (UnquotedIdent "a")))) (WhenClause (QualifiedNameExpr (SimpleQualifiedName (UnquotedIdent "b"))) (QualifiedNameExpr (SimpleQualifiedName (UnquotedIdent "c"))) :| []) (Just (QualifiedNameExpr (SimpleQualifiedName (UnquotedIdent "d"))))
+-}
+caseExpr = label "case expression" $ do
+  string' "case"
+  space1
+  endHead
+  _arg <- optional (aExpr <* space1)
+  _whenClauses <- sep1 space1 whenClause
+  space1
+  _default <- optional elseClause
+  string' "end"
+  pure $ CaseExpr _arg _whenClauses _default
+
 whenClause = do
   string' "when"
   space1
@@ -1115,10 +1133,8 @@ trimList = asum [
     ExprListTrimList <$> exprList
   ]
 
-funcApplication :: Parser FuncApplication
 funcApplication = inParensWithLabel FuncApplication funcName (optional funcApplicationParams)
 
-funcApplicationParams :: Parser FuncApplicationParams
 funcApplicationParams =
   asum
     [
@@ -1128,15 +1144,13 @@ funcApplicationParams =
       normalFuncApplicationParams
     ]
 
-normalFuncApplicationParams :: Parser FuncApplicationParams
 normalFuncApplicationParams = do
   _optAllOrDistinct <- optional (allOrDistinct <* space1)
-  _argList <- nonEmptyList funcArgExpr
+  _argList <- sep1 commaSeparator funcArgExpr
   endHead
   _optSortClause <- optional (space1 *> sortClause)
   return (NormalFuncApplicationParams _optAllOrDistinct _argList _optSortClause)
 
-singleVariadicFuncApplicationParams :: Parser FuncApplicationParams
 singleVariadicFuncApplicationParams = do
   string' "variadic"
   space1
@@ -1145,7 +1159,6 @@ singleVariadicFuncApplicationParams = do
   _optSortClause <- optional (space1 *> sortClause)
   return (VariadicFuncApplicationParams Nothing _arg _optSortClause)
 
-listVariadicFuncApplicationParams :: Parser FuncApplicationParams
 listVariadicFuncApplicationParams = do
   (_argList, _) <- wrapToHead $ sepEnd1 commaSeparator (string' "variadic" <* space1) funcArgExpr
   endHead
@@ -1153,7 +1166,6 @@ listVariadicFuncApplicationParams = do
   _optSortClause <- optional (space1 *> sortClause)
   return (VariadicFuncApplicationParams (Just _argList) _arg _optSortClause)
 
-starFuncApplicationParams :: Parser FuncApplicationParams
 starFuncApplicationParams = space *> char '*' *> endHead *> space $> StarFuncApplicationParams
 
 {-
@@ -1164,7 +1176,6 @@ func_arg_expr:
 param_name:
   | type_function_name
 -}
-funcArgExpr :: Parser FuncArgExpr
 funcArgExpr = asum [
     do
       a <- wrapToHead typeFunctionName
@@ -1186,34 +1197,15 @@ funcArgExpr = asum [
     ExprFuncArgExpr <$> aExpr
   ]
 
-sortClause :: Parser (NonEmpty SortBy)
-sortClause = do
-  keyphrase "order by"
-  endHead
-  space1
-  a <- nonEmptyList sortBy
-  return a
-
-sortBy :: Parser SortBy
-sortBy = do
-  _expr <- aExpr
-  _optOrder <- optional (space1 *> order)
-  return (SortBy _expr _optOrder)
-
-order :: Parser Order
-order = string' "asc" $> AscOrder <|> string' "desc" $> DescOrder
-
 
 -- * Ops
 -------------------------
 
-symbolicBinOp :: Parser Text
-symbolicBinOp =
-  takeWhile1P Nothing Predicate.symbolicBinOpChar &
-  filter (\ a -> "Unknown binary operator: " <> show a) (Predicate.inSet HashSet.symbolicBinOp)
+symbolicExprBinOp =
+  MathSymbolicExprBinOp <$> mathOp <|>
+  QualSymbolicExprBinOp <$> qualOp
 
-lexicalBinOp :: Parser Text
-lexicalBinOp = asum $ fmap keyphrase $ ["and", "or", "is distinct from", "is not distinct from"]
+lexicalExprBinOp = asum $ fmap keyphrase $ ["and", "or", "is distinct from", "is not distinct from"]
 
 qualOp = asum [
     OpQualOp <$> op,
@@ -1252,11 +1244,26 @@ mathOp = asum [
   ]
 
 
--- * Literals
+-- * Constants
 -------------------------
 
 {-|
-@
+>>> testParser aexprConst "32948023849023"
+IAexprConst 32948023849023
+
+>>> testParser aexprConst "'abc''de'"
+SAexprConst "abc'de"
+
+>>> testParser aexprConst "23.43234"
+FAexprConst 23.43234
+
+>>> testParser aexprConst "32423423.324324872"
+FAexprConst 3.2423423324324872e7
+
+>>> testParser aexprConst "NULL"
+NullAexprConst
+-}
+{-
 AexprConst: Iconst
       | FCONST
       | Sconst
@@ -1270,26 +1277,8 @@ AexprConst: Iconst
       | TRUE_P
       | FALSE_P
       | NULL_P
-@
-
->>> testParser literal "32948023849023"
-IntLiteral 32948023849023
-
->>> testParser literal "'abc''de'"
-StringLiteral "abc'de"
-
->>> testParser literal "23.43234"
-FloatLiteral 23.43234
-
->>> testParser literal "32423423.324324872"
-FloatLiteral 3.2423423324324872e7
-
->>> testParser literal "NULL"
-NullLiteral
 -}
-{- TODO: Add remaining cases -}
-literal :: Parser Literal
-literal = asum [
+aexprConst = asum [
     do
       string' "interval"
       space1
@@ -1299,14 +1288,14 @@ literal = asum [
             a <- sconst
             endHead
             b <- optional (space1 *> interval)
-            return (StringIntervalLiteral a b)
+            return (StringIntervalAexprConst a b)
           ,
           do
             a <- inParens iconst
             space1
             endHead
             b <- sconst
-            return (IntIntervalLiteral a b)
+            return (IntIntervalAexprConst a b)
         ]
       return a
     ,
@@ -1315,46 +1304,46 @@ literal = asum [
       space1
       endHead
       b <- sconst
-      return (ConstTypenameLiteral a b)
+      return (ConstTypenameAexprConst a b)
     ,
-    BoolLiteral True <$ string' "true"
+    BoolAexprConst True <$ string' "true"
     ,
-    BoolLiteral False <$ string' "false"
+    BoolAexprConst False <$ string' "false"
     ,
-    NullLiteral <$ string' "null"
+    NullAexprConst <$ string' "null"
     ,
-    either IntLiteral FloatLiteral <$> iconstOrFconst
+    either IAexprConst FAexprConst <$> iconstOrFconst
     ,
-    StringLiteral <$> sconst
+    SAexprConst <$> sconst
     ,
     label "bit literal" $ do
       string' "b'"
       endHead
       a <- takeWhile1P (Just "0 or 1") (\ b -> b == '0' || b == '1')
       char '\''
-      return (BitLiteral a)
+      return (BAexprConst a)
     ,
     label "hex literal" $ do
       string' "x'"
       endHead
       a <- takeWhile1P (Just "Hex digit") (Predicate.inSet HashSet.hexDigitChars)
       char '\''
-      return (HexLiteral a)
+      return (XAexprConst a)
     ,
     wrapToHead $ do
       a <- funcName
       space
       char '('
       space
-      b <- nonEmptyList funcArgExpr
+      b <- sep1 commaSeparator funcArgExpr
       c <- optional (space1 *> sortClause)
       space
       char ')'
       space1
       d <- sconst
-      return (FuncLiteral a (Just (FuncLiteralArgList b c)) d)
+      return (FuncAexprConst a (Just (FuncConstArgs b c)) d)
     ,
-    FuncLiteral <$> (wrapToHead funcName <* space1) <*> pure Nothing <*> sconst
+    FuncAexprConst <$> (wrapToHead funcName <* space1) <*> pure Nothing <*> sconst
   ]
 
 iconstOrFconst = Right <$> fconst <|> Left <$> iconst
@@ -1459,32 +1448,31 @@ intervalSecond = do
 -------------------------
 
 {-|
->>> testParser type_ "int4"
-Type (UnquotedName "int4") False 0 False
+>>> testParser typecastTypename "int4"
+TypecastTypename (UnquotedIdent "int4") False 0 False
 
->>> testParser type_ "int4?"
-Type (UnquotedName "int4") True 0 False
+>>> testParser typecastTypename "int4?"
+TypecastTypename (UnquotedIdent "int4") True 0 False
 
->>> testParser type_ "int4[]"
-Type (UnquotedName "int4") False 1 False
+>>> testParser typecastTypename "int4[]"
+TypecastTypename (UnquotedIdent "int4") False 1 False
 
->>> testParser type_ "int4[ ] []"
-Type (UnquotedName "int4") False 2 False
+>>> testParser typecastTypename "int4[ ] []"
+TypecastTypename (UnquotedIdent "int4") False 2 False
 
->>> testParser type_ "int4[][]?"
-Type (UnquotedName "int4") False 2 True
+>>> testParser typecastTypename "int4[][]?"
+TypecastTypename (UnquotedIdent "int4") False 2 True
 
->>> testParser type_ "int4?[][]"
-Type (UnquotedName "int4") True 2 False
+>>> testParser typecastTypename "int4?[][]"
+TypecastTypename (UnquotedIdent "int4") True 2 False
 -}
-type_ :: Parser Type
-type_ = label "type" $ do
+typecastTypename = label "type" $ do
   _baseName <- typeFunctionName
   endHead
   _baseNullable <- option False (True <$ space <* char '?')
   _arrayLevels <- fmap length $ many $ space *> char '[' *> endHead *> space *> char ']'
   _arrayNullable <- option False (True <$ space <* char '?')
-  return (Type _baseName _baseNullable _arrayLevels _arrayNullable)
+  return (TypecastTypename _baseName _baseNullable _arrayLevels _arrayNullable)
 
 
 -- * Clauses
@@ -1597,7 +1585,7 @@ for_locking_items:
 -}
 forLockingClause = readOnly <|> items where
   readOnly = ReadOnlyForLockingClause <$ keyphrase "for read only"
-  items = ItemsForLockingClause <$> sepWithSpace1 forLockingItem
+  items = ItemsForLockingClause <$> sep1 space1 forLockingItem
 
 {-
 for_locking_item:
@@ -1612,7 +1600,7 @@ opt_nowait_or_skip:
 -}
 forLockingItem = do
   _strength <- forLockingStrength
-  _rels <- optional $ space1 *> string' "of" *> space1 *> endHead *> nonEmptyList qualifiedName
+  _rels <- optional $ space1 *> string' "of" *> space1 *> endHead *> sep1 commaSeparator qualifiedName
   _nowaitOrSkip <- optional (space1 *> nowaitOrSkip)
   return (ForLockingItem _strength _rels _nowaitOrSkip)
 
@@ -1635,15 +1623,13 @@ nowaitOrSkip = False <$ string' "nowait" <|> True <$ keyphrase "skip locked"
 -- * References & Names
 -------------------------
 
-quotedName :: Parser Name
-quotedName = filter (const "Empty name") (not . Text.null) (quotedString '"') & fmap QuotedName
+quotedName = filter (const "Empty name") (not . Text.null) (quotedString '"') & fmap QuotedIdent
 
 {-
 ident_start   [A-Za-z\200-\377_]
 ident_cont    [A-Za-z\200-\377_0-9\$]
 identifier    {ident_start}{ident_cont}*
 -}
-ident :: Parser Name
 ident = quotedName <|> keywordNameByPredicate (not . Predicate.keyword)
 
 {-
@@ -1653,7 +1639,6 @@ ColId:
   |  col_name_keyword
 -}
 {-# NOINLINE colId #-}
-colId :: Parser Name
 colId = label "identifier" $
   ident <|> keywordNameFromSet (HashSet.unreservedKeyword <> HashSet.colNameKeyword)
 
@@ -1665,13 +1650,12 @@ ColLabel:
   |  type_func_name_keyword
   |  reserved_keyword
 -}
-colLabel :: Parser Name
 colLabel = label "column label" $
   ident <|> keywordNameFromSet HashSet.keyword
 
 {-|
 >>> testParser qualifiedName "a.b"
-IndirectedQualifiedName (UnquotedName "a") (AttrNameIndirectionEl (UnquotedName "b") :| [])
+IndirectedQualifiedName (UnquotedIdent "a") (AttrNameIndirectionEl (UnquotedIdent "b") :| [])
 
 >>> testParser qualifiedName "a.-"
 ...
@@ -1682,17 +1666,21 @@ qualified_name:
   | ColId
   | ColId indirection
 -}
-qualifiedName :: Parser QualifiedName
 qualifiedName =
-  IndirectedQualifiedName <$> wrapToHead colId <*> indirection <|>
+  IndirectedQualifiedName <$> wrapToHead colId <*> (space *> indirection) <|>
   SimpleQualifiedName <$> colId
 
-{-
-columnref:
-  | ColId
-  | ColId indirection
--}
-columnRef = qualifiedName
+columnref = do
+  a <- wrapToHead colId
+  endHead
+  b <- optional (space *> indirection)
+  return (Columnref a b)
+
+anyName = do
+  a <- wrapToHead colId
+  endHead
+  b <- optional (space *> attrs)
+  return (AnyName a b)
 
 {-
 func_name:
@@ -1700,8 +1688,8 @@ func_name:
   | ColId indirection
 -}
 funcName =
-  IndirectedQualifiedName <$> wrapToHead colId <*> (space *> indirection) <|>
-  SimpleQualifiedName <$> typeFunctionName
+  IndirectedFuncName <$> wrapToHead colId <*> (space *> indirection) <|>
+  TypeFuncName <$> typeFunctionName
 
 {-
 type_function_name:
@@ -1718,7 +1706,6 @@ indirection:
   | indirection_el
   | indirection indirection_el
 -}
-indirection :: Parser Indirection
 indirection = some indirectionEl
 
 {-
@@ -1731,7 +1718,6 @@ opt_slice_bound:
   | a_expr
   | EMPTY
 -}
-indirectionEl :: Parser IndirectionEl
 indirectionEl =
   asum
     [
@@ -1777,18 +1763,15 @@ attr_name:
 -}
 attrName = colLabel
 
-keywordNameFromSet :: HashSet Text -> Parser Name
 keywordNameFromSet _set = keywordNameByPredicate (Predicate.inSet _set)
 
-keywordNameByPredicate :: (Text -> Bool) -> Parser Name
 keywordNameByPredicate _predicate =
-  fmap UnquotedName $
+  fmap UnquotedIdent $
   filter
     (\ a -> "Reserved keyword " <> show a <> " used as an identifier. If that's what you intend, you have to wrap it in double quotes.")
     _predicate
     keyword
 
-keyword :: Parser Text
 keyword = parse $ Megaparsec.label "keyword" $ do
   _firstChar <- Megaparsec.satisfy Predicate.firstIdentifierChar
   _remainder <- Megaparsec.takeWhileP Nothing Predicate.notFirstIdentifierChar
@@ -1797,12 +1780,13 @@ keyword = parse $ Megaparsec.label "keyword" $ do
 {-|
 Consume a keyphrase, ignoring case and types of spaces between words.
 -}
-keyphrase :: Text -> Parser Text
 keyphrase a = Text.words a & fmap (void . MegaparsecChar.string') & intersperse MegaparsecChar.space1 & sequence_ & fmap (const (Text.toUpper a)) & Megaparsec.label (show a) & parse
 
 
 -- * Typename
 -------------------------
+
+typeList = sep1 commaSeparator typename
 
 typename =
   do

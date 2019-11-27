@@ -2,34 +2,54 @@ module Hasql.TH.Syntax.Projections.PlaceholderTypeMap where
 
 import Hasql.TH.Prelude hiding (union)
 import Hasql.TH.Syntax.Ast
+import Hasql.TH.Syntax.Projections.ChildExprList (ChildExpr(..))
 import qualified Data.IntMap.Strict as IntMap
 import qualified Hasql.TH.Syntax.Projections.ChildExprList as ChildExprList
 
 
-preparableStmt :: PreparableStmt -> Either Text (IntMap Type)
-preparableStmt = exprList . ChildExprList.preparableStmt
+preparableStmt :: PreparableStmt -> Either Text (IntMap TypecastTypename)
+preparableStmt = childExprList . ChildExprList.preparableStmt
 
-exprList :: [Expr] -> Either Text (IntMap Type)
-exprList = foldM union IntMap.empty <=< traverse expr
+childExprList :: [ChildExpr] -> Either Text (IntMap TypecastTypename)
+childExprList = foldM union IntMap.empty <=< traverse childExpr
 
-union :: IntMap Type -> IntMap Type -> Either Text (IntMap Type)
+union :: IntMap TypecastTypename -> IntMap TypecastTypename -> Either Text (IntMap TypecastTypename)
 union a b = IntMap.mergeWithKey merge (fmap Right) (fmap Right) a b & sequence where
   merge index a b = if a == b
     then Just (Right a)
     else Just (Left ("Placeholder $" <> (fromString . show) index <> " has conflicting type annotations"))
 
-expr :: Expr -> Either Text (IntMap Type)
-expr = \ case
-  PlaceholderExpr _index -> Left ("Placeholder $" <> (fromString . show) _index <> " misses an explicit typecast")
-  TypecastExpr _expr _type -> castedExpr _type _expr
-  _expr -> exprList (ChildExprList.expr _expr)
+childExpr :: ChildExpr -> Either Text (IntMap TypecastTypename)
+childExpr = \ case
+  AChildExpr a -> aExpr a
+  BChildExpr a -> bExpr a
+  CChildExpr a -> cExpr a
 
-castedExpr :: Type -> Expr -> Either Text (IntMap Type)
-castedExpr _type = \ case
-  PlaceholderExpr _index -> Right $ IntMap.singleton _index _type
-  TypecastExpr _expr _type' -> castedExpr _type' _expr
-  InParensExpr (Left _expr) _optIndirection -> do
-    _a <- castedExpr _type _expr
-    _b <- exprList (ChildExprList.foldable ChildExprList.indirection _optIndirection)
-    union _a _b
-  _expr -> exprList (ChildExprList.expr _expr)
+aExpr = \ case
+  CExprAExpr a -> cExpr a
+  TypecastAExpr a b -> castedAExpr b a
+  a -> childExprList (ChildExprList.aChildExpr a)
+
+bExpr = \ case
+  CExprBExpr a -> cExpr a
+  TypecastBExpr a b -> castedBExpr b a
+  a -> childExprList (ChildExprList.bChildExpr a)
+
+cExpr = \ case
+  ParamCExpr a _ -> Left ("Placeholder $" <> (fromString . show) a <> " misses an explicit typecast")
+  a -> childExprList (ChildExprList.cChildExpr a)
+
+castedAExpr a = \ case
+  CExprAExpr b -> castedCExpr a b
+  TypecastAExpr b c -> castedAExpr c b
+  b -> aExpr b
+
+castedBExpr a = \ case
+  CExprBExpr b -> castedCExpr a b
+  TypecastBExpr b c -> castedBExpr c b
+  b -> bExpr b
+
+castedCExpr a = \ case
+  ParamCExpr b _ -> Right (IntMap.singleton b a)
+  InParensCExpr b _ -> castedAExpr a b
+  b -> cExpr b

@@ -11,30 +11,24 @@ import Hasql.TH.Syntax.Ast
 >>> parse parser = either (error . show) id . Text.Megaparsec.parse parser ""
 -}
 
-foldable :: Foldable f => (a -> Either Text [Type]) -> f a -> Either Text [Type]
+foldable :: Foldable f => (a -> Either Text [TypecastTypename]) -> f a -> Either Text [TypecastTypename]
 foldable fn = fmap join . traverse fn . toList
 
-preparableStmt :: PreparableStmt -> Either Text [Type]
 preparableStmt = \ case
   SelectPreparableStmt a -> selectStmt a
 
-selectStmt :: SelectStmt -> Either Text [Type]
 selectStmt = \ case
   Left a -> selectNoParens a
   Right a -> selectWithParens a
 
-selectNoParens :: SelectNoParens -> Either Text [Type]
 selectNoParens (SelectNoParens _ a _ _ _) = selectClause a
 
-selectWithParens :: SelectWithParens -> Either Text [Type]
 selectWithParens = \ case
   NoParensSelectWithParens a -> selectNoParens a
   WithParensSelectWithParens a -> selectWithParens a
 
-selectClause :: SelectClause -> Either Text [Type]
 selectClause = either simpleSelect selectWithParens
 
-simpleSelect :: SimpleSelect -> Either Text [Type]
 simpleSelect = \ case
   NormalSimpleSelect a _ _ _ _ _ _ -> foldable targeting a
   ValuesSimpleSelect a -> valuesClause a
@@ -45,26 +39,26 @@ simpleSelect = \ case
       then return c
       else Left "Merged queries produce results of incompatible types"
 
-targeting :: Targeting -> Either Text [Type]
 targeting = \ case
   NormalTargeting a -> foldable target a
   AllTargeting a -> foldable (foldable target) a
   DistinctTargeting _ b -> foldable target b
 
-target :: Target -> Either Text [Type]
 target = \ case
-  AliasedExprTarget a _ -> expr a
-  ImplicitlyAliasedExprTarget a _ -> expr a
-  ExprTarget a -> expr a
+  AliasedExprTarget a _ -> aExpr a
+  ImplicitlyAliasedExprTarget a _ -> aExpr a
+  ExprTarget a -> aExpr a
   AsteriskTarget -> Left "Target of all fields is not allowed, \
     \because it leaves the output types unspecified. \
     \You have to be specific."
 
-valuesClause :: ValuesClause -> Either Text [Type]
-valuesClause = foldable (foldable expr)
+valuesClause = foldable (foldable aExpr)
 
-expr :: Expr -> Either Text [Type]
-expr = \ case
-  TypecastExpr _ a -> Right [a]
-  InParensExpr (Left a) _ -> expr a
+aExpr = \ case
+  CExprAExpr a -> cExpr a
+  TypecastAExpr _ a -> Right [a]
+  a -> Left "Result expression is missing a typecast"
+
+cExpr = \ case
+  InParensCExpr a Nothing -> aExpr a
   a -> Left "Result expression is missing a typecast"
