@@ -165,8 +165,8 @@ targetList = nonEmpty (Range.exponential 1 8) targetEl
 
 targetEl = choice [
     pure AsteriskTargetEl,
-    AliasedExprTargetEl <$> aExpr <*> name,
-    ImplicitlyAliasedExprTargetEl <$> prefixAExpr <*> name,
+    AliasedExprTargetEl <$> aExpr <*> colLabel,
+    ImplicitlyAliasedExprTargetEl <$> prefixAExpr <*> ident,
     ExprTargetEl <$> aExpr
   ]
 
