@@ -27,7 +27,7 @@ Here's the essence of how the original parser is implemented, citing from
 -}
 module Hasql.TH.Syntax.Parsing where
 
-import Hasql.TH.Prelude hiding (expr, try, option, some, many, sortBy, filter, head, tail, bit)
+import Hasql.TH.Prelude hiding (expr, try, option, some, many, sortBy, filter, head, tail, bit, fromList)
 import HeadedMegaparsec hiding (string)
 import Control.Applicative.Combinators hiding (some)
 import Control.Applicative.Combinators.NonEmpty
@@ -131,9 +131,173 @@ quasiQuote p = space *> p <* endHead <* space <* eof
 -- * PreparableStmt
 -------------------------
 
-preparableStmt = selectPreparableStmt
+preparableStmt =
+  SelectPreparableStmt <$> selectStmt <|>
+  InsertPreparableStmt <$> insertStmt <|>
+  UpdatePreparableStmt <$> updateStmt <|>
+  DeletePreparableStmt <$> deleteStmt
 
-selectPreparableStmt = SelectPreparableStmt <$> selectStmt
+
+-- * Insert
+-------------------------
+
+insertStmt = do
+  a <- optional (withClause <* space1)
+  string' "insert"
+  space1
+  endHead
+  string' "into"
+  space1
+  b <- insertTarget
+  space1
+  c <- insertRest
+  d <- optional (space1 *> onConflict)
+  e <- optional (space1 *> returningClause)
+  return (InsertStmt a b c d e)
+
+insertTarget = do
+  a <- qualifiedName
+  endHead
+  b <- optional (space1 *> string' "as" *> space1 *> endHead *> colId)
+  return (InsertTarget a b)
+
+insertRest = asum [
+    DefaultValuesInsertRest <$ (string' "default" *> space1 *> endHead *> string' "values")
+    ,
+    do
+      a <- optional (inParens insertColumnList <* space1)
+      b <- optional $ do
+        string' "overriding"
+        space1
+        endHead
+        b <- overrideKind
+        space1
+        string' "value"
+        space1
+        return b
+      c <- selectStmt
+      return (SelectInsertRest a b c)
+  ]
+
+overrideKind = asum [
+    UserOverrideKind <$ string' "user",
+    SystemOverrideKind <$ string' "system"
+  ]
+
+insertColumnList = sep1 commaSeparator insertColumnItem
+
+insertColumnItem = do
+  a <- colId
+  endHead
+  b <- optional (space1 *> indirection)
+  return (InsertColumnItem a b)
+
+onConflict = do
+  string' "on"
+  space1
+  string' "conflict"
+  space1
+  endHead
+  a <- optional (confExpr <* space1)
+  string' "do"
+  space1
+  b <- onConflictDo
+  return (OnConflict a b)
+
+confExpr = asum [
+    WhereConfExpr <$> inParens indexParams <*> optional (space *> whereClause)
+    ,
+    ConstraintConfExpr <$> (string' "on" *> space1 *> string' "constraint" *> space1 *> endHead *> name)
+  ]
+
+onConflictDo = asum [
+    NothingOnConflictDo <$ string' "nothing"
+    ,
+    do
+      string' "update"
+      space1
+      endHead
+      string' "set"
+      space1
+      a <- setClauseList
+      b <- optional (space1 *> whereClause)
+      return (UpdateOnConflictDo a b)
+  ]
+
+returningClause = do
+  string' "returning"
+  space1
+  endHead
+  targetList
+
+
+-- * Update
+-------------------------
+
+updateStmt = do
+  a <- optional (withClause <* space1)
+  string' "update"
+  space1
+  endHead
+  b <- relationExprOptAlias
+  space1
+  string' "set"
+  space1
+  c <- setClauseList
+  d <- optional (space1 *> fromClause)
+  e <- optional (space1 *> whereOrCurrentClause)
+  f <- optional (space1 *> returningClause)
+  return (UpdateStmt a b c d e f)
+
+setClauseList = sep1 commaSeparator setClause
+
+setClause = asum [
+    do
+      a <- inParens setTargetList 
+      space
+      char '='
+      space
+      b <- aExpr
+      return (TargetListSetClause a b)
+    ,
+    do
+      a <- setTarget 
+      space
+      char '='
+      space
+      b <- aExpr
+      return (TargetSetClause a b)
+  ]
+
+setTarget = do
+  a <- colId
+  endHead
+  b <- optional (space1 *> indirection)
+  return (SetTarget a b)
+
+setTargetList = sep1 commaSeparator setTarget
+
+
+-- * Delete
+-------------------------
+
+deleteStmt = do
+  a <- optional (withClause <* space1)
+  string' "delete"
+  space1
+  endHead
+  string' "from"
+  space1
+  b <- relationExprOptAlias
+  c <- optional (space1 *> usingClause)
+  d <- optional (space1 *> whereOrCurrentClause)
+  e <- optional (space1 *> returningClause)
+  return (DeleteStmt a b c d e)
+
+usingClause = do
+  string' "using"
+  space1
+  fromList
 
 
 -- * Select
@@ -234,8 +398,8 @@ baseSimpleSelect = asum [
       endHead
       _targeting <- optional (space1 *> targeting)
       _intoClause <- optional (space1 *> string' "into" *> endHead *> space1 *> optTempTableName)
-      _fromClause <- optional (space1 *> string' "from" *> endHead *> space1 *> sep1 commaSeparator tableRef)
-      _whereClause <- optional (space1 *> string' "where" *> endHead *> space1 *> aExpr)
+      _fromClause <- optional (space1 *> fromClause)
+      _whereClause <- optional (space1 *> whereClause)
       _groupClause <- optional (space1 *> keyphrase "group by" *> endHead *> space1 *> sep1 commaSeparator groupByItem)
       _havingClause <- optional (space1 *> string' "having" *> endHead *> space1 *> aExpr)
       _windowClause <- optional (space1 *> string' "window" *> endHead *> space1 *> sep1 commaSeparator windowDefinition)
@@ -497,6 +661,10 @@ windowExclusionClause =
 -- * Table refs
 -------------------------
 
+fromList = sep1 commaSeparator tableRef
+
+fromClause = string' "from" *> endHead *> space1 *> fromList
+
 {-|
 >>> testParser tableRef "a left join b "
 ...
@@ -602,6 +770,15 @@ relationExpr =
         return (SimpleRelationExpr _name _asterisk)
     ]
 
+relationExprOptAlias = do
+  a <- relationExpr
+  b <- optional $ do
+    space1
+    b <- trueIfPresent (string' "as" *> space1)
+    c <- colId
+    return (b, c)
+  return (RelationExprOptAlias a b)
+
 joinedTable =
   asum [
       do
@@ -703,6 +880,29 @@ aliasClause = do
   return (AliasClause _alias _columnAliases)
 
 
+-- * Where
+-------------------------
+
+whereClause = string' "where" *> space1 *> endHead *> aExpr
+
+whereOrCurrentClause = do
+  string' "where"
+  space1
+  endHead
+  asum [
+      do
+        string' "current"
+        space1
+        string' "of"
+        space1
+        endHead
+        a <- cursorName
+        return (CursorWhereOrCurrentClause a)
+      ,
+      ExprWhereOrCurrentClause <$> aExpr
+    ]
+
+
 -- * Sorting
 -------------------------
 
@@ -715,10 +915,8 @@ sortClause = do
 
 sortBy = do
   _expr <- aExpr
-  _optAscDesc <- optional (space1 *> order)
+  _optAscDesc <- optional (space1 *> ascDesc)
   return (SortBy _expr _optAscDesc)
-
-order = string' "asc" $> AscAscDesc <|> string' "desc" $> DescAscDesc
 
 
 -- * Expressions
@@ -1007,6 +1205,11 @@ funcExpr = asum [
       c <- optional (space1 *> filterClause)
       d <- optional (space1 *> overClause)
       return (ApplicationFuncExpr a b c d)
+  ]
+
+funcExprWindowless = asum [
+    CommonSubexprFuncExprWindowless <$> funcExprCommonSubexpr,
+    ApplicationFuncExprWindowless <$> funcApplication
   ]
 
 withinGroupClause = do
@@ -1700,6 +1903,10 @@ anyName = do
   b <- optional (space *> attrs)
   return (AnyName a b)
 
+name = colId
+
+cursorName = name
+
 {-
 func_name:
   | type_function_name
@@ -1850,3 +2057,29 @@ genericType = do
 attrs = some (char '.' *> endHead *> space *> attrName)
 
 typeModifiers = inParens exprList
+
+
+-- * Indexes
+-------------------------
+
+indexParams = sep1 commaSeparator indexElem
+
+indexElem = IndexElem <$>
+  (indexElemDef <* endHead) <*>
+  optional (space1 *> collate) <*>
+  optional (space1 *> class_) <*>
+  optional (space1 *> ascDesc) <*>
+  optional (space1 *> nullsOrder)
+
+indexElemDef =
+  ExprIndexElemDef <$> aExpr <|>
+  FuncIndexElemDef <$> funcExprWindowless <|>
+  IdIndexElemDef <$> colId 
+
+collate = string' "collate" *> space1 *> endHead *> anyName
+
+class_ = anyName
+
+ascDesc = string' "asc" $> AscAscDesc <|> string' "desc" $> DescAscDesc
+
+nullsOrder = string' "nulls" *> space1 *> endHead *> (FirstNullsOrder <$ string' "first" <|> LastNullsOrder <$ string' "last")
