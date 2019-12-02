@@ -40,15 +40,15 @@ simpleSelect = \ case
       else Left "Merged queries produce results of incompatible types"
 
 targeting = \ case
-  NormalTargeting a -> foldable target a
-  AllTargeting a -> foldable (foldable target) a
-  DistinctTargeting _ b -> foldable target b
+  NormalTargeting a -> foldable targetEl a
+  AllTargeting a -> foldable (foldable targetEl) a
+  DistinctTargeting _ b -> foldable targetEl b
 
-target = \ case
-  AliasedExprTarget a _ -> aExpr a
-  ImplicitlyAliasedExprTarget a _ -> aExpr a
-  ExprTarget a -> aExpr a
-  AsteriskTarget -> Left "Target of all fields is not allowed, \
+targetEl = \ case
+  AliasedExprTargetEl a _ -> aExpr a
+  ImplicitlyAliasedExprTargetEl a _ -> aExpr a
+  ExprTargetEl a -> aExpr a
+  AsteriskTargetEl -> Left "Target of all fields is not allowed, \
     \because it leaves the output types unspecified. \
     \You have to be specific."
 

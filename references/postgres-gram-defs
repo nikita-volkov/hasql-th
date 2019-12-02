@@ -2582,14 +2582,12 @@ insert_column_item:
 
 opt_on_conflict:
   | ON CONFLICT opt_conf_expr DO UPDATE SET set_clause_list where_clause
-  | 
-      ON CONFLICT opt_conf_expr DO NOTHING
+  | ON CONFLICT opt_conf_expr DO NOTHING
   | EMPTY
 
 opt_conf_expr:
   | '(' index_params ')' where_clause
-  | 
-      ON CONSTRAINT name
+  | ON CONSTRAINT name
   | EMPTY
 
 returning_clause:

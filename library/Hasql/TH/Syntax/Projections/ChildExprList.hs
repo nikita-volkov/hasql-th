@@ -140,15 +140,15 @@ simpleSelect = \ case
   BinSimpleSelect _ a _ b -> selectClause a <> selectClause b
 
 targeting = \ case
-  NormalTargeting a -> foldable target a
-  AllTargeting a -> foldable (foldable target) a
-  DistinctTargeting a b -> foldable exprList a <> foldable target b
+  NormalTargeting a -> foldable targetEl a
+  AllTargeting a -> foldable (foldable targetEl) a
+  DistinctTargeting a b -> foldable exprList a <> foldable targetEl b
 
-target = \ case
-  AliasedExprTarget a _ -> aExpr a
-  ImplicitlyAliasedExprTarget a _ -> aExpr a
-  ExprTarget a -> aExpr a
-  AsteriskTarget -> []
+targetEl = \ case
+  AliasedExprTargetEl a _ -> aExpr a
+  ImplicitlyAliasedExprTargetEl a _ -> aExpr a
+  ExprTargetEl a -> aExpr a
+  AsteriskTargetEl -> []
 
 intoClause = optTempTableName
 
@@ -228,7 +228,7 @@ cExpr = pure . CChildExpr
 
 funcExpr = \ case
   ApplicationFuncExpr a b c d -> funcApplication a <> foldable withinGroupClause b <> foldable filterClause c <> foldable overClause d
-  SubexprFuncExpr a -> funcExprCommonSubExpr a
+  SubexprFuncExpr a -> funcExprCommonSubexpr a
 
 withinGroupClause = sortClause
 
@@ -238,30 +238,30 @@ overClause = \ case
   WindowOverClause a -> windowSpecification a
   ColIdOverClause _ -> []
 
-funcExprCommonSubExpr = \ case
-  CollationForFuncExprCommonSubExpr a -> aExpr a
-  CurrentDateFuncExprCommonSubExpr -> []
-  CurrentTimeFuncExprCommonSubExpr _ -> []
-  CurrentTimestampFuncExprCommonSubExpr _ -> []
-  LocalTimeFuncExprCommonSubExpr _ -> []
-  LocalTimestampFuncExprCommonSubExpr _ -> []
-  CurrentRoleFuncExprCommonSubExpr -> []
-  CurrentUserFuncExprCommonSubExpr -> []
-  SessionUserFuncExprCommonSubExpr -> []
-  UserFuncExprCommonSubExpr -> []
-  CurrentCatalogFuncExprCommonSubExpr -> []
-  CurrentSchemaFuncExprCommonSubExpr -> []
-  CastFuncExprCommonSubExpr a b -> aExpr a <> typename b
-  ExtractFuncExprCommonSubExpr a -> foldable extractList a
-  OverlayFuncExprCommonSubExpr a -> overlayList a
-  PositionFuncExprCommonSubExpr a -> foldable positionList a
-  SubstringFuncExprCommonSubExpr a -> foldable substrList a
-  TreatFuncExprCommonSubExpr a b -> aExpr a <> typename b
-  TrimFuncExprCommonSubExpr a b -> foldable trimModifier a <> trimList b
-  NullIfFuncExprCommonSubExpr a b -> aExpr a <> aExpr b
-  CoalesceFuncExprCommonSubExpr a -> exprList a
-  GreatestFuncExprCommonSubExpr a -> exprList a
-  LeastFuncExprCommonSubExpr a -> exprList a
+funcExprCommonSubexpr = \ case
+  CollationForFuncExprCommonSubexpr a -> aExpr a
+  CurrentDateFuncExprCommonSubexpr -> []
+  CurrentTimeFuncExprCommonSubexpr _ -> []
+  CurrentTimestampFuncExprCommonSubexpr _ -> []
+  LocalTimeFuncExprCommonSubexpr _ -> []
+  LocalTimestampFuncExprCommonSubexpr _ -> []
+  CurrentRoleFuncExprCommonSubexpr -> []
+  CurrentUserFuncExprCommonSubexpr -> []
+  SessionUserFuncExprCommonSubexpr -> []
+  UserFuncExprCommonSubexpr -> []
+  CurrentCatalogFuncExprCommonSubexpr -> []
+  CurrentSchemaFuncExprCommonSubexpr -> []
+  CastFuncExprCommonSubexpr a b -> aExpr a <> typename b
+  ExtractFuncExprCommonSubexpr a -> foldable extractList a
+  OverlayFuncExprCommonSubexpr a -> overlayList a
+  PositionFuncExprCommonSubexpr a -> foldable positionList a
+  SubstringFuncExprCommonSubexpr a -> foldable substrList a
+  TreatFuncExprCommonSubexpr a b -> aExpr a <> typename b
+  TrimFuncExprCommonSubexpr a b -> foldable trimModifier a <> trimList b
+  NullIfFuncExprCommonSubexpr a b -> aExpr a <> aExpr b
+  CoalesceFuncExprCommonSubexpr a -> exprList a
+  GreatestFuncExprCommonSubexpr a -> exprList a
+  LeastFuncExprCommonSubexpr a -> exprList a
 
 extractList (ExtractList a b) = extractArg a <> aExpr b
 

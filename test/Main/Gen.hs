@@ -95,18 +95,18 @@ terminalSimpleSelect = pure (NormalSimpleSelect Nothing Nothing Nothing Nothing 
 -------------------------
 
 targeting = choice [
-    NormalTargeting <$> targets,
-    AllTargeting <$> maybe targets,
-    DistinctTargeting <$> maybe (nonEmpty (Range.exponential 1 8) aExpr) <*> targets
+    NormalTargeting <$> targetList,
+    AllTargeting <$> maybe targetList,
+    DistinctTargeting <$> maybe (nonEmpty (Range.exponential 1 8) aExpr) <*> targetList
   ]
 
-targets = nonEmpty (Range.exponential 1 8) target
+targetList = nonEmpty (Range.exponential 1 8) targetEl
 
-target = choice [
-    pure AsteriskTarget,
-    AliasedExprTarget <$> aExpr <*> name,
-    ImplicitlyAliasedExprTarget <$> prefixAExpr <*> name,
-    ExprTarget <$> aExpr
+targetEl = choice [
+    pure AsteriskTargetEl,
+    AliasedExprTargetEl <$> aExpr <*> name,
+    ImplicitlyAliasedExprTargetEl <$> prefixAExpr <*> name,
+    ExprTargetEl <$> aExpr
   ]
 
 
@@ -251,7 +251,7 @@ sortClause = nonEmpty (Range.exponential 1 8) sortBy
 
 sortBy = SortBy <$> nonSuffixOpAExpr <*> maybe order
 
-order = element [AscOrder, DescOrder]
+order = element [AscAscDesc, DescAscDesc]
 
 
 -- * All or distinct
@@ -456,7 +456,7 @@ implicitRow = ImplicitRow <$> exprList <*> aExpr
 
 funcExpr = choice [
     ApplicationFuncExpr <$> funcApplication <*> maybe withinGroupClause <*> maybe filterClause <*> maybe overClause,
-    SubexprFuncExpr <$> funcExprCommonSubExpr
+    SubexprFuncExpr <$> funcExprCommonSubexpr
   ]
 
 funcApplication = FuncApplication <$> funcName <*> maybe funcApplicationParams
@@ -479,30 +479,30 @@ filterClause = aExpr
 
 overClause = choice [WindowOverClause <$> windowSpecification, ColIdOverClause <$> colId]
 
-funcExprCommonSubExpr = choice [
-    CollationForFuncExprCommonSubExpr <$> aExpr,
-    pure CurrentDateFuncExprCommonSubExpr,
-    CurrentTimeFuncExprCommonSubExpr <$> maybe iconst,
-    CurrentTimestampFuncExprCommonSubExpr <$> maybe iconst,
-    LocalTimeFuncExprCommonSubExpr <$> maybe iconst,
-    LocalTimestampFuncExprCommonSubExpr <$> maybe iconst,
-    pure CurrentRoleFuncExprCommonSubExpr,
-    pure CurrentUserFuncExprCommonSubExpr,
-    pure SessionUserFuncExprCommonSubExpr,
-    pure UserFuncExprCommonSubExpr,
-    pure CurrentCatalogFuncExprCommonSubExpr,
-    pure CurrentSchemaFuncExprCommonSubExpr,
-    CastFuncExprCommonSubExpr <$> aExpr <*> typename,
-    ExtractFuncExprCommonSubExpr <$> maybe extractList,
-    OverlayFuncExprCommonSubExpr <$> overlayList,
-    PositionFuncExprCommonSubExpr <$> maybe positionList,
-    SubstringFuncExprCommonSubExpr <$> maybe substrList,
-    TreatFuncExprCommonSubExpr <$> aExpr <*> typename,
-    TrimFuncExprCommonSubExpr <$> maybe trimModifier <*> trimList,
-    NullIfFuncExprCommonSubExpr <$> aExpr <*> aExpr,
-    CoalesceFuncExprCommonSubExpr <$> exprList,
-    GreatestFuncExprCommonSubExpr <$> exprList,
-    LeastFuncExprCommonSubExpr <$> exprList
+funcExprCommonSubexpr = choice [
+    CollationForFuncExprCommonSubexpr <$> aExpr,
+    pure CurrentDateFuncExprCommonSubexpr,
+    CurrentTimeFuncExprCommonSubexpr <$> maybe iconst,
+    CurrentTimestampFuncExprCommonSubexpr <$> maybe iconst,
+    LocalTimeFuncExprCommonSubexpr <$> maybe iconst,
+    LocalTimestampFuncExprCommonSubexpr <$> maybe iconst,
+    pure CurrentRoleFuncExprCommonSubexpr,
+    pure CurrentUserFuncExprCommonSubexpr,
+    pure SessionUserFuncExprCommonSubexpr,
+    pure UserFuncExprCommonSubexpr,
+    pure CurrentCatalogFuncExprCommonSubexpr,
+    pure CurrentSchemaFuncExprCommonSubexpr,
+    CastFuncExprCommonSubexpr <$> aExpr <*> typename,
+    ExtractFuncExprCommonSubexpr <$> maybe extractList,
+    OverlayFuncExprCommonSubexpr <$> overlayList,
+    PositionFuncExprCommonSubexpr <$> maybe positionList,
+    SubstringFuncExprCommonSubexpr <$> maybe substrList,
+    TreatFuncExprCommonSubexpr <$> aExpr <*> typename,
+    TrimFuncExprCommonSubexpr <$> maybe trimModifier <*> trimList,
+    NullIfFuncExprCommonSubexpr <$> aExpr <*> aExpr,
+    CoalesceFuncExprCommonSubexpr <$> exprList,
+    GreatestFuncExprCommonSubexpr <$> exprList,
+    LeastFuncExprCommonSubexpr <$> exprList
   ]
 
 extractList = ExtractList <$> extractArg <*> aExpr

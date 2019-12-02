@@ -167,17 +167,17 @@ selectBinOp = \ case
   ExceptSelectBinOp -> "EXCEPT"
 
 targeting = \ case
-  NormalTargeting a -> commaNonEmpty target a
-  AllTargeting a -> "ALL" <> foldMap (mappend " " . commaNonEmpty target) a
-  DistinctTargeting a b -> "DISTINCT" <> foldMap (mappend " " . onExpressionsClause) a <> " " <> commaNonEmpty target b
+  NormalTargeting a -> commaNonEmpty targetEl a
+  AllTargeting a -> "ALL" <> foldMap (mappend " " . commaNonEmpty targetEl) a
+  DistinctTargeting a b -> "DISTINCT" <> foldMap (mappend " " . onExpressionsClause) a <> " " <> commaNonEmpty targetEl b
 
 onExpressionsClause a = "ON (" <> commaNonEmpty aExpr a <> ")"
 
-target = \ case
-  AliasedExprTarget a b -> aExpr a <> " AS " <> ident b
-  ImplicitlyAliasedExprTarget a b -> aExpr a <> " " <> ident b
-  ExprTarget a -> aExpr a
-  AsteriskTarget -> "*"
+targetEl = \ case
+  AliasedExprTargetEl a b -> aExpr a <> " AS " <> ident b
+  ImplicitlyAliasedExprTargetEl a b -> aExpr a <> " " <> ident b
+  ExprTargetEl a -> aExpr a
+  AsteriskTargetEl -> "*"
 
 
 -- * Select Into
@@ -332,8 +332,8 @@ sortClause a = "ORDER BY " <> commaNonEmpty sortBy a
 sortBy (SortBy a b) = optLexemes [Just (aExpr a), fmap order b]
 
 order = \ case
-  AscOrder -> "ASC"
-  DescOrder -> "DESC"
+  AscAscDesc -> "ASC"
+  DescAscDesc -> "DESC"
 
 
 -- * Values
@@ -532,7 +532,7 @@ funcExpr = \ case
       fmap filterClause c,
       fmap overClause d
     ]
-  SubexprFuncExpr a -> funcExprCommonSubExpr a
+  SubexprFuncExpr a -> funcExprCommonSubexpr a
 
 withinGroupClause a = "WITHIN GROUP (" <> sortClause a <> ")"
 
@@ -542,30 +542,30 @@ overClause = \ case
   WindowOverClause a -> "OVER " <> windowSpecification a
   ColIdOverClause a -> "OVER " <> colId a
 
-funcExprCommonSubExpr = \ case
-  CollationForFuncExprCommonSubExpr a -> "COLLATION FOR (" <> aExpr a <> ")"
-  CurrentDateFuncExprCommonSubExpr -> "CURRENT_DATE"
-  CurrentTimeFuncExprCommonSubExpr a -> "CURRENT_TIME" <> foldMap (mappend " " . inParens . iconst) a
-  CurrentTimestampFuncExprCommonSubExpr a -> "CURRENT_TIMESTAMP" <> foldMap (mappend " " . inParens . iconst) a
-  LocalTimeFuncExprCommonSubExpr a -> "LOCALTIME" <> foldMap (mappend " " . inParens . iconst) a
-  LocalTimestampFuncExprCommonSubExpr a -> "LOCALTIMESTAMP" <> foldMap (mappend " " . inParens . iconst) a
-  CurrentRoleFuncExprCommonSubExpr -> "CURRENT_ROLE"
-  CurrentUserFuncExprCommonSubExpr -> "CURRENT_USER"
-  SessionUserFuncExprCommonSubExpr -> "SESSION_USER"
-  UserFuncExprCommonSubExpr -> "USER"
-  CurrentCatalogFuncExprCommonSubExpr -> "CURRENT_CATALOG"
-  CurrentSchemaFuncExprCommonSubExpr -> "CURRENT_SCHEMA"
-  CastFuncExprCommonSubExpr a b -> "CAST (" <> aExpr a <> " AS " <> typename b <> ")"
-  ExtractFuncExprCommonSubExpr a -> "EXTRACT (" <> foldMap extractList a <> ")"
-  OverlayFuncExprCommonSubExpr a -> "OVERLAY (" <> overlayList a <> ")"
-  PositionFuncExprCommonSubExpr a -> "POSITION (" <> foldMap positionList a <> ")"
-  SubstringFuncExprCommonSubExpr a -> "SUBSTRING (" <> foldMap substrList a <> ")"
-  TreatFuncExprCommonSubExpr a b -> "TREAT (" <> aExpr a <> " AS " <> typename b <> ")"
-  TrimFuncExprCommonSubExpr a b -> "TRIM (" <> foldMap (flip mappend " " . trimModifier) a <> trimList b <> ")"
-  NullIfFuncExprCommonSubExpr a b -> "NULLIF (" <> aExpr a <> ", " <> aExpr b <> ")"
-  CoalesceFuncExprCommonSubExpr a -> "COALESCE (" <> exprList a <> ")"
-  GreatestFuncExprCommonSubExpr a -> "GREATEST (" <> exprList a <> ")"
-  LeastFuncExprCommonSubExpr a -> "LEAST (" <> exprList a <> ")"
+funcExprCommonSubexpr = \ case
+  CollationForFuncExprCommonSubexpr a -> "COLLATION FOR (" <> aExpr a <> ")"
+  CurrentDateFuncExprCommonSubexpr -> "CURRENT_DATE"
+  CurrentTimeFuncExprCommonSubexpr a -> "CURRENT_TIME" <> foldMap (mappend " " . inParens . iconst) a
+  CurrentTimestampFuncExprCommonSubexpr a -> "CURRENT_TIMESTAMP" <> foldMap (mappend " " . inParens . iconst) a
+  LocalTimeFuncExprCommonSubexpr a -> "LOCALTIME" <> foldMap (mappend " " . inParens . iconst) a
+  LocalTimestampFuncExprCommonSubexpr a -> "LOCALTIMESTAMP" <> foldMap (mappend " " . inParens . iconst) a
+  CurrentRoleFuncExprCommonSubexpr -> "CURRENT_ROLE"
+  CurrentUserFuncExprCommonSubexpr -> "CURRENT_USER"
+  SessionUserFuncExprCommonSubexpr -> "SESSION_USER"
+  UserFuncExprCommonSubexpr -> "USER"
+  CurrentCatalogFuncExprCommonSubexpr -> "CURRENT_CATALOG"
+  CurrentSchemaFuncExprCommonSubexpr -> "CURRENT_SCHEMA"
+  CastFuncExprCommonSubexpr a b -> "CAST (" <> aExpr a <> " AS " <> typename b <> ")"
+  ExtractFuncExprCommonSubexpr a -> "EXTRACT (" <> foldMap extractList a <> ")"
+  OverlayFuncExprCommonSubexpr a -> "OVERLAY (" <> overlayList a <> ")"
+  PositionFuncExprCommonSubexpr a -> "POSITION (" <> foldMap positionList a <> ")"
+  SubstringFuncExprCommonSubexpr a -> "SUBSTRING (" <> foldMap substrList a <> ")"
+  TreatFuncExprCommonSubexpr a b -> "TREAT (" <> aExpr a <> " AS " <> typename b <> ")"
+  TrimFuncExprCommonSubexpr a b -> "TRIM (" <> foldMap (flip mappend " " . trimModifier) a <> trimList b <> ")"
+  NullIfFuncExprCommonSubexpr a b -> "NULLIF (" <> aExpr a <> ", " <> aExpr b <> ")"
+  CoalesceFuncExprCommonSubexpr a -> "COALESCE (" <> exprList a <> ")"
+  GreatestFuncExprCommonSubexpr a -> "GREATEST (" <> exprList a <> ")"
+  LeastFuncExprCommonSubexpr a -> "LEAST (" <> exprList a <> ")"
 
 extractList (ExtractList a b) = extractArg a <> " FROM " <> aExpr b
 

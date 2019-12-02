@@ -320,7 +320,7 @@ targeting = distinct <|> allWithTargetList <|> all <|> normal where
     _targetList <- targetList
     return (DistinctTargeting _optOn _targetList)
 
-targetList = sep1 commaSeparator target
+targetList = sep1 commaSeparator targetEl
 
 {-|
 >>> testParser target "a.b as c"
@@ -333,22 +333,22 @@ target_el:
   |  a_expr
   |  '*'
 -}
-target = label "target" $ asum [
+targetEl = label "target" $ asum [
     do
       _expr <- aExpr
       asum [
           do
             space1
             asum [
-                AliasedExprTarget _expr <$> (string' "as" *> space1 *> endHead *> colLabel)
+                AliasedExprTargetEl _expr <$> (string' "as" *> space1 *> endHead *> colLabel)
                 ,
-                ImplicitlyAliasedExprTarget _expr <$> ident
+                ImplicitlyAliasedExprTargetEl _expr <$> ident
               ]
           ,
-          pure (ExprTarget _expr)
+          pure (ExprTargetEl _expr)
         ]
     ,
-    AsteriskTarget <$ char '*'
+    AsteriskTargetEl <$ char '*'
   ]
 
 onExpressionsClause = do
@@ -715,10 +715,10 @@ sortClause = do
 
 sortBy = do
   _expr <- aExpr
-  _optOrder <- optional (space1 *> order)
-  return (SortBy _expr _optOrder)
+  _optAscDesc <- optional (space1 *> order)
+  return (SortBy _expr _optAscDesc)
 
-order = string' "asc" $> AscOrder <|> string' "desc" $> DescOrder
+order = string' "asc" $> AscAscDesc <|> string' "desc" $> DescAscDesc
 
 
 -- * Expressions
@@ -999,7 +999,7 @@ elseClause = do
   return a
 
 funcExpr = asum [
-    SubexprFuncExpr <$> funcExprCommonSubExpr,
+    SubexprFuncExpr <$> funcExprCommonSubexpr,
     do
       a <- funcApplication
       endHead
@@ -1030,52 +1030,52 @@ overClause = do
       ColIdOverClause <$> colId
     ]
 
-funcExprCommonSubExpr = asum [
-    CollationForFuncExprCommonSubExpr <$> (inParensWithClause (keyphrase "collation for") aExpr)
+funcExprCommonSubexpr = asum [
+    CollationForFuncExprCommonSubexpr <$> (inParensWithClause (keyphrase "collation for") aExpr)
     ,
-    CurrentDateFuncExprCommonSubExpr <$ string' "current_date"
+    CurrentDateFuncExprCommonSubexpr <$ string' "current_date"
     ,
-    CurrentTimestampFuncExprCommonSubExpr <$> labeledIconst "current_timestamp"
+    CurrentTimestampFuncExprCommonSubexpr <$> labeledIconst "current_timestamp"
     ,
-    CurrentTimeFuncExprCommonSubExpr <$> labeledIconst "current_time"
+    CurrentTimeFuncExprCommonSubexpr <$> labeledIconst "current_time"
     ,
-    LocalTimestampFuncExprCommonSubExpr <$> labeledIconst "localtimestamp"
+    LocalTimestampFuncExprCommonSubexpr <$> labeledIconst "localtimestamp"
     ,
-    LocalTimeFuncExprCommonSubExpr <$> labeledIconst "localtime"
+    LocalTimeFuncExprCommonSubexpr <$> labeledIconst "localtime"
     ,
-    CurrentRoleFuncExprCommonSubExpr <$ string' "current_role"
+    CurrentRoleFuncExprCommonSubexpr <$ string' "current_role"
     ,
-    CurrentUserFuncExprCommonSubExpr <$ string' "current_user"
+    CurrentUserFuncExprCommonSubexpr <$ string' "current_user"
     ,
-    SessionUserFuncExprCommonSubExpr <$ string' "session_user"
+    SessionUserFuncExprCommonSubexpr <$ string' "session_user"
     ,
-    UserFuncExprCommonSubExpr <$ string' "user"
+    UserFuncExprCommonSubexpr <$ string' "user"
     ,
-    CurrentCatalogFuncExprCommonSubExpr <$ string' "current_catalog"
+    CurrentCatalogFuncExprCommonSubexpr <$ string' "current_catalog"
     ,
-    CurrentSchemaFuncExprCommonSubExpr <$ string' "current_schema"
+    CurrentSchemaFuncExprCommonSubexpr <$ string' "current_schema"
     ,
-    inParensWithClause (string' "cast") (CastFuncExprCommonSubExpr <$> aExpr <*> (space1 *> string' "as" *> space1 *> typename))
+    inParensWithClause (string' "cast") (CastFuncExprCommonSubexpr <$> aExpr <*> (space1 *> string' "as" *> space1 *> typename))
     ,
-    inParensWithClause (string' "extract") (ExtractFuncExprCommonSubExpr <$> optional extractList)
+    inParensWithClause (string' "extract") (ExtractFuncExprCommonSubexpr <$> optional extractList)
     ,
-    inParensWithClause (string' "overlay") (OverlayFuncExprCommonSubExpr <$> overlayList)
+    inParensWithClause (string' "overlay") (OverlayFuncExprCommonSubexpr <$> overlayList)
     ,
-    inParensWithClause (string' "position") (PositionFuncExprCommonSubExpr <$> optional positionList)
+    inParensWithClause (string' "position") (PositionFuncExprCommonSubexpr <$> optional positionList)
     ,
-    inParensWithClause (string' "substring") (SubstringFuncExprCommonSubExpr <$> optional substrList)
+    inParensWithClause (string' "substring") (SubstringFuncExprCommonSubexpr <$> optional substrList)
     ,
-    inParensWithClause (string' "treat") (TreatFuncExprCommonSubExpr <$> aExpr <*> (space1 *> string' "as" *> space1 *> typename))
+    inParensWithClause (string' "treat") (TreatFuncExprCommonSubexpr <$> aExpr <*> (space1 *> string' "as" *> space1 *> typename))
     ,
-    inParensWithClause (string' "trim") (TrimFuncExprCommonSubExpr <$> optional (trimModifier <* space1) <*> trimList)
+    inParensWithClause (string' "trim") (TrimFuncExprCommonSubexpr <$> optional (trimModifier <* space1) <*> trimList)
     ,
-    inParensWithClause (string' "nullif") (NullIfFuncExprCommonSubExpr <$> aExpr <*> (commaSeparator *> aExpr))
+    inParensWithClause (string' "nullif") (NullIfFuncExprCommonSubexpr <$> aExpr <*> (commaSeparator *> aExpr))
     ,
-    inParensWithClause (string' "coalesce") (CoalesceFuncExprCommonSubExpr <$> exprList)
+    inParensWithClause (string' "coalesce") (CoalesceFuncExprCommonSubexpr <$> exprList)
     ,
-    inParensWithClause (string' "greatest") (GreatestFuncExprCommonSubExpr <$> exprList)
+    inParensWithClause (string' "greatest") (GreatestFuncExprCommonSubexpr <$> exprList)
     ,
-    inParensWithClause (string' "least") (LeastFuncExprCommonSubExpr <$> exprList)
+    inParensWithClause (string' "least") (LeastFuncExprCommonSubexpr <$> exprList)
   ]
   where
     labeledIconst _label = string' _label *> endHead *> optional (space *> inParens iconst)

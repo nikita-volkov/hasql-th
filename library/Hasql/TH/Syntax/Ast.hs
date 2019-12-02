@@ -20,8 +20,161 @@ PreparableStmt:
   |  DeleteStmt
 -}
 data PreparableStmt = 
-  SelectPreparableStmt SelectStmt
+  SelectPreparableStmt SelectStmt |
+  InsertPreparableStmt InsertStmt |
+  UpdatePreparableStmt UpdateStmt |
+  DeletePreparableStmt DeleteStmt
   deriving (Show, Generic, Eq, Ord)
+
+
+-- * Insert
+-------------------------
+
+{-
+InsertStmt:
+  | opt_with_clause INSERT INTO insert_target insert_rest
+      opt_on_conflict returning_clause
+-}
+data InsertStmt = InsertStmt (Maybe WithClause) InsertTarget InsertRest (Maybe OnConflict) (Maybe ReturningClause)
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+insert_target:
+  | qualified_name
+  | qualified_name AS ColId
+-}
+data InsertTarget = InsertTarget QualifiedName (Maybe ColId)
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+insert_rest:
+  | SelectStmt
+  | OVERRIDING override_kind VALUE_P SelectStmt
+  | '(' insert_column_list ')' SelectStmt
+  | '(' insert_column_list ')' OVERRIDING override_kind VALUE_P SelectStmt
+  | DEFAULT VALUES
+-}
+data InsertRest =
+  SelectInsertRest (Maybe InsertColumnList) SelectStmt |
+  OverridingInsertRest (Maybe InsertColumnList) OverrideKind SelectStmt |
+  DefaultValuesInsertRest
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+override_kind:
+  | USER
+  | SYSTEM_P
+-}
+data OverrideKind = UserOverrideKind | SystemOverrideKind
+  deriving (Show, Generic, Eq, Ord, Enum, Bounded)
+
+{-
+insert_column_list:
+  | insert_column_item
+  | insert_column_list ',' insert_column_item
+-}
+type InsertColumnList = NonEmpty InsertColumnItem
+
+{-
+insert_column_item:
+  | ColId opt_indirection
+-}
+data InsertColumnItem = InsertColumnItem ColId (Maybe Indirection)
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+opt_on_conflict:
+  | ON CONFLICT opt_conf_expr DO UPDATE SET set_clause_list where_clause
+  | ON CONFLICT opt_conf_expr DO NOTHING
+  | EMPTY
+-}
+data OnConflict =
+  UpdateOnConflict (Maybe ConfExpr) SetClauseList (Maybe WhereClause) |
+  NothingOnConflict (Maybe ConfExpr)
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+opt_conf_expr:
+  | '(' index_params ')' where_clause
+  | ON CONSTRAINT name
+  | EMPTY
+-}
+data ConfExpr =
+  WhereConfExpr IndexParams (Maybe WhereClause) |
+  ConstraintConfExpr Name
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+returning_clause:
+  | RETURNING target_list
+  | EMPTY
+-}
+type ReturningClause = TargetList
+
+
+-- * Update
+-------------------------
+
+{-
+UpdateStmt:
+  | opt_with_clause UPDATE relation_expr_opt_alias
+      SET set_clause_list
+      from_clause
+      where_or_current_clause
+      returning_clause
+-}
+data UpdateStmt = UpdateStmt (Maybe WithClause) RelationExprOptAlias SetClauseList (Maybe FromClause) (Maybe WhereOrCurrentClause) (Maybe ReturningClause)
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+set_clause_list:
+  | set_clause
+  | set_clause_list ',' set_clause
+-}
+type SetClauseList = NonEmpty SetClause
+
+{-
+set_clause:
+  | set_target '=' a_expr
+  | '(' set_target_list ')' '=' a_expr
+-}
+data SetClause =
+  TargetSetClause SetTarget AExpr |
+  TargetListSetClause SetTargetList AExpr
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+set_target:
+  | ColId opt_indirection
+-}
+data SetTarget = SetTarget ColId (Maybe Indirection)
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+set_target_list:
+  | set_target
+  | set_target_list ',' set_target
+-}
+type SetTargetList = NonEmpty SetTarget
+
+
+-- * Delete
+-------------------------
+
+{-
+DeleteStmt:
+  | opt_with_clause DELETE_P FROM relation_expr_opt_alias
+      using_clause where_or_current_clause returning_clause
+-}
+data DeleteStmt = DeleteStmt (Maybe WithClause) RelationExprOptAlias (Maybe UsingClause) (Maybe WhereOrCurrentClause) (Maybe ReturningClause)
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+using_clause:
+  | USING from_list
+  | EMPTY
+-}
+type UsingClause = FromList
 
 
 -- * Select
@@ -112,10 +265,17 @@ distinct_clause:
 @
 -}
 data Targeting =
-  NormalTargeting (NonEmpty Target) |
-  AllTargeting (Maybe (NonEmpty Target)) |
-  DistinctTargeting (Maybe ExprList) (NonEmpty Target)
+  NormalTargeting TargetList |
+  AllTargeting (Maybe TargetList) |
+  DistinctTargeting (Maybe ExprList) TargetList
   deriving (Show, Generic, Eq, Ord)
+
+{-
+target_list:
+  | target_el
+  | target_list ',' target_el
+-}
+type TargetList = NonEmpty TargetEl
 
 {-
 target_el:
@@ -124,11 +284,11 @@ target_el:
   |  a_expr
   |  '*'
 -}
-data Target =
-  AliasedExprTarget AExpr Ident |
-  ImplicitlyAliasedExprTarget AExpr Ident |
-  ExprTarget AExpr |
-  AsteriskTarget
+data TargetEl =
+  AliasedExprTargetEl AExpr Ident |
+  ImplicitlyAliasedExprTargetEl AExpr Ident |
+  ExprTargetEl AExpr |
+  AsteriskTargetEl
   deriving (Show, Generic, Eq, Ord)
 
 {-
@@ -354,10 +514,7 @@ sortby:
 TODO: Add qual_all_Op support
 TODO: Add opt_nulls_order support
 -}
-data SortBy = SortBy AExpr (Maybe Order)
-  deriving (Show, Generic, Eq, Ord)
-
-data Order = AscOrder | DescOrder
+data SortBy = SortBy AExpr (Maybe AscDesc)
   deriving (Show, Generic, Eq, Ord)
 
 {-
@@ -480,6 +637,13 @@ data ForLockingStrength =
 -------------------------
 
 {-
+from_list:
+  | table_ref
+  | from_list ',' table_ref
+-}
+type FromList = NonEmpty TableRef
+
+{-
 | relation_expr opt_alias_clause
 | relation_expr opt_alias_clause tablesample_clause
 | func_table func_alias_clause
@@ -520,6 +684,15 @@ data TableRef =
 data RelationExpr =
   SimpleRelationExpr QualifiedName Bool |
   OnlyRelationExpr QualifiedName Bool
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+relation_expr_opt_alias:
+  | relation_expr
+  | relation_expr ColId
+  | relation_expr AS ColId
+-}
+data RelationExprOptAlias = RelationExprOptAlias RelationExpr (Maybe (Bool, ColId))
   deriving (Show, Generic, Eq, Ord)
 
 {-
@@ -836,7 +1009,17 @@ func_expr:
 -}
 data FuncExpr =
   ApplicationFuncExpr FuncApplication (Maybe WithinGroupClause) (Maybe FilterClause) (Maybe OverClause) |
-  SubexprFuncExpr FuncExprCommonSubExpr
+  SubexprFuncExpr FuncExprCommonSubexpr
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+func_expr_windowless:
+  | func_application
+  | func_expr_common_subexpr
+-}
+data FuncExprWindowless =
+  ApplicationFuncExprWindowless FuncApplication |
+  CommonSubexprFuncExprWindowless FuncExprCommonSubexpr
   deriving (Show, Generic, Eq, Ord)
 
 {-
@@ -911,30 +1094,30 @@ func_expr_common_subexpr:
 
 TODO: Implement the XML cases
 -}
-data FuncExprCommonSubExpr =
-  CollationForFuncExprCommonSubExpr AExpr |
-  CurrentDateFuncExprCommonSubExpr |
-  CurrentTimeFuncExprCommonSubExpr (Maybe Int64) |
-  CurrentTimestampFuncExprCommonSubExpr (Maybe Int64) |
-  LocalTimeFuncExprCommonSubExpr (Maybe Int64) |
-  LocalTimestampFuncExprCommonSubExpr (Maybe Int64) |
-  CurrentRoleFuncExprCommonSubExpr |
-  CurrentUserFuncExprCommonSubExpr |
-  SessionUserFuncExprCommonSubExpr |
-  UserFuncExprCommonSubExpr |
-  CurrentCatalogFuncExprCommonSubExpr |
-  CurrentSchemaFuncExprCommonSubExpr |
-  CastFuncExprCommonSubExpr AExpr Typename |
-  ExtractFuncExprCommonSubExpr (Maybe ExtractList) |
-  OverlayFuncExprCommonSubExpr OverlayList |
-  PositionFuncExprCommonSubExpr (Maybe PositionList) |
-  SubstringFuncExprCommonSubExpr (Maybe SubstrList) |
-  TreatFuncExprCommonSubExpr AExpr Typename |
-  TrimFuncExprCommonSubExpr (Maybe TrimModifier) TrimList |
-  NullIfFuncExprCommonSubExpr AExpr AExpr |
-  CoalesceFuncExprCommonSubExpr ExprList |
-  GreatestFuncExprCommonSubExpr ExprList |
-  LeastFuncExprCommonSubExpr ExprList
+data FuncExprCommonSubexpr =
+  CollationForFuncExprCommonSubexpr AExpr |
+  CurrentDateFuncExprCommonSubexpr |
+  CurrentTimeFuncExprCommonSubexpr (Maybe Int64) |
+  CurrentTimestampFuncExprCommonSubexpr (Maybe Int64) |
+  LocalTimeFuncExprCommonSubexpr (Maybe Int64) |
+  LocalTimestampFuncExprCommonSubexpr (Maybe Int64) |
+  CurrentRoleFuncExprCommonSubexpr |
+  CurrentUserFuncExprCommonSubexpr |
+  SessionUserFuncExprCommonSubexpr |
+  UserFuncExprCommonSubexpr |
+  CurrentCatalogFuncExprCommonSubexpr |
+  CurrentSchemaFuncExprCommonSubexpr |
+  CastFuncExprCommonSubexpr AExpr Typename |
+  ExtractFuncExprCommonSubexpr (Maybe ExtractList) |
+  OverlayFuncExprCommonSubexpr OverlayList |
+  PositionFuncExprCommonSubexpr (Maybe PositionList) |
+  SubstringFuncExprCommonSubexpr (Maybe SubstrList) |
+  TreatFuncExprCommonSubexpr AExpr Typename |
+  TrimFuncExprCommonSubexpr (Maybe TrimModifier) TrimList |
+  NullIfFuncExprCommonSubexpr AExpr AExpr |
+  CoalesceFuncExprCommonSubexpr ExprList |
+  GreatestFuncExprCommonSubexpr ExprList |
+  LeastFuncExprCommonSubexpr ExprList
   deriving (Show, Generic, Eq, Ord)
 
 {-
@@ -1354,6 +1537,12 @@ ColLabel:
 type ColLabel = Ident
 
 {-
+name:
+  | ColId
+-}
+type Name = ColId
+
+{-
 columnref:
   | ColId
   | ColId indirection
@@ -1676,3 +1865,74 @@ data SubqueryOp =
   LikeSubqueryOp Bool |
   IlikeSubqueryOp Bool
   deriving (Show, Generic, Eq, Ord)
+
+
+-- * Indexes
+-------------------------
+
+{-
+index_params:
+  | index_elem
+  | index_params ',' index_elem
+-}
+type IndexParams = NonEmpty IndexElem
+
+{-
+index_elem:
+  | ColId opt_collate opt_class opt_asc_desc opt_nulls_order
+  | func_expr_windowless opt_collate opt_class opt_asc_desc opt_nulls_order
+  | '(' a_expr ')' opt_collate opt_class opt_asc_desc opt_nulls_order
+-}
+data IndexElem = IndexElem IndexElemDef IndexElemParams
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+  | ColId opt_collate opt_class opt_asc_desc opt_nulls_order
+  | func_expr_windowless opt_collate opt_class opt_asc_desc opt_nulls_order
+  | '(' a_expr ')' opt_collate opt_class opt_asc_desc opt_nulls_order
+-}
+data IndexElemDef =
+  IdIndexElemDef ColId |
+  FuncIndexElemDef FuncExprWindowless |
+  ExprIndexElemDef AExpr
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+  | ColId opt_collate opt_class opt_asc_desc opt_nulls_order
+  | func_expr_windowless opt_collate opt_class opt_asc_desc opt_nulls_order
+  | '(' a_expr ')' opt_collate opt_class opt_asc_desc opt_nulls_order
+-}
+data IndexElemParams = IndexElemParams (Maybe Collate) (Maybe Class) (Maybe AscDesc) (Maybe NullsOrder)
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+opt_collate:
+  | COLLATE any_name
+  | EMPTY
+-}
+type Collate = AnyName
+
+{-
+opt_class:
+  | any_name
+  | EMPTY
+-}
+type Class = AnyName
+
+{-
+opt_asc_desc:
+  | ASC
+  | DESC
+  | EMPTY
+-}
+data AscDesc = AscAscDesc | DescAscDesc
+  deriving (Show, Generic, Eq, Ord, Enum, Bounded)
+
+{-
+opt_nulls_order:
+  | NULLS_LA FIRST_P
+  | NULLS_LA LAST_P
+  | EMPTY
+-}
+data NullsOrder = FirstNullsOrder | LastNullsOrder
+  deriving (Show, Generic, Eq, Ord, Enum, Bounded)
