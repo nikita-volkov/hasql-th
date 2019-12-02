@@ -821,7 +821,7 @@ keywordNotInSet = \ set -> notInSet set $ do
     startList = "abcdefghijklmnopqrstuvwxyz_" <> List.filter isLower (enumFromTo '\200' '\377')
     contList = startList <> "0123456789$"
 
-ident = identWithSet HashSet.keyword
+ident = identWithSet mempty
 
 typeName = identWithSet HashSet.typeFunctionName
 
