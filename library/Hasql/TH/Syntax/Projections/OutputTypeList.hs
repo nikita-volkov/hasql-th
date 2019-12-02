@@ -16,6 +16,33 @@ foldable fn = fmap join . traverse fn . toList
 
 preparableStmt = \ case
   SelectPreparableStmt a -> selectStmt a
+  InsertPreparableStmt a -> insertStmt a
+  UpdatePreparableStmt a -> updateStmt a
+  DeletePreparableStmt a -> deleteStmt a
+
+
+-- * Insert
+-------------------------
+
+insertStmt (InsertStmt a b c d e) = foldable returningClause e
+
+returningClause = targetList
+
+
+-- * Update
+-------------------------
+
+updateStmt (UpdateStmt _ _ _ _ _ a) = foldable returningClause a
+
+
+-- * Delete
+-------------------------
+
+deleteStmt (DeleteStmt _ _ _ _ a) = foldable returningClause a
+
+
+-- * Select
+-------------------------
 
 selectStmt = \ case
   Left a -> selectNoParens a
@@ -40,9 +67,11 @@ simpleSelect = \ case
       else Left "Merged queries produce results of incompatible types"
 
 targeting = \ case
-  NormalTargeting a -> foldable targetEl a
-  AllTargeting a -> foldable (foldable targetEl) a
-  DistinctTargeting _ b -> foldable targetEl b
+  NormalTargeting a -> targetList a
+  AllTargeting a -> foldable targetList a
+  DistinctTargeting _ b -> targetList b
+
+targetList = foldable targetEl
 
 targetEl = \ case
   AliasedExprTargetEl a _ -> aExpr a
