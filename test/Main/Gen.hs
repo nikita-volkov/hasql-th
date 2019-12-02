@@ -1,14 +1,16 @@
 module Main.Gen where
 
-import Hasql.TH.Prelude hiding (maybe, bool, sortBy, filter)
+import Hasql.TH.Prelude hiding (maybe, bool, sortBy, filter, bit)
 import Hasql.TH.Syntax.Ast
-import Hedgehog (Gen)
+import Hedgehog (Gen, MonadGen)
 import Hedgehog.Gen
 import qualified Hedgehog.Range as Range
 import qualified Data.Text as Text
 import qualified Data.HashSet as HashSet
 import qualified Data.List as List
 import qualified Hasql.TH.Syntax.HashSet as HashSet
+import qualified Hasql.TH.Syntax.Predicate as Predicate
+import qualified Hasql.TH.Syntax.Validator as Validator
 
 
 
@@ -95,16 +97,16 @@ terminalSimpleSelect = pure (NormalSimpleSelect Nothing Nothing Nothing Nothing 
 targeting = choice [
     NormalTargeting <$> targets,
     AllTargeting <$> maybe targets,
-    DistinctTargeting <$> maybe (nonEmpty (Range.exponential 1 8) expr) <*> targets
+    DistinctTargeting <$> maybe (nonEmpty (Range.exponential 1 8) aExpr) <*> targets
   ]
 
 targets = nonEmpty (Range.exponential 1 8) target
 
 target = choice [
     pure AsteriskTarget,
-    AliasedExprTarget <$> expr <*> name,
-    ImplicitlyAliasedExprTarget <$> expr <*> name,
-    ExprTarget <$> expr
+    AliasedExprTarget <$> aExpr <*> name,
+    ImplicitlyAliasedExprTarget <$> prefixAExpr <*> name,
+    ExprTarget <$> aExpr
   ]
 
 
@@ -177,7 +179,7 @@ joinType = choice [
 
 joinQual = choice [
     UsingJoinQual <$> nonEmpty (Range.exponential 1 8) name,
-    OnJoinQual <$> expr
+    OnJoinQual <$> aExpr
   ]
 
 
@@ -187,10 +189,10 @@ joinQual = choice [
 groupClause = nonEmpty (Range.exponential 1 8) groupByItem
 
 groupByItem = choice [
-    ExprGroupByItem <$> expr,
+    ExprGroupByItem <$> aExpr,
     pure EmptyGroupingSetGroupByItem,
-    RollupGroupByItem <$> nonEmpty (Range.exponential 1 8) expr,
-    CubeGroupByItem <$> nonEmpty (Range.exponential 1 8) expr,
+    RollupGroupByItem <$> nonEmpty (Range.exponential 1 8) aExpr,
+    CubeGroupByItem <$> nonEmpty (Range.exponential 1 8) aExpr,
     GroupingSetsGroupByItem <$> nonEmpty (Range.exponential 1 3) groupByItem
   ]
 
@@ -198,13 +200,13 @@ groupByItem = choice [
 -- * Having Clause
 -------------------------
 
-havingClause = expr
+havingClause = aExpr
 
 
 -- * Where Clause
 -------------------------
 
-whereClause = expr
+whereClause = aExpr
 
 
 -- * Window Clause
@@ -214,7 +216,7 @@ windowClause = nonEmpty (Range.exponential 1 8) windowDefinition
 
 windowDefinition = WindowDefinition <$> name <*> windowSpecification
 
-windowSpecification = WindowSpecification <$> maybe name <*> maybe (nonEmpty (Range.exponential 1 8) expr) <*> maybe sortClause <*> maybe frameClause
+windowSpecification = WindowSpecification <$> maybe name <*> maybe (nonEmpty (Range.exponential 1 8) nonSuffixOpAExpr) <*> maybe sortClause <*> maybe frameClause
 
 frameClause = FrameClause <$> frameClauseMode <*> frameExtent <*> maybe windowExclusionClause
 
@@ -229,8 +231,8 @@ frameBound = choice [
     pure UnboundedPrecedingFrameBound,
     pure UnboundedFollowingFrameBound,
     pure CurrentRowFrameBound,
-    PrecedingFrameBound <$> expr,
-    FollowingFrameBound <$> expr
+    PrecedingFrameBound <$> prefixAExpr,
+    FollowingFrameBound <$> prefixAExpr
   ]
 
 windowExclusionClause = element [CurrentRowWindowExclusionClause, GroupWindowExclusionClause, TiesWindowExclusionClause, NoOthersWindowExclusionClause]
@@ -239,7 +241,7 @@ windowExclusionClause = element [CurrentRowWindowExclusionClause, GroupWindowExc
 -- * Values Clause
 -------------------------
 
-valuesClause = nonEmpty (Range.exponential 1 8) (nonEmpty (Range.exponential 1 8) expr)
+valuesClause = nonEmpty (Range.exponential 1 8) (nonEmpty (Range.exponential 1 8) aExpr)
 
 
 -- * Sort Clause
@@ -247,7 +249,7 @@ valuesClause = nonEmpty (Range.exponential 1 8) (nonEmpty (Range.exponential 1 8
 
 sortClause = nonEmpty (Range.exponential 1 8) sortBy
 
-sortBy = SortBy <$> expr <*> maybe order
+sortBy = SortBy <$> nonSuffixOpAExpr <*> maybe order
 
 order = element [AscOrder, DescOrder]
 
@@ -269,7 +271,7 @@ selectLimit = choice [
   ]
 
 limitClause = choice [
-    LimitLimitClause <$> selectLimitValue <*> maybe expr,
+    LimitLimitClause <$> selectLimitValue <*> maybe aExpr,
     FetchOnlyLimitClause <$> bool <*> maybe selectFetchFirstValue <*> bool
   ]
 
@@ -279,12 +281,12 @@ selectFetchFirstValue = choice [
   ]
 
 selectLimitValue = choice [
-    ExprSelectLimitValue <$> expr,
+    ExprSelectLimitValue <$> aExpr,
     pure AllSelectLimitValue
   ]
 
 offsetClause = choice [
-    ExprOffsetClause <$> expr,
+    ExprOffsetClause <$> aExpr,
     FetchFirstOffsetClause <$> selectFetchFirstValue <*> bool
   ]
 
@@ -310,90 +312,154 @@ forLockingStrength = element [
 -- * Expressions
 -------------------------
 
-baseExpr inParensExpr =
-  recursive choice terminatingHeadfulExprList (recursiveHeadfulExprList <> recursiveHeadlessExprList)
-  where
-    headfulExpr = recursive choice terminatingHeadfulExprList recursiveHeadfulExprList
-    terminatingHeadfulExprList = [
-        PlaceholderExpr <$> int (Range.linear 1 11)
-        ,
-        pure DefaultExpr
-      ]
-    recursiveHeadfulExprList = [
-        QualifiedNameExpr <$> qualifiedName
-        ,
-        LiteralExpr <$> literal
-        ,
-        inParensExpr
-        ,
-        CaseExpr <$> maybe (small expr) <*> nonEmpty (Range.exponential 1 2) whenClause <*> maybe (small expr)
-        ,
-        FuncExpr <$> funcApplication
-        ,
-        ExistsSelectExpr <$> small selectWithParens
-        ,
-        ArraySelectExpr <$> small selectWithParens
-        ,
-        GroupingExpr <$> nonEmpty (Range.exponential 1 4) (small expr)
-      ]
-    recursiveHeadlessExprList = [
-        TypecastExpr <$> small headfulExpr <*> type_
-        ,
-        BinOpExpr <$> binOp <*> small headfulExpr <*> small expr
-        ,
-        EscapableBinOpExpr <$> bool <*> escapableBinOp <*> small headfulExpr <*> small headfulExpr <*> maybe (small headfulExpr)
-      ]
-expr = baseExpr inParensExpr
+exprList = nonEmpty (Range.exponential 1 7) aExpr
 
-{-
-c_expr:
-  | columnref
-  | AexprConst
-  | PARAM opt_indirection
-  | '(' a_expr ')' opt_indirection
-  | case_expr
-  | func_expr
-  | select_with_parens
-  | select_with_parens indirection
-  | EXISTS select_with_parens
-  | ARRAY select_with_parens
-  | ARRAY array_expr
-  | explicit_row
-  | implicit_row
-  | GROUPING '(' expr_list ')'
--}
-cExpr = choice [
-    QualifiedNameExpr <$> qualifiedName
-    ,
-    LiteralExpr <$> literal
-    ,
-    inParensExpr
-    ,
-    CaseExpr <$> maybe (small expr) <*> nonEmpty (Range.exponential 1 2) whenClause <*> maybe (small expr)
-    ,
-    FuncExpr <$> funcApplication
-    ,
-    ExistsSelectExpr <$> small selectWithParens
-    ,
-    ArraySelectExpr <$> small selectWithParens
-    ,
-    GroupingExpr <$> nonEmpty (Range.exponential 1 4) (small expr)
+aExpr = recursive choice [
+    CExprAExpr <$> cExpr,
+    pure DefaultAExpr
+  ] [
+    TypecastAExpr <$> prefixAExpr <*> typecastTypename,
+    CollateAExpr <$> prefixAExpr <*> anyName,
+    AtTimeZoneAExpr <$> prefixAExpr <*> aExpr,
+    PlusAExpr <$> aExpr,
+    MinusAExpr <$> aExpr,
+    SymbolicBinOpAExpr <$> prefixAExpr <*> symbolicExprBinOp <*> aExpr,
+    PrefixQualOpAExpr <$> qualOp <*> aExpr,
+    SuffixQualOpAExpr <$> prefixAExpr <*> qualOp,
+    AndAExpr <$> prefixAExpr <*> aExpr,
+    OrAExpr <$> prefixAExpr <*> aExpr,
+    NotAExpr <$> aExpr,
+    VerbalExprBinOpAExpr <$> prefixAExpr <*> bool <*> verbalExprBinOp <*> prefixAExpr <*> maybe aExpr,
+    ReversableOpAExpr <$> prefixAExpr <*> bool <*> aExprReversableOp,
+    IsnullAExpr <$> prefixAExpr,
+    NotnullAExpr <$> prefixAExpr,
+    OverlapsAExpr <$> row <*> row,
+    SubqueryAExpr <$> prefixAExpr <*> subqueryOp <*> subType <*> choice [Left <$> selectWithParens, Right <$> nonSelectAExpr],
+    UniqueAExpr <$> selectWithParens
   ]
 
-inParensExpr = InParensExpr <$> small eitherExprOrSelect <*> maybe indirection where
-  eitherExprOrSelect =
-    Left <$> (baseExpr inParensWithoutSelectExpr) <|>
-    Right <$> selectWithParens
+prefixAExpr = choice [
+    CExprAExpr <$> cExpr,
+    pure DefaultAExpr,
+    OverlapsAExpr <$> row <*> row,
+    UniqueAExpr <$> selectWithParens
+  ]
 
-inParensWithoutSelectExpr = InParensExpr <$> Left <$> baseExpr inParensWithoutSelectExpr <*> maybe indirection
+nonSuffixOpAExpr = recursive choice [
+    CExprAExpr <$> cExpr,
+    pure DefaultAExpr
+  ] [
+    TypecastAExpr <$> prefixAExpr <*> typecastTypename,
+    CollateAExpr <$> prefixAExpr <*> anyName,
+    AtTimeZoneAExpr <$> prefixAExpr <*> aExpr,
+    PlusAExpr <$> aExpr,
+    MinusAExpr <$> aExpr,
+    SymbolicBinOpAExpr <$> prefixAExpr <*> symbolicExprBinOp <*> aExpr,
+    PrefixQualOpAExpr <$> qualOp <*> aExpr,
+    AndAExpr <$> prefixAExpr <*> aExpr,
+    OrAExpr <$> prefixAExpr <*> aExpr,
+    NotAExpr <$> aExpr,
+    VerbalExprBinOpAExpr <$> prefixAExpr <*> bool <*> verbalExprBinOp <*> prefixAExpr <*> maybe aExpr,
+    ReversableOpAExpr <$> prefixAExpr <*> bool <*> aExprReversableOp,
+    IsnullAExpr <$> prefixAExpr,
+    NotnullAExpr <$> prefixAExpr,
+    OverlapsAExpr <$> row <*> row,
+    SubqueryAExpr <$> prefixAExpr <*> subqueryOp <*> subType <*> choice [Left <$> selectWithParens, Right <$> nonSelectAExpr],
+    UniqueAExpr <$> selectWithParens
+  ]
 
-binOp = element (toList HashSet.symbolicBinOp <> ["AND", "OR", "IS DISTINCT FROM", "IS NOT DISTINCT FROM"])
+nonSelectAExpr = choice [
+    TypecastAExpr <$> prefixAExpr <*> typecastTypename,
+    CollateAExpr <$> prefixAExpr <*> anyName,
+    AtTimeZoneAExpr <$> prefixAExpr <*> aExpr,
+    PlusAExpr <$> aExpr,
+    MinusAExpr <$> aExpr,
+    SymbolicBinOpAExpr <$> prefixAExpr <*> symbolicExprBinOp <*> aExpr,
+    PrefixQualOpAExpr <$> qualOp <*> aExpr,
+    SuffixQualOpAExpr <$> prefixAExpr <*> qualOp,
+    AndAExpr <$> prefixAExpr <*> aExpr,
+    OrAExpr <$> prefixAExpr <*> aExpr,
+    NotAExpr <$> aExpr,
+    VerbalExprBinOpAExpr <$> prefixAExpr <*> bool <*> verbalExprBinOp <*> prefixAExpr <*> maybe aExpr,
+    ReversableOpAExpr <$> prefixAExpr <*> bool <*> aExprReversableOp,
+    IsnullAExpr <$> prefixAExpr,
+    NotnullAExpr <$> prefixAExpr,
+    OverlapsAExpr <$> row <*> row,
+    SubqueryAExpr <$> prefixAExpr <*> subqueryOp <*> subType <*> choice [Left <$> selectWithParens, Right <$> nonSelectAExpr],
+    UniqueAExpr <$> selectWithParens
+  ]
 
-escapableBinOp = element ["LIKE", "ILIKE", "SIMILAR TO"]
+bExpr = recursive choice [
+    CExprBExpr <$> cExpr
+  ] [
+    TypecastBExpr <$> prefixBExpr <*> typecastTypename,
+    PlusBExpr <$> bExpr,
+    MinusBExpr <$> bExpr,
+    SymbolicBinOpBExpr <$> prefixBExpr <*> symbolicExprBinOp <*> bExpr,
+    QualOpBExpr <$> qualOp <*> bExpr,
+    IsOpBExpr <$> prefixBExpr <*> bool <*> bExprIsOp
+  ]
 
-whenClause = WhenClause <$> small expr <*> small expr
+prefixBExpr = choice [
+    CExprBExpr <$> cExpr
+  ]
 
-funcApplication = FuncApplication <$> qualifiedName <*> maybe funcApplicationParams
+cExpr = recursive choice [
+    ColumnrefCExpr <$> columnref
+  ] [
+    AexprConstCExpr <$> aexprConst,
+    ParamCExpr <$> integral (Range.linear 1 19) <*> maybe indirection,
+    InParensCExpr <$> nonSelectAExpr <*> maybe indirection,
+    CaseCExpr <$> caseExpr,
+    FuncCExpr <$> funcExpr,
+    SelectWithParensCExpr <$> selectWithParens <*> maybe indirection,
+    ExistsCExpr <$> selectWithParens,
+    ArrayCExpr <$> choice [Left <$> selectWithParens, Right <$> arrayExpr],
+    ExplicitRowCExpr <$> explicitRow,
+    ImplicitRowCExpr <$> implicitRow,
+    GroupingCExpr <$> exprList
+  ]
+
+-- **
+-------------------------
+
+caseExpr = CaseExpr <$> maybe aExpr <*> whenClauseList <*> maybe aExpr
+
+whenClauseList = nonEmpty (Range.exponential 1 7) whenClause
+
+whenClause = WhenClause <$> small aExpr <*> small aExpr
+
+inExpr = choice [
+    SelectInExpr <$> selectWithParens,
+    ExprListInExpr <$> exprList
+  ]
+
+arrayExpr = small $ choice [
+    ExprListArrayExpr <$> exprList,
+    ArrayExprListArrayExpr <$> arrayExprList,
+    pure EmptyArrayExpr
+  ]
+
+arrayExprList = nonEmpty (Range.exponential 1 4) arrayExpr
+
+row = choice [
+    ExplicitRowRow <$> explicitRow,
+    ImplicitRowRow <$> implicitRow
+  ]
+
+explicitRow = maybe exprList
+
+implicitRow = ImplicitRow <$> exprList <*> aExpr
+
+-- ** FuncExpr
+-------------------------
+
+funcExpr = choice [
+    ApplicationFuncExpr <$> funcApplication <*> maybe withinGroupClause <*> maybe filterClause <*> maybe overClause,
+    SubexprFuncExpr <$> funcExprCommonSubExpr
+  ]
+
+funcApplication = FuncApplication <$> funcName <*> maybe funcApplicationParams
 
 funcApplicationParams = choice [
     NormalFuncApplicationParams <$> maybe allOrDistinct <*> nonEmpty (Range.exponential 1 8) funcArgExpr <*> maybe sortClause,
@@ -402,30 +468,162 @@ funcApplicationParams = choice [
   ]
 
 funcArgExpr = choice [
-    ExprFuncArgExpr <$> small expr,
-    ColonEqualsFuncArgExpr <$> name <*> small expr,
-    EqualsGreaterFuncArgExpr <$> name <*> small expr
+    ExprFuncArgExpr <$> small aExpr,
+    ColonEqualsFuncArgExpr <$> name <*> small aExpr,
+    EqualsGreaterFuncArgExpr <$> name <*> small aExpr
+  ]
+
+withinGroupClause = sortClause
+
+filterClause = aExpr
+
+overClause = choice [WindowOverClause <$> windowSpecification, ColIdOverClause <$> colId]
+
+funcExprCommonSubExpr = choice [
+    CollationForFuncExprCommonSubExpr <$> aExpr,
+    pure CurrentDateFuncExprCommonSubExpr,
+    CurrentTimeFuncExprCommonSubExpr <$> maybe iconst,
+    CurrentTimestampFuncExprCommonSubExpr <$> maybe iconst,
+    LocalTimeFuncExprCommonSubExpr <$> maybe iconst,
+    LocalTimestampFuncExprCommonSubExpr <$> maybe iconst,
+    pure CurrentRoleFuncExprCommonSubExpr,
+    pure CurrentUserFuncExprCommonSubExpr,
+    pure SessionUserFuncExprCommonSubExpr,
+    pure UserFuncExprCommonSubExpr,
+    pure CurrentCatalogFuncExprCommonSubExpr,
+    pure CurrentSchemaFuncExprCommonSubExpr,
+    CastFuncExprCommonSubExpr <$> aExpr <*> typename,
+    ExtractFuncExprCommonSubExpr <$> maybe extractList,
+    OverlayFuncExprCommonSubExpr <$> overlayList,
+    PositionFuncExprCommonSubExpr <$> maybe positionList,
+    SubstringFuncExprCommonSubExpr <$> maybe substrList,
+    TreatFuncExprCommonSubExpr <$> aExpr <*> typename,
+    TrimFuncExprCommonSubExpr <$> maybe trimModifier <*> trimList,
+    NullIfFuncExprCommonSubExpr <$> aExpr <*> aExpr,
+    CoalesceFuncExprCommonSubExpr <$> exprList,
+    GreatestFuncExprCommonSubExpr <$> exprList,
+    LeastFuncExprCommonSubExpr <$> exprList
+  ]
+
+extractList = ExtractList <$> extractArg <*> aExpr
+
+extractArg = choice [
+    IdentExtractArg <$> ident,
+    pure YearExtractArg,
+    pure MonthExtractArg,
+    pure DayExtractArg,
+    pure HourExtractArg,
+    pure MinuteExtractArg,
+    pure SecondExtractArg,
+    SconstExtractArg <$> sconst
+  ]
+
+overlayList = OverlayList <$> aExpr <*> overlayPlacing <*> substrFrom <*> maybe substrFor
+
+overlayPlacing = aExpr
+
+positionList = PositionList <$> bExpr <*> bExpr
+
+substrList = choice [
+    ExprSubstrList <$> aExpr <*> substrListFromFor,
+    ExprListSubstrList <$> exprList
+  ]
+
+substrListFromFor = choice [
+    FromForSubstrListFromFor <$> substrFrom <*> substrFor,
+    ForFromSubstrListFromFor <$> substrFor <*> substrFrom,
+    FromSubstrListFromFor <$> substrFrom,
+    ForSubstrListFromFor <$> substrFor
+  ]
+
+substrFrom = aExpr
+
+substrFor = aExpr
+
+trimModifier = enumBounded
+
+trimList = choice [
+    ExprFromExprListTrimList <$> aExpr <*> exprList,
+    FromExprListTrimList <$> exprList,
+    ExprListTrimList <$> exprList
   ]
 
 
--- * Literals
+-- * Operators
 -------------------------
 
-literal = choice [
-    IntLiteral <$> iconst,
-    FloatLiteral <$> fconst,
-    StringLiteral <$> stringLiteral,
-    BitLiteral <$> text (Range.exponential 1 100) (element "01"),
-    HexLiteral <$> text (Range.exponential 1 100) (element "0123456789abcdefABCDEF"),
-    FuncLiteral <$> qualifiedName <*> maybe funcLiteralArgList <*> stringLiteral,
-    ConstTypenameLiteral <$> constTypename <*> stringLiteral,
-    StringIntervalLiteral <$> stringLiteral <*> maybe interval,
-    IntIntervalLiteral <$> integral (Range.exponential 0 2309482309483029) <*> stringLiteral,
-    BoolLiteral <$> bool,
-    pure NullLiteral
+qualOp = choice [OpQualOp <$> op, OperatorQualOp <$> anyOperator]
+
+op = do
+  a <- text (Range.exponential 1 7) (element "+-*/<>=~!@#%^&|`?")
+  case Validator.op a of
+    Nothing -> return a
+    _ -> discard
+
+anyOperator = recursive choice [
+    AllOpAnyOperator <$> allOp
+  ] [
+    QualifiedAnyOperator <$> colId <*> anyOperator
   ]
 
-funcLiteralArgList = FuncLiteralArgList <$> nonEmpty (Range.exponential 1 7) funcArgExpr <*> maybe sortClause
+allOp = choice [OpAllOp <$> op, MathAllOp <$> mathOp]
+
+mathOp = enumBounded
+
+symbolicExprBinOp = choice [
+    MathSymbolicExprBinOp <$> mathOp,
+    QualSymbolicExprBinOp <$> qualOp
+  ]
+
+binOp = element (toList HashSet.symbolicBinOp <> ["AND", "OR", "IS DISTINCT FROM", "IS NOT DISTINCT FROM"])
+
+verbalExprBinOp = enumBounded
+
+aExprReversableOp = choice [
+    pure NullAExprReversableOp,
+    pure TrueAExprReversableOp,
+    pure FalseAExprReversableOp,
+    pure UnknownAExprReversableOp,
+    DistinctFromAExprReversableOp <$> aExpr,
+    OfAExprReversableOp <$> typeList,
+    BetweenAExprReversableOp <$> bool <*> bExpr <*> aExpr,
+    BetweenSymmetricAExprReversableOp <$> bExpr <*> aExpr,
+    InAExprReversableOp <$> inExpr,
+    pure DocumentAExprReversableOp
+  ]
+
+bExprIsOp = choice [
+    DistinctFromBExprIsOp <$> bExpr,
+    OfBExprIsOp <$> typeList,
+    pure DocumentBExprIsOp
+  ]
+
+subqueryOp = choice [
+    AllSubqueryOp <$> allOp,
+    AnySubqueryOp <$> anyOperator,
+    LikeSubqueryOp <$> bool,
+    IlikeSubqueryOp <$> bool
+  ]
+
+
+-- * Constants
+-------------------------
+
+aexprConst = choice [
+    IAexprConst <$> iconst,
+    FAexprConst <$> fconst,
+    SAexprConst <$> sconst,
+    BAexprConst <$> text (Range.exponential 1 100) (element "01"),
+    XAexprConst <$> text (Range.exponential 1 100) (element "0123456789abcdefABCDEF"),
+    FuncAexprConst <$> funcName <*> maybe funcConstArgs <*> sconst,
+    ConstTypenameAexprConst <$> constTypename <*> sconst,
+    StringIntervalAexprConst <$> sconst <*> maybe interval,
+    IntIntervalAexprConst <$> integral (Range.exponential 0 2309482309483029) <*> sconst,
+    BoolAexprConst <$> bool,
+    pure NullAexprConst
+  ]
+
+funcConstArgs = FuncConstArgs <$> nonEmpty (Range.exponential 1 7) funcArgExpr <*> maybe sortClause
 
 constTypename = choice [
     NumericConstTypename <$> numeric,
@@ -442,13 +640,15 @@ numeric = choice [
     pure RealNumeric,
     FloatNumeric <$> maybe iconst,
     pure DoublePrecisionNumeric,
-    DecimalNumeric <$> maybe (nonEmpty (Range.exponential 1 7) (small expr)),
-    DecNumeric <$> maybe (nonEmpty (Range.exponential 1 7) (small expr)),
-    NumericNumeric <$> maybe (nonEmpty (Range.exponential 1 7) (small expr)),
+    DecimalNumeric <$> maybe (nonEmpty (Range.exponential 1 7) (small aExpr)),
+    DecNumeric <$> maybe (nonEmpty (Range.exponential 1 7) (small aExpr)),
+    NumericNumeric <$> maybe (nonEmpty (Range.exponential 1 7) (small aExpr)),
     pure BooleanNumeric
   ]
 
-constBit = ConstBit <$> bool <*> maybe (nonEmpty (Range.exponential 1 7) (small expr))
+bit = Bit <$> bool <*> maybe (nonEmpty (Range.exponential 1 7) (small aExpr))
+
+constBit = bit
 
 constCharacter = ConstCharacter <$> character <*> maybe iconst
 
@@ -484,7 +684,7 @@ interval = choice [
 
 intervalSecond = maybe iconst
 
-stringLiteral = text (Range.exponential 0 1000) unicode
+sconst = text (Range.exponential 0 1000) unicode
 
 iconstOrFconst = choice [Left <$> iconst <|> Right <$> fconst]
 
@@ -496,35 +696,64 @@ iconst = integral (Range.exponential 0 maxBound)
 -- * Types
 -------------------------
 
-type_ = Type <$> typeName <*> nullable <*> arrayDimensionsAmount <*> nullable
+typecastTypename = TypecastTypename <$> typeName <*> nullable <*> arrayDimensionsAmount <*> nullable
 
 nullable = pure False
 
 arrayDimensionsAmount = int (Range.exponential 0 4)
 
+-- ** Typename
+-------------------------
+
+typename = choice [
+    ArrayBoundsTypename <$> bool <*> simpleTypename <*> maybe arrayBounds,
+    ArrayDimTypename <$> bool <*> simpleTypename <*> maybe iconst
+  ]
+
+arrayBounds = nonEmpty (Range.exponential 1 4) (maybe iconst)
+
+simpleTypename = choice [
+    GenericTypeSimpleTypename <$> genericType,
+    NumericSimpleTypename <$> numeric,
+    BitSimpleTypename <$> bit,
+    CharacterSimpleTypename <$> character,
+    ConstDatetimeSimpleTypename <$> constDatetime,
+    ConstIntervalSimpleTypename <$> choice [Left <$> maybe interval, Right <$> iconst]
+  ]
+
+genericType = GenericType <$> typeFunctionName <*> maybe attrs <*> maybe typeModifiers
+
+attrs = nonEmpty (Range.exponential 1 10) attrName
+
+typeModifiers = exprList
+
+typeList = nonEmpty (Range.exponential 1 7) typename
+
+subType = enumBounded
+
 
 -- * Names
 -------------------------
+
+columnref = Columnref <$> colId <*> maybe indirection
 
 keywordNotInSet = \ set -> notInSet set $ do
   a <- element startList
   b <- text (Range.linear 1 29) (element contList)
   return (Text.cons a b)
   where
-    startList = "abcdefghiklmnopqrstuvwxyz_" <> List.filter isLower (enumFromTo '\200' '\377')
+    startList = "abcdefghijklmnopqrstuvwxyz_" <> List.filter isLower (enumFromTo '\200' '\377')
     contList = startList <> "0123456789$"
 
-ident = keywordNotInSet HashSet.keyword
+ident = identWithSet HashSet.keyword
 
-identOrKeywordInSet = keywordNotInSet . HashSet.difference HashSet.keyword
+typeName = identWithSet HashSet.typeFunctionName
 
-typeName = nameWithSet HashSet.typeFunctionName
+name = identWithSet HashSet.colId
 
-name = nameWithSet HashSet.colId
-
-nameWithSet set = choice [
-    QuotedName <$> text (Range.linear 1 30) quotedChar,
-    UnquotedName <$> identOrKeywordInSet set
+identWithSet set = frequency [
+    (95,) $ UnquotedIdent <$> (keywordNotInSet . HashSet.difference HashSet.keyword) set,
+    (5,) $ QuotedIdent <$> text (Range.linear 1 30) quotedChar
   ]
 
 qualifiedName = choice [
@@ -537,8 +766,23 @@ indirection = nonEmpty (Range.linear 1 3) indirectionEl
 indirectionEl = choice [
     AttrNameIndirectionEl <$> name,
     pure AllIndirectionEl,
-    ExprIndirectionEl <$> (small expr),
-    SliceIndirectionEl <$> maybe (small expr) <*> maybe (small expr)
+    ExprIndirectionEl <$> (small aExpr),
+    SliceIndirectionEl <$> maybe (small aExpr) <*> maybe (small aExpr)
   ]
 
 quotedChar = filter (not . isControl) unicode
+
+colId = name
+
+colLabel = name
+
+attrName = colLabel
+
+typeFunctionName = name
+
+funcName = choice [
+    TypeFuncName <$> typeFunctionName,
+    IndirectedFuncName <$> colId <*> indirection
+  ]
+
+anyName = AnyName <$> colId <*> maybe attrs

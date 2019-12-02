@@ -1,22 +1,90 @@
 module Hasql.TH.Syntax.Projections.ChildExprList where
 
-import Hasql.TH.Prelude hiding (sortBy)
+import Hasql.TH.Prelude hiding (sortBy, bit)
 import Hasql.TH.Syntax.Ast
 
 
-foldable :: (Foldable f, Functor f) => (a -> [Expr]) -> f a -> [Expr]
+-- * Types
+-------------------------
+
+data ChildExpr = AChildExpr AExpr | BChildExpr BExpr | CChildExpr CExpr
+  deriving (Show, Eq, Ord)
+
+
+-- * Helpers
+-------------------------
+
+foldable :: (Foldable f, Functor f) => (a -> [ChildExpr]) -> f a -> [ChildExpr]
 foldable a = concat . toList . fmap a
 
-preparableStmt :: PreparableStmt -> [Expr]
+
+-- *
+-------------------------
+
+{-|
+Dives one level of recursion.
+-}
+childExpr = \ case
+  AChildExpr a -> aChildExpr a
+  BChildExpr a -> bChildExpr a
+  CChildExpr a -> cChildExpr a
+
+aChildExpr = \ case
+  CExprAExpr a -> cChildExpr a
+  TypecastAExpr a b -> aExpr a <> typecastTypename b
+  CollateAExpr a b -> aExpr a <> anyName b
+  AtTimeZoneAExpr a b -> aExpr a <> aExpr b
+  PlusAExpr a -> aExpr a
+  MinusAExpr a -> aExpr a
+  SymbolicBinOpAExpr a b c -> aExpr a <> symbolicExprBinOp b <> aExpr c
+  PrefixQualOpAExpr a b -> qualOp a <> aExpr b
+  SuffixQualOpAExpr a b -> aExpr a <> qualOp b
+  AndAExpr a b -> aExpr a <> aExpr b
+  OrAExpr a b -> aExpr a <> aExpr b
+  NotAExpr a -> aExpr a
+  VerbalExprBinOpAExpr a b c d e -> aExpr a <> verbalExprBinOp c <> aExpr d <> foldable aExpr e
+  ReversableOpAExpr a b c -> aExpr a <> aExprReversableOp c
+  IsnullAExpr a -> aExpr a
+  NotnullAExpr a -> aExpr a
+  OverlapsAExpr a b -> row a <> row b
+  SubqueryAExpr a b c d -> aExpr a <> subqueryOp b <> subType c <> either selectWithParens aExpr d
+  UniqueAExpr a -> selectWithParens a
+  DefaultAExpr -> []
+
+bChildExpr = \ case
+  CExprBExpr a -> cChildExpr a
+  TypecastBExpr a b -> bExpr a <> typecastTypename b
+  PlusBExpr a -> bExpr a
+  MinusBExpr a -> bExpr a
+  SymbolicBinOpBExpr a b c -> bExpr a <> symbolicExprBinOp b <> bExpr c
+  QualOpBExpr a b -> qualOp a <> bExpr b
+  IsOpBExpr a b c -> bExpr a <> bExprIsOp c
+
+cChildExpr = \ case
+  ColumnrefCExpr a -> columnref a
+  AexprConstCExpr a -> aexprConst a
+  ParamCExpr a b -> foldable indirection b
+  InParensCExpr a b -> aExpr a <> foldable indirection b
+  CaseCExpr a -> caseExpr a
+  FuncCExpr a -> funcExpr a
+  SelectWithParensCExpr a b -> selectWithParens a <> foldable indirection b
+  ExistsCExpr a -> selectWithParens a
+  ArrayCExpr a -> either selectWithParens arrayExpr a
+  ExplicitRowCExpr a -> explicitRow a
+  ImplicitRowCExpr a -> implicitRow a
+  GroupingCExpr a -> exprList a
+
+
+-- *
+-------------------------
+
 preparableStmt = \ case
   SelectPreparableStmt a -> selectStmt a
 
-selectStmt :: SelectStmt -> [Expr]
 selectStmt = \ case
   Left a -> selectNoParens a
   Right a -> selectWithParens a
 
-selectNoParens :: SelectNoParens -> [Expr]
 selectNoParens (SelectNoParens a b c d e) =
   foldable withClause a <>
   selectClause b <>
@@ -39,19 +107,19 @@ selectLimit = \ case
   OffsetSelectLimit a -> offsetClause a
 
 limitClause = \ case
-  LimitLimitClause a b -> selectLimitValue a <> toList b
+  LimitLimitClause a b -> selectLimitValue a <> exprList b
   FetchOnlyLimitClause a b c -> foldable selectFetchFirstValue b
 
 offsetClause = \ case
-  ExprOffsetClause a -> [a]
+  ExprOffsetClause a -> aExpr a
   FetchFirstOffsetClause a b -> selectFetchFirstValue a
 
 selectFetchFirstValue = \ case
-  ExprSelectFetchFirstValue a -> [a]
+  ExprSelectFetchFirstValue a -> cExpr a
   NumSelectFetchFirstValue _ _ -> []
 
 selectLimitValue = \ case
-  ExprSelectLimitValue a -> [a]
+  ExprSelectLimitValue a -> aExpr a
   AllSelectLimitValue -> []
 
 forLockingClause = \ case
@@ -61,10 +129,8 @@ forLockingClause = \ case
 forLockingItem (ForLockingItem a b c) =
   foldable (foldable qualifiedName) b
 
-selectClause :: SelectClause -> [Expr]
 selectClause = either simpleSelect selectWithParens
 
-simpleSelect :: SimpleSelect -> [Expr]
 simpleSelect = \ case
   NormalSimpleSelect a b c d e f g ->
     foldable targeting a <> foldable intoClause b <> foldable fromClause c <>
@@ -73,80 +139,61 @@ simpleSelect = \ case
   ValuesSimpleSelect a -> valuesClause a
   BinSimpleSelect _ a _ b -> selectClause a <> selectClause b
 
-targeting :: Targeting -> [Expr]
 targeting = \ case
   NormalTargeting a -> foldable target a
   AllTargeting a -> foldable (foldable target) a
-  DistinctTargeting a b -> foldable toList a <> foldable target b
+  DistinctTargeting a b -> foldable exprList a <> foldable target b
 
-target :: Target -> [Expr]
 target = \ case
-  AliasedExprTarget a _ -> [a]
-  ImplicitlyAliasedExprTarget a _ -> [a]
-  ExprTarget a -> [a]
+  AliasedExprTarget a _ -> aExpr a
+  ImplicitlyAliasedExprTarget a _ -> aExpr a
+  ExprTarget a -> aExpr a
   AsteriskTarget -> []
 
-intoClause :: IntoClause -> [Expr]
 intoClause = optTempTableName
 
-fromClause :: FromClause -> [Expr]
 fromClause = foldable tableRef
 
-whereClause :: WhereClause -> [Expr]
-whereClause = pure
+whereClause = aExpr
 
-groupClause :: GroupClause -> [Expr]
 groupClause = foldable groupByItem
 
-havingClause :: HavingClause -> [Expr]
-havingClause = pure
+havingClause = aExpr
 
-windowClause :: WindowClause -> [Expr]
 windowClause = foldable windowDefinition
 
-valuesClause :: ValuesClause -> [Expr]
-valuesClause = foldable toList
+valuesClause = foldable exprList
 
-optTempTableName :: OptTempTableName -> [Expr]
 optTempTableName _ = []
 
-groupByItem :: GroupByItem -> [Expr]
 groupByItem = \ case
-  ExprGroupByItem a -> [a]
+  ExprGroupByItem a -> aExpr a
   EmptyGroupingSetGroupByItem -> []
-  RollupGroupByItem a -> toList a
-  CubeGroupByItem a -> toList a
+  RollupGroupByItem a -> exprList a
+  CubeGroupByItem a -> exprList a
   GroupingSetsGroupByItem a -> foldable groupByItem a
 
-windowDefinition :: WindowDefinition -> [Expr]
 windowDefinition (WindowDefinition _ a) = windowSpecification a
 
-windowSpecification :: WindowSpecification -> [Expr]
-windowSpecification (WindowSpecification _ a b c) = foldable toList a <> foldable sortClause b <> foldable frameClause c
+windowSpecification (WindowSpecification _ a b c) = foldable (foldMap aExpr) a <> foldable sortClause b <> foldable frameClause c
 
-frameClause :: FrameClause -> [Expr]
 frameClause (FrameClause _ a _) = frameExtent a
 
-frameExtent :: FrameExtent -> [Expr]
 frameExtent = \ case
   SingularFrameExtent a -> frameBound a
   BetweenFrameExtent a b -> frameBound a <> frameBound b
 
-frameBound :: FrameBound -> [Expr]
 frameBound = \ case
   UnboundedPrecedingFrameBound -> []
   UnboundedFollowingFrameBound -> []
   CurrentRowFrameBound -> []
-  PrecedingFrameBound a -> [a]
-  FollowingFrameBound a -> [a]
+  PrecedingFrameBound a -> aExpr a
+  FollowingFrameBound a -> aExpr a
 
-sortClause :: SortClause -> [Expr]
 sortClause = foldable sortBy
 
-sortBy :: SortBy -> [Expr]
-sortBy (SortBy a _) = [a]
+sortBy (SortBy a _) = aExpr a
 
-tableRef :: TableRef -> [Expr]
 tableRef = \ case
   RelationExprTableRef a _ -> relationExpr a
   SelectTableRef _ a _ -> selectWithParens a
@@ -156,74 +203,199 @@ relationExpr = \ case
   SimpleRelationExpr a _ -> qualifiedName a
   OnlyRelationExpr a _ -> qualifiedName a
 
-joinedTable :: JoinedTable -> [Expr]
 joinedTable = \ case
   InParensJoinedTable a -> joinedTable a
   MethJoinedTable a b c -> joinMeth a <> tableRef b <> tableRef c
 
-joinMeth :: JoinMeth -> [Expr]
 joinMeth = \ case
   CrossJoinMeth -> []
   QualJoinMeth _ a -> joinQual a
   NaturalJoinMeth _ -> []
 
-joinQual :: JoinQual -> [Expr]
 joinQual = \ case
   UsingJoinQual _ -> []
-  OnJoinQual a -> [a]
+  OnJoinQual a -> aExpr a
 
-expr :: Expr -> [Expr]
-expr = \ case
-  PlaceholderExpr _ -> []
-  TypecastExpr a _ -> [a]
-  BinOpExpr _ a b -> [a, b]
-  EscapableBinOpExpr _ _ a b c -> [a, b] <> maybeToList c
-  DefaultExpr -> []
-  QualifiedNameExpr a -> qualifiedName a
-  LiteralExpr a -> literal a
-  InParensExpr a b -> either pure selectWithParens a <> foldable indirection b
-  CaseExpr a b c -> maybeToList a <> foldable whenClause b <> maybeToList c
-  FuncExpr a -> funcApplication a
-  ExistsSelectExpr a -> selectWithParens a
-  ArraySelectExpr a -> selectWithParens a
-  GroupingExpr a -> toList a
 
-whenClause :: WhenClause -> [Expr]
-whenClause (WhenClause a b) = [a, b]
+-- *
+-------------------------
 
-funcApplication :: FuncApplication -> [Expr]
-funcApplication (FuncApplication a b) = qualifiedName a <> foldable funcApplicationParams b
+exprList = fmap AChildExpr . toList
 
-funcApplicationParams :: FuncApplicationParams -> [Expr]
+aExpr = pure . AChildExpr
+bExpr = pure . BChildExpr
+cExpr = pure . CChildExpr
+
+funcExpr = \ case
+  ApplicationFuncExpr a b c d -> funcApplication a <> foldable withinGroupClause b <> foldable filterClause c <> foldable overClause d
+  SubexprFuncExpr a -> funcExprCommonSubExpr a
+
+withinGroupClause = sortClause
+
+filterClause a = aExpr a
+
+overClause = \ case
+  WindowOverClause a -> windowSpecification a
+  ColIdOverClause _ -> []
+
+funcExprCommonSubExpr = \ case
+  CollationForFuncExprCommonSubExpr a -> aExpr a
+  CurrentDateFuncExprCommonSubExpr -> []
+  CurrentTimeFuncExprCommonSubExpr _ -> []
+  CurrentTimestampFuncExprCommonSubExpr _ -> []
+  LocalTimeFuncExprCommonSubExpr _ -> []
+  LocalTimestampFuncExprCommonSubExpr _ -> []
+  CurrentRoleFuncExprCommonSubExpr -> []
+  CurrentUserFuncExprCommonSubExpr -> []
+  SessionUserFuncExprCommonSubExpr -> []
+  UserFuncExprCommonSubExpr -> []
+  CurrentCatalogFuncExprCommonSubExpr -> []
+  CurrentSchemaFuncExprCommonSubExpr -> []
+  CastFuncExprCommonSubExpr a b -> aExpr a <> typename b
+  ExtractFuncExprCommonSubExpr a -> foldable extractList a
+  OverlayFuncExprCommonSubExpr a -> overlayList a
+  PositionFuncExprCommonSubExpr a -> foldable positionList a
+  SubstringFuncExprCommonSubExpr a -> foldable substrList a
+  TreatFuncExprCommonSubExpr a b -> aExpr a <> typename b
+  TrimFuncExprCommonSubExpr a b -> foldable trimModifier a <> trimList b
+  NullIfFuncExprCommonSubExpr a b -> aExpr a <> aExpr b
+  CoalesceFuncExprCommonSubExpr a -> exprList a
+  GreatestFuncExprCommonSubExpr a -> exprList a
+  LeastFuncExprCommonSubExpr a -> exprList a
+
+extractList (ExtractList a b) = extractArg a <> aExpr b
+
+extractArg _ = []
+
+overlayList (OverlayList a b c d) = foldable aExpr ([a, b, c] <> toList d)
+
+positionList (PositionList a b) = bExpr a <> bExpr b
+
+substrList = \ case
+  ExprSubstrList a b -> aExpr a <> substrListFromFor b
+  ExprListSubstrList a -> exprList a
+
+substrListFromFor = \ case
+  FromForSubstrListFromFor a b -> aExpr a <> aExpr b
+  ForFromSubstrListFromFor a b -> aExpr a <> aExpr b
+  FromSubstrListFromFor a -> aExpr a
+  ForSubstrListFromFor a -> aExpr a
+
+trimModifier _ = []
+
+trimList = \ case
+  ExprFromExprListTrimList a b -> aExpr a <> exprList b
+  FromExprListTrimList a -> exprList a
+  ExprListTrimList a -> exprList a  
+
+whenClause (WhenClause a b) = aExpr a <> aExpr b
+
+funcApplication (FuncApplication a b) = funcName a <> foldable funcApplicationParams b
+
 funcApplicationParams = \ case
   NormalFuncApplicationParams _ a b -> foldable funcArgExpr a <> foldable (foldable sortBy) b
   VariadicFuncApplicationParams a b c -> foldable (foldable funcArgExpr) a <> funcArgExpr b <> foldable (foldable sortBy) c
   StarFuncApplicationParams -> []
 
-funcArgExpr :: FuncArgExpr -> [Expr]
 funcArgExpr = \ case
-  ExprFuncArgExpr a -> [a]
-  ColonEqualsFuncArgExpr _ a -> [a]
-  EqualsGreaterFuncArgExpr _ a -> [a]
+  ExprFuncArgExpr a -> aExpr a
+  ColonEqualsFuncArgExpr _ a -> aExpr a
+  EqualsGreaterFuncArgExpr _ a -> aExpr a
+
+caseExpr (CaseExpr a b c) = foldable aExpr a <> whenClauseList b <> foldable aExpr c
+
+whenClauseList = foldable whenClause
+
+arrayExpr = \ case
+  ExprListArrayExpr a -> exprList a
+  ArrayExprListArrayExpr a -> arrayExprList a
+  EmptyArrayExpr -> []
+
+arrayExprList = foldable arrayExpr
+
+inExpr = \ case
+  SelectInExpr a -> selectWithParens a
+  ExprListInExpr a -> exprList a
 
 
--- * Literals
+-- * Operators
 -------------------------
 
-literal = \ case
-  IntLiteral _ -> []
-  FloatLiteral _ -> []
-  StringLiteral _ -> []
-  BitLiteral _ -> []
-  HexLiteral _ -> []
-  FuncLiteral a b _ -> qualifiedName a <> foldable funcLiteralArgList b
-  ConstTypenameLiteral a _ -> constTypename a
-  StringIntervalLiteral _ a -> foldable interval a
-  IntIntervalLiteral _ _ -> []
-  BoolLiteral _ -> []
-  NullLiteral -> []
+symbolicExprBinOp = \ case
+  MathSymbolicExprBinOp a -> mathOp a
+  QualSymbolicExprBinOp a -> qualOp a
 
-funcLiteralArgList (FuncLiteralArgList a b) = foldable funcArgExpr a <> foldable sortClause b
+qualOp = \ case
+  OpQualOp a -> op a
+  OperatorQualOp a -> anyOperator a
+
+verbalExprBinOp = const []
+
+aExprReversableOp = \ case
+  NullAExprReversableOp -> []
+  TrueAExprReversableOp -> []
+  FalseAExprReversableOp -> []
+  UnknownAExprReversableOp -> []
+  DistinctFromAExprReversableOp a -> aExpr a
+  OfAExprReversableOp a -> typeList a
+  BetweenAExprReversableOp a b c -> bExpr b <> aExpr c
+  BetweenSymmetricAExprReversableOp a b -> bExpr a <> aExpr b
+  InAExprReversableOp a -> inExpr a
+  DocumentAExprReversableOp -> []
+
+subqueryOp = \ case
+  AllSubqueryOp a -> allOp a
+  AnySubqueryOp a -> anyOperator a
+  LikeSubqueryOp _ -> []
+  IlikeSubqueryOp _ -> []
+
+bExprIsOp = \ case
+  DistinctFromBExprIsOp a -> bExpr a
+  OfBExprIsOp a -> typeList a
+  DocumentBExprIsOp -> []
+
+allOp = \ case
+  OpAllOp a -> op a
+  MathAllOp a -> mathOp a
+
+anyOperator = \ case
+  AllOpAnyOperator a -> allOp a
+  QualifiedAnyOperator a b -> colId a <> anyOperator b
+
+op = const []
+
+mathOp = const []
+
+
+-- * Rows
+-------------------------
+
+row = \ case
+  ExplicitRowRow a -> explicitRow a
+  ImplicitRowRow a -> implicitRow a
+
+explicitRow = foldable exprList
+
+implicitRow (ImplicitRow a b) = exprList a <> aExpr b
+
+
+-- * Constants
+-------------------------
+
+aexprConst = \ case
+  IAexprConst _ -> []
+  FAexprConst _ -> []
+  SAexprConst _ -> []
+  BAexprConst _ -> []
+  XAexprConst _ -> []
+  FuncAexprConst a b _ -> funcName a <> foldable funcConstArgs b
+  ConstTypenameAexprConst a _ -> constTypename a
+  StringIntervalAexprConst _ a -> foldable interval a
+  IntIntervalAexprConst _ _ -> []
+  BoolAexprConst _ -> []
+  NullAexprConst -> []
+
+funcConstArgs (FuncConstArgs a b) = foldable funcArgExpr a <> foldable sortClause b
 
 constTypename = \ case
   NumericConstTypename a -> numeric a
@@ -239,12 +411,14 @@ numeric = \ case
   RealNumeric -> []
   FloatNumeric _ -> []
   DoublePrecisionNumeric -> []
-  DecimalNumeric a -> foldable toList a
-  DecNumeric a -> foldable toList a
-  NumericNumeric a -> foldable toList a
+  DecimalNumeric a -> foldable exprList a
+  DecNumeric a -> foldable exprList a
+  NumericNumeric a -> foldable exprList a
   BooleanNumeric -> []
 
-constBit (ConstBit _ a) = foldable toList a
+bit (Bit _ a) = foldable exprList a
+
+constBit = bit
 
 constCharacter (ConstCharacter _ _) = []
 
@@ -256,17 +430,62 @@ interval _ = []
 -- * Names
 -------------------------
 
-qualifiedName :: QualifiedName -> [Expr]
+ident _ = []
+
+colId = ident
+
+anyName (AnyName a b) = colId a <> foldable attrs b
+
+columnref (Columnref a b) = colId a <> foldable indirection b
+
+funcName = \ case
+  TypeFuncName a -> typeFunctionName a
+  IndirectedFuncName a b -> colId a <> indirection b
+
 qualifiedName = \ case
   SimpleQualifiedName _ -> []
   IndirectedQualifiedName _ a -> indirection a
 
-indirection :: Indirection -> [Expr]
 indirection = foldable indirectionEl
 
-indirectionEl :: IndirectionEl -> [Expr]
 indirectionEl = \ case
   AttrNameIndirectionEl _ -> []
   AllIndirectionEl -> []
-  ExprIndirectionEl a -> [a]
-  SliceIndirectionEl a b -> toList a <> toList b
+  ExprIndirectionEl a -> aExpr a
+  SliceIndirectionEl a b -> exprList a <> exprList b
+
+
+-- * Types
+-------------------------
+
+typeList = foldable typename
+
+typecastTypename _ = []
+
+typename = \ case
+  ArrayBoundsTypename _ a b -> simpleTypename a <> arrayBounds b
+  ArrayDimTypename _ a _ -> simpleTypename a
+
+simpleTypename = \ case
+  GenericTypeSimpleTypename a -> genericType a
+  NumericSimpleTypename a -> numeric a
+  BitSimpleTypename a -> bit a
+  CharacterSimpleTypename a -> character a
+  ConstDatetimeSimpleTypename a -> constDatetime a
+  ConstIntervalSimpleTypename a -> either (foldable interval) (const []) a
+
+arrayBounds _ = []
+
+genericType (GenericType a b c) = typeFunctionName a <> foldable attrs b <> foldable typeModifiers c
+
+typeFunctionName = ident
+
+attrs = foldable attrName
+
+attrName _ = []
+
+typeModifiers = exprList
+
+character _ = []
+
+subType _ = []

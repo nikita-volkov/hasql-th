@@ -24,6 +24,8 @@ library
     Hasql.TH
   other-modules:
     Hasql.TH.Exp
+    Hasql.TH.Extras.HeadedMegaparsec
+    Hasql.TH.Extras.NonEmpty
     Hasql.TH.Prelude
     Hasql.TH.Syntax.Ast
     Hasql.TH.Syntax.HashSet
@@ -35,6 +37,7 @@ library
     Hasql.TH.Syntax.Projections.OutputTypeList
     Hasql.TH.Syntax.Projections.PlaceholderTypeMap
     Hasql.TH.Syntax.Rendering
+    Hasql.TH.Syntax.Validator
   build-depends:
     base >=4.11 && <5,
     bytestring >=0.10 && <0.11,
@@ -64,6 +67,8 @@ test-suite test
   default-language: Haskell2010
   main-is: Main.hs
   other-modules:
+    Hasql.TH.Extras.HeadedMegaparsec
+    Hasql.TH.Extras.NonEmpty
     Hasql.TH.Prelude
     Hasql.TH.Syntax.Ast
     Hasql.TH.Syntax.HashSet
@@ -75,6 +80,7 @@ test-suite test
     Hasql.TH.Syntax.Projections.OutputTypeList
     Hasql.TH.Syntax.Projections.PlaceholderTypeMap
     Hasql.TH.Syntax.Rendering
+    Hasql.TH.Syntax.Validator
     Main.Gen
   build-depends:
     base,

@@ -38,10 +38,10 @@ rowlessStatement _quote = do
 ast :: Text -> Either Text PreparableStmt
 ast = first fromString . Parsing.run (Parsing.quasiQuote Parsing.preparableStmt)
 
-encoder :: Type -> Either Text Encoder
-encoder (Type _name _nullable _dimensions _arrayNullable) =do
-  _nameText <- nameText _name
-  encoderName _nameText <&> \ _name' ->
+encoder :: TypecastTypename -> Either Text Encoder
+encoder (TypecastTypename _name _nullable _dimensions _arrayNullable) =do
+  _identText <- identText _name
+  encoderName _identText <&> \ _name' ->
     Encoder _name' _nullable _dimensions _arrayNullable
 
 encoderName :: Text -> Either Text TH.Name
@@ -69,10 +69,10 @@ encoderName = \ case
   "enum" -> Right 'Encoders.enum
   name -> Left ("No value encoder exists for type: " <> name)
 
-decoder :: Type -> Either Text Decoder
-decoder (Type _name _nullable _dimensions _arrayNullable) = do
-  _nameText <- nameText _name
-  decoderName _nameText <&> \ _name' ->
+decoder :: TypecastTypename -> Either Text Decoder
+decoder (TypecastTypename _name _nullable _dimensions _arrayNullable) = do
+  _identText <- identText _name
+  decoderName _identText <&> \ _name' ->
     Decoder _name' _nullable _dimensions _arrayNullable
 
 decoderName :: Text -> Either Text TH.Name
@@ -100,7 +100,7 @@ decoderName = \ case
   "enum" -> Right 'Decoders.enum
   name -> Left ("No value decoder exists for type: " <> name)
 
-nameText :: Name -> Either Text Text
-nameText = \ case
-  QuotedName a -> Right a
-  UnquotedName a -> Right a
+identText :: Ident -> Either Text Text
+identText = \ case
+  QuotedIdent a -> Right a
+  UnquotedIdent a -> Right a

@@ -1,8 +1,8 @@
 module Hasql.TH.Prelude
 ( 
   module Exports,
-  intersperseFoldMap1,
   showAsText,
+  suffixRec,
 )
 where
 
@@ -123,15 +123,14 @@ import Data.UUID as Exports (UUID)
 import Data.CaseInsensitive as Exports (CI, FoldCase)
 
 
-{-|
->>> intersperseFoldMap1 ", " id (fromList ["a"])
-"a"
-
->>> intersperseFoldMap1 ", " id (fromList ["a", "b", "c"])
-"a, b, c"
--}
-intersperseFoldMap1 :: Monoid m => m -> (a -> m) -> NonEmpty a -> m
-intersperseFoldMap1 a b (c :| d) = b c <> foldMap (mappend a . b) d
-
 showAsText :: Show a => a -> Text
 showAsText = show >>> fromString
+
+{-|
+Compose a monad, which attempts to extend a value, based on the following input.
+It does that recursively until the suffix alternative fails.
+-}
+suffixRec :: (Monad m, Alternative m) => m a -> (a -> m a) -> m a
+suffixRec base suffix = do
+  _base <- base
+  suffixRec (suffix _base) suffix <|> pure _base
