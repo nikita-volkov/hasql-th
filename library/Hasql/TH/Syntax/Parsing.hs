@@ -45,6 +45,7 @@ import qualified Hasql.TH.Syntax.Validator as Validator
 import qualified Data.Text as Text
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Text.Builder as TextBuilder
+import qualified Data.HashSet as HashSet
 
 
 {- $setup
@@ -142,7 +143,7 @@ preparableStmt =
 -------------------------
 
 insertStmt = do
-  a <- optional (withClause <* space1)
+  a <- optional (wrapToHead withClause <* space1)
   string' "insert"
   space1
   endHead
@@ -235,11 +236,11 @@ returningClause = do
 -------------------------
 
 updateStmt = do
-  a <- optional (withClause <* space1)
+  a <- optional (wrapToHead withClause <* space1)
   string' "update"
   space1
   endHead
-  b <- relationExprOptAlias
+  b <- relationExprOptAlias ["set"]
   space1
   string' "set"
   space1
@@ -282,13 +283,13 @@ setTargetList = sep1 commaSeparator setTarget
 -------------------------
 
 deleteStmt = do
-  a <- optional (withClause <* space1)
+  a <- optional (wrapToHead withClause <* space1)
   string' "delete"
   space1
   endHead
   string' "from"
   space1
-  b <- relationExprOptAlias
+  b <- relationExprOptAlias ["using", "where", "returning"]
   c <- optional (space1 *> usingClause)
   d <- optional (space1 *> whereOrCurrentClause)
   e <- optional (space1 *> returningClause)
@@ -365,7 +366,7 @@ The one that doesn't start with \"WITH\".
 simpleSelectNoParens = sharedSelectNoParens Nothing
 
 withSelectNoParens = do
-  _with <- withClause
+  _with <- wrapToHead withClause
   space1
   sharedSelectNoParens (Just _with)
 
@@ -770,12 +771,12 @@ relationExpr =
         return (SimpleRelationExpr _name _asterisk)
     ]
 
-relationExprOptAlias = do
+relationExprOptAlias reservedKeywords = do
   a <- relationExpr
   b <- optional $ do
     space1
     b <- trueIfPresent (string' "as" *> space1)
-    c <- colId
+    c <- filteredColId reservedKeywords
     return (b, c)
   return (RelationExprOptAlias a b)
 
@@ -1862,6 +1863,12 @@ ColId:
 {-# NOINLINE colId #-}
 colId = label "identifier" $
   ident <|> keywordNameFromSet (HashSet.unreservedKeyword <> HashSet.colNameKeyword)
+
+{-# NOINLINE filteredColId #-}
+filteredColId = let
+  _originalSet = HashSet.unreservedKeyword <> HashSet.colNameKeyword
+  _filteredSet = foldr HashSet.delete _originalSet
+  in \ _reservedKeywords -> label "identifier" $ ident <|> keywordNameFromSet (_filteredSet _reservedKeywords)
 
 {-
 ColLabel:
