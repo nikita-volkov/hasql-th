@@ -1910,6 +1910,12 @@ anyName = do
   b <- optional (space *> attrs)
   return (AnyName a b)
 
+filteredAnyName _keywords = do
+  a <- wrapToHead (filteredColId _keywords)
+  endHead
+  b <- optional (space *> attrs)
+  return (AnyName a b)
+
 name = colId
 
 cursorName = name
@@ -2079,13 +2085,13 @@ indexElem = IndexElem <$>
   optional (space1 *> nullsOrder)
 
 indexElemDef =
-  ExprIndexElemDef <$> aExpr <|>
+  ExprIndexElemDef <$> inParens aExpr <|>
   FuncIndexElemDef <$> funcExprWindowless <|>
   IdIndexElemDef <$> colId 
 
 collate = string' "collate" *> space1 *> endHead *> anyName
 
-class_ = anyName
+class_ = filteredAnyName ["asc", "desc", "nulls"]
 
 ascDesc = string' "asc" $> AscAscDesc <|> string' "desc" $> DescAscDesc
 
