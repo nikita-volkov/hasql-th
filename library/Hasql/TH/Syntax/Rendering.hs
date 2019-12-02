@@ -1,6 +1,6 @@
 module Hasql.TH.Syntax.Rendering where
 
-import Hasql.TH.Prelude hiding (aExpr, try, option, many, sortBy, bit)
+import Hasql.TH.Prelude hiding (aExpr, try, option, many, sortBy, bit, fromList)
 import Hasql.TH.Syntax.Ast
 import Data.ByteString.FastBuilder
 import qualified Hasql.TH.Extras.NonEmpty as NonEmpty
@@ -45,12 +45,105 @@ inParens a = "(" <> a <> ")"
 inBrackets :: Builder -> Builder
 inBrackets a = "[" <> a <> "]"
 
+prefixMaybe :: (a -> Builder) -> Maybe a -> Builder
+prefixMaybe a = foldMap (flip mappend " " . a)
 
--- * Select
+suffixMaybe :: (a -> Builder) -> Maybe a -> Builder
+suffixMaybe a = foldMap (mappend " " . a)
+
+
+-- * Statements
 -------------------------
 
 preparableStmt = \ case
   SelectPreparableStmt a -> selectStmt a
+  InsertPreparableStmt a -> insertStmt a
+  UpdatePreparableStmt a -> updateStmt a
+  DeletePreparableStmt a -> deleteStmt a
+
+
+-- * Insert
+-------------------------
+
+insertStmt (InsertStmt a b c d e) =
+  prefixMaybe withClause a <>
+  "INSERT INTO " <>
+  insertTarget b <> " " <> insertRest c <>
+  suffixMaybe onConflict d <>
+  suffixMaybe returningClause e
+
+insertTarget (InsertTarget a b) =
+  qualifiedName a <> foldMap (mappend " AS " . colId) b
+
+insertRest = \ case
+  SelectInsertRest a b c ->
+    optLexemes [
+        fmap (inParens . insertColumnList) a,
+        fmap insertRestOverriding b,
+        Just (selectStmt c)
+      ]
+  DefaultValuesInsertRest -> "DEFAULT VALUES"
+
+insertRestOverriding a = "OVERRIDING " <> overrideKind a <> " VALUE"
+
+overrideKind = \ case
+  UserOverrideKind -> "USER"
+  SystemOverrideKind -> "SYSTEM"
+
+insertColumnList = commaNonEmpty insertColumnItem
+
+insertColumnItem (InsertColumnItem a b) = colId a <> suffixMaybe indirection b
+
+onConflict (OnConflict a b) = "ON CONFLICT" <> suffixMaybe confExpr a <> " DO " <> onConflictDo b
+
+onConflictDo = \ case
+  UpdateOnConflictDo a b -> "UPDATE SET " <> setClauseList a <> suffixMaybe whereClause b
+  NothingOnConflictDo -> "NOTHING"
+
+confExpr = \ case
+  WhereConfExpr a b -> inParens (indexParams a) <> suffixMaybe whereClause b
+  ConstraintConfExpr a -> "ON CONSTRAINT " <> name a
+
+returningClause = mappend "RETURNING " . targetList
+
+
+-- * Update
+-------------------------
+
+updateStmt (UpdateStmt a b c d e f) =
+  prefixMaybe withClause a <>
+  "UPDATE " <> relationExprOptAlias b <> " " <>
+  "SET " <> setClauseList c <>
+  suffixMaybe fromClause d <>
+  suffixMaybe whereOrCurrentClause e <>
+  suffixMaybe returningClause f
+
+setClauseList = commaNonEmpty setClause
+
+setClause = \ case
+  TargetSetClause a b -> setTarget a <> " = " <> aExpr b
+  TargetListSetClause a b -> inParens (setTargetList a) <> " = " <> aExpr b
+
+setTarget (SetTarget a b) = colId a <> suffixMaybe indirection b
+
+setTargetList = commaNonEmpty setTarget
+
+
+-- * Delete
+-------------------------
+
+deleteStmt (DeleteStmt a b c d e) =
+  prefixMaybe withClause a <>
+  "DELETE FROM " <> relationExprOptAlias b <>
+  suffixMaybe usingClause c <>
+  suffixMaybe whereOrCurrentClause d <>
+  suffixMaybe returningClause e
+
+usingClause = mappend "USING " . fromList
+
+
+-- * Select
+-------------------------
 
 selectStmt = \ case
   Left a -> selectNoParens a
@@ -167,9 +260,11 @@ selectBinOp = \ case
   ExceptSelectBinOp -> "EXCEPT"
 
 targeting = \ case
-  NormalTargeting a -> commaNonEmpty targetEl a
-  AllTargeting a -> "ALL" <> foldMap (mappend " " . commaNonEmpty targetEl) a
-  DistinctTargeting a b -> "DISTINCT" <> foldMap (mappend " " . onExpressionsClause) a <> " " <> commaNonEmpty targetEl b
+  NormalTargeting a -> targetList a
+  AllTargeting a -> "ALL" <> suffixMaybe targetList a
+  DistinctTargeting a b -> "DISTINCT" <> suffixMaybe onExpressionsClause a <> " " <> commaNonEmpty targetEl b
+
+targetList = commaNonEmpty targetEl
 
 onExpressionsClause a = "ON (" <> commaNonEmpty aExpr a <> ")"
 
@@ -200,7 +295,9 @@ optTempTableName = \ case
 -- * From
 -------------------------
 
-fromClause a = "FROM " <> commaNonEmpty tableRef a
+fromClause a = "FROM " <> fromList a
+
+fromList = commaNonEmpty tableRef
 
 tableRef = \ case
   RelationExprTableRef a b ->
@@ -224,6 +321,10 @@ relationExpr = \ case
   SimpleRelationExpr a b -> qualifiedName a <> bool "" " *" b
   OnlyRelationExpr a b -> "ONLY " <> bool qualifiedName (inParens . qualifiedName) b a
 
+relationExprOptAlias (RelationExprOptAlias a b) = relationExpr a <> suffixMaybe optAlias b
+
+optAlias (a, b) = bool "" "AS " a <> colId b
+
 aliasClause (AliasClause a b) =
   optLexemes
     [
@@ -236,8 +337,8 @@ joinedTable = \ case
   InParensJoinedTable a -> inParens (joinedTable a)
   MethJoinedTable a b c -> case a of
     CrossJoinMeth -> tableRef b <> " CROSS JOIN " <> tableRef c
-    QualJoinMeth d e -> tableRef b <> foldMap (mappend " " . joinType) d <> " JOIN " <> tableRef c <> " " <> joinQual e
-    NaturalJoinMeth d -> tableRef b <> " NATURAL" <> foldMap (mappend " " . joinType) d <> " JOIN " <> tableRef c
+    QualJoinMeth d e -> tableRef b <> suffixMaybe joinType d <> " JOIN " <> tableRef c <> " " <> joinQual e
+    NaturalJoinMeth d -> tableRef b <> " NATURAL" <> suffixMaybe joinType d <> " JOIN " <> tableRef c
 
 joinType = \ case
   FullJoinType a -> "FULL" <> if a then " OUTER" else ""
@@ -254,6 +355,10 @@ joinQual = \ case
 -------------------------
 
 whereClause a = "WHERE " <> aExpr a
+
+whereOrCurrentClause = \ case
+  ExprWhereOrCurrentClause a -> "WHERE " <> aExpr a
+  CursorWhereOrCurrentClause a -> "WHERE CURRENT OF " <> cursorName a
 
 
 -- * Group By
@@ -329,11 +434,7 @@ windowExclusionCause = \ case
 
 sortClause a = "ORDER BY " <> commaNonEmpty sortBy a
 
-sortBy (SortBy a b) = optLexemes [Just (aExpr a), fmap order b]
-
-order = \ case
-  AscAscDesc -> "ASC"
-  DescAscDesc -> "DESC"
+sortBy (SortBy a b) = optLexemes [Just (aExpr a), fmap ascDesc b]
 
 
 -- * Values
@@ -534,6 +635,10 @@ funcExpr = \ case
     ]
   SubexprFuncExpr a -> funcExprCommonSubexpr a
 
+funcExprWindownless = \ case
+  ApplicationFuncExprWindowless a -> funcApplication a
+  CommonSubexprFuncExprWindowless a -> funcExprCommonSubexpr a
+
 withinGroupClause a = "WITHIN GROUP (" <> sortClause a <> ")"
 
 filterClause a = "FILTER (WHERE " <> aExpr a <> ")"
@@ -545,10 +650,10 @@ overClause = \ case
 funcExprCommonSubexpr = \ case
   CollationForFuncExprCommonSubexpr a -> "COLLATION FOR (" <> aExpr a <> ")"
   CurrentDateFuncExprCommonSubexpr -> "CURRENT_DATE"
-  CurrentTimeFuncExprCommonSubexpr a -> "CURRENT_TIME" <> foldMap (mappend " " . inParens . iconst) a
-  CurrentTimestampFuncExprCommonSubexpr a -> "CURRENT_TIMESTAMP" <> foldMap (mappend " " . inParens . iconst) a
-  LocalTimeFuncExprCommonSubexpr a -> "LOCALTIME" <> foldMap (mappend " " . inParens . iconst) a
-  LocalTimestampFuncExprCommonSubexpr a -> "LOCALTIMESTAMP" <> foldMap (mappend " " . inParens . iconst) a
+  CurrentTimeFuncExprCommonSubexpr a -> "CURRENT_TIME" <> suffixMaybe (inParens . iconst) a
+  CurrentTimestampFuncExprCommonSubexpr a -> "CURRENT_TIMESTAMP" <> suffixMaybe (inParens . iconst) a
+  LocalTimeFuncExprCommonSubexpr a -> "LOCALTIME" <> suffixMaybe (inParens . iconst) a
+  LocalTimestampFuncExprCommonSubexpr a -> "LOCALTIMESTAMP" <> suffixMaybe (inParens . iconst) a
   CurrentRoleFuncExprCommonSubexpr -> "CURRENT_ROLE"
   CurrentUserFuncExprCommonSubexpr -> "CURRENT_USER"
   SessionUserFuncExprCommonSubexpr -> "SESSION_USER"
@@ -561,7 +666,7 @@ funcExprCommonSubexpr = \ case
   PositionFuncExprCommonSubexpr a -> "POSITION (" <> foldMap positionList a <> ")"
   SubstringFuncExprCommonSubexpr a -> "SUBSTRING (" <> foldMap substrList a <> ")"
   TreatFuncExprCommonSubexpr a b -> "TREAT (" <> aExpr a <> " AS " <> typename b <> ")"
-  TrimFuncExprCommonSubexpr a b -> "TRIM (" <> foldMap (flip mappend " " . trimModifier) a <> trimList b <> ")"
+  TrimFuncExprCommonSubexpr a b -> "TRIM (" <> prefixMaybe trimModifier a <> trimList b <> ")"
   NullIfFuncExprCommonSubexpr a b -> "NULLIF (" <> aExpr a <> ", " <> aExpr b <> ")"
   CoalesceFuncExprCommonSubexpr a -> "COALESCE (" <> exprList a <> ")"
   GreatestFuncExprCommonSubexpr a -> "GREATEST (" <> exprList a <> ")"
@@ -579,7 +684,7 @@ extractArg = \ case
   SecondExtractArg -> "SECOND"
   SconstExtractArg a -> sconst a
 
-overlayList (OverlayList a b c d) = aExpr a <> " " <> overlayPlacing b <> " " <> substrFrom c <> foldMap (mappend " " . substrFor) d
+overlayList (OverlayList a b c d) = aExpr a <> " " <> overlayPlacing b <> " " <> substrFrom c <> suffixMaybe substrFor d
 
 overlayPlacing a = "PLACING " <> aExpr a
 
@@ -621,7 +726,7 @@ aexprConst = \ case
   XAexprConst a -> "X'" <> text a <> "'"
   FuncAexprConst a b c -> funcName a <> foldMap (inParens . funcAexprConstArgList) b <> " " <> sconst c
   ConstTypenameAexprConst a b -> constTypename a <> " " <> sconst b
-  StringIntervalAexprConst a b -> "INTERVAL " <> sconst a <> foldMap (mappend " " . interval) b
+  StringIntervalAexprConst a b -> "INTERVAL " <> sconst a <> suffixMaybe interval b
   IntIntervalAexprConst a b -> "INTERVAL " <> inParens (int64Dec a) <> " " <> sconst b
   BoolAexprConst a -> if a then "TRUE" else "FALSE"
   NullAexprConst -> "NULL"
@@ -632,7 +737,7 @@ fconst = doubleDec
 
 sconst a = "'" <> text (Text.replace "'" "''" a) <> "'"
 
-funcAexprConstArgList (FuncConstArgs a b) = commaNonEmpty funcArgExpr a <> foldMap (mappend " " . sortClause) b
+funcAexprConstArgList (FuncConstArgs a b) = commaNonEmpty funcArgExpr a <> suffixMaybe sortClause b
 
 constTypename = \ case
   NumericConstTypename a -> numeric a
@@ -646,11 +751,11 @@ numeric = \ case
   SmallintNumeric -> "SMALLINT"
   BigintNumeric -> "BIGINT"
   RealNumeric -> "REAL"
-  FloatNumeric a -> "FLOAT" <> foldMap (mappend " " . inParens . int64Dec) a
+  FloatNumeric a -> "FLOAT" <> suffixMaybe (inParens . int64Dec) a
   DoublePrecisionNumeric -> "DOUBLE PRECISION"
-  DecimalNumeric a -> "DECIMAL" <> foldMap (mappend " " . inParens . commaNonEmpty aExpr) a
-  DecNumeric a -> "DEC" <> foldMap (mappend " " . inParens . commaNonEmpty aExpr) a
-  NumericNumeric a -> "NUMERIC" <> foldMap (mappend " " . inParens . commaNonEmpty aExpr) a
+  DecimalNumeric a -> "DECIMAL" <> suffixMaybe (inParens . commaNonEmpty aExpr) a
+  DecNumeric a -> "DEC" <> suffixMaybe (inParens . commaNonEmpty aExpr )a
+  NumericNumeric a -> "NUMERIC" <> suffixMaybe (inParens . commaNonEmpty aExpr) a
   BooleanNumeric -> "BOOLEAN"
 
 bit (Bit a b) = optLexemes [
@@ -661,7 +766,7 @@ bit (Bit a b) = optLexemes [
 
 constBit = bit
 
-constCharacter (ConstCharacter a b) = character a <> foldMap (mappend " " . inParens . int64Dec) b
+constCharacter (ConstCharacter a b) = character a <> suffixMaybe (inParens . int64Dec) b
 
 character = \ case
   CharacterCharacter a -> "CHARACTER" <> bool "" " VARYING" a
@@ -730,6 +835,10 @@ indirectionEl = \ case
 
 colId = ident
 
+name = colId
+
+cursorName = name
+
 colLabel = ident
 
 attrName = colLabel
@@ -752,7 +861,7 @@ typecastTypename (TypecastTypename a _ b _) =
 
 typename = \ case
   ArrayBoundsTypename a b c ->
-    bool "" "SETOF " a <> simpleTypename b <> foldMap (mappend " " . arrayBounds) c
+    bool "" "SETOF " a <> simpleTypename b <> suffixMaybe arrayBounds c
   ArrayDimTypename a b c ->
     bool "" "SETOF " a <> simpleTypename b <> " ARRAY" <> foldMap (inBrackets . iconst) c
 
@@ -764,9 +873,9 @@ simpleTypename = \ case
   BitSimpleTypename a -> bit a
   CharacterSimpleTypename a -> character a
   ConstDatetimeSimpleTypename a -> constDatetime a
-  ConstIntervalSimpleTypename a -> "INTERVAL" <> either (foldMap (mappend " " . interval)) (mappend " " . inParens . iconst) a
+  ConstIntervalSimpleTypename a -> "INTERVAL" <> either (suffixMaybe interval) (mappend " " . inParens . iconst) a
 
-genericType (GenericType a b c) = typeFunctionName a <> foldMap attrs b <> foldMap (mappend " " . typeModifiers) c
+genericType (GenericType a b c) = typeFunctionName a <> foldMap attrs b <> suffixMaybe typeModifiers c
 
 attrs = foldMap (mappend "." . attrName)
 
@@ -778,3 +887,33 @@ subType = \ case
   AnySubType -> "ANY"
   SomeSubType -> "SOME"
   AllSubType -> "ALL"
+
+
+-- * Indexes
+-------------------------
+
+indexParams = commaNonEmpty indexElem
+
+indexElem (IndexElem a b c d e) =
+  indexElemDef a <>
+  suffixMaybe collate b <>
+  suffixMaybe class_ c <>
+  suffixMaybe ascDesc d <>
+  suffixMaybe nullsOrder e
+
+indexElemDef = \ case
+  IdIndexElemDef a -> colId a
+  FuncIndexElemDef a -> funcExprWindownless a
+  ExprIndexElemDef a -> inParens (aExpr a)
+
+collate = mappend "COLLATE " . anyName
+
+class_ = anyName
+
+ascDesc = \ case
+  AscAscDesc -> "ASC"
+  DescAscDesc -> "DESC"
+
+nullsOrder = \ case
+  FirstNullsOrder -> "NULLS FIRST"
+  LastNullsOrder -> "NULLS LAST"

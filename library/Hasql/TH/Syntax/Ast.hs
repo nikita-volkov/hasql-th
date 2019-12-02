@@ -55,8 +55,7 @@ insert_rest:
   | DEFAULT VALUES
 -}
 data InsertRest =
-  SelectInsertRest (Maybe InsertColumnList) SelectStmt |
-  OverridingInsertRest (Maybe InsertColumnList) OverrideKind SelectStmt |
+  SelectInsertRest (Maybe InsertColumnList) (Maybe OverrideKind) SelectStmt |
   DefaultValuesInsertRest
   deriving (Show, Generic, Eq, Ord)
 
@@ -88,9 +87,18 @@ opt_on_conflict:
   | ON CONFLICT opt_conf_expr DO NOTHING
   | EMPTY
 -}
-data OnConflict =
-  UpdateOnConflict (Maybe ConfExpr) SetClauseList (Maybe WhereClause) |
-  NothingOnConflict (Maybe ConfExpr)
+data OnConflict = OnConflict (Maybe ConfExpr) OnConflictDo
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+opt_on_conflict:
+  | ON CONFLICT opt_conf_expr DO UPDATE SET set_clause_list where_clause
+  | ON CONFLICT opt_conf_expr DO NOTHING
+  | EMPTY
+-}
+data OnConflictDo =
+  UpdateOnConflictDo SetClauseList (Maybe WhereClause) |
+  NothingOnConflictDo
   deriving (Show, Generic, Eq, Ord)
 
 {-
@@ -1891,7 +1899,7 @@ index_elem:
   | func_expr_windowless opt_collate opt_class opt_asc_desc opt_nulls_order
   | '(' a_expr ')' opt_collate opt_class opt_asc_desc opt_nulls_order
 -}
-data IndexElem = IndexElem IndexElemDef IndexElemParams
+data IndexElem = IndexElem IndexElemDef (Maybe Collate) (Maybe Class) (Maybe AscDesc) (Maybe NullsOrder)
   deriving (Show, Generic, Eq, Ord)
 
 {-
@@ -1903,14 +1911,6 @@ data IndexElemDef =
   IdIndexElemDef ColId |
   FuncIndexElemDef FuncExprWindowless |
   ExprIndexElemDef AExpr
-  deriving (Show, Generic, Eq, Ord)
-
-{-
-  | ColId opt_collate opt_class opt_asc_desc opt_nulls_order
-  | func_expr_windowless opt_collate opt_class opt_asc_desc opt_nulls_order
-  | '(' a_expr ')' opt_collate opt_class opt_asc_desc opt_nulls_order
--}
-data IndexElemParams = IndexElemParams (Maybe Collate) (Maybe Class) (Maybe AscDesc) (Maybe NullsOrder)
   deriving (Show, Generic, Eq, Ord)
 
 {-

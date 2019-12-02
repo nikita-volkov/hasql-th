@@ -91,8 +91,7 @@ insertStmt (InsertStmt a b c d e) =
 insertTarget (InsertTarget a b) = qualifiedName a <> colId b
 
 insertRest = \ case
-  SelectInsertRest a b -> foldMap insertColumnList a <> selectStmt b
-  OverridingInsertRest a b c -> foldMap insertColumnList a <> overrideKind b <> selectStmt c
+  SelectInsertRest a b c -> foldMap insertColumnList a <> foldMap overrideKind b <> selectStmt c
   DefaultValuesInsertRest -> []
 
 overrideKind _ = []
@@ -101,9 +100,11 @@ insertColumnList = foldMap insertColumnItem
 
 insertColumnItem (InsertColumnItem a b) = colId a <> foldMap indirection b
 
-onConflict = \ case
-  UpdateOnConflict a b c -> foldMap confExpr a <> setClauseList b <> foldMap whereClause c
-  NothingOnConflict a -> foldMap confExpr a
+onConflict (OnConflict a b) = foldMap confExpr a <> onConflictDo b
+
+onConflictDo = \ case
+  UpdateOnConflictDo b c -> setClauseList b <> foldMap whereClause c
+  NothingOnConflictDo -> []
 
 confExpr = \ case
   WhereConfExpr a b -> indexParams a <> foldMap whereClause b
@@ -587,11 +588,9 @@ subType _ = []
 
 indexParams = foldMap indexElem
 
-indexElem (IndexElem a b) = indexElemDef a <> indexElemParams b
+indexElem (IndexElem a b c d e) = indexElemDef a <> foldMap anyName b <> foldMap anyName c
 
 indexElemDef = \ case
   IdIndexElemDef a -> colId a
   FuncIndexElemDef a -> funcExprWindowless a
   ExprIndexElemDef a -> aExpr a
-
-indexElemParams (IndexElemParams a b c d) = foldMap anyName a <> foldMap anyName b
