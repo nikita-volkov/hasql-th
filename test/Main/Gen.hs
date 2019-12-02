@@ -1,6 +1,6 @@
 module Main.Gen where
 
-import Hasql.TH.Prelude hiding (maybe, bool, sortBy, filter, bit)
+import Hasql.TH.Prelude hiding (maybe, bool, sortBy, filter, bit, fromList)
 import Hasql.TH.Syntax.Ast
 import Hedgehog (Gen, MonadGen)
 import Hedgehog.Gen
@@ -26,8 +26,69 @@ notInSet _set = filter (not . flip HashSet.member _set)
 -------------------------
 
 preparableStmt = choice [
-    SelectPreparableStmt <$> selectStmt
+    SelectPreparableStmt <$> selectStmt,
+    InsertPreparableStmt <$> insertStmt,
+    UpdatePreparableStmt <$> updateStmt,
+    DeletePreparableStmt <$> deleteStmt
   ]
+
+
+-- * Insert
+-------------------------
+
+insertStmt = InsertStmt <$> maybe withClause <*> insertTarget <*> insertRest <*> maybe onConflict <*> maybe returningClause
+
+insertTarget = InsertTarget <$> qualifiedName <*> maybe colId
+
+insertRest = choice [
+    SelectInsertRest <$> maybe insertColumnList <*> maybe overrideKind <*> selectStmt,
+    pure DefaultValuesInsertRest
+  ]
+
+overrideKind = enumBounded
+
+insertColumnList = nonEmpty (Range.exponential 1 7) insertColumnItem
+
+insertColumnItem = InsertColumnItem <$> colId <*> maybe indirection
+
+onConflict = OnConflict <$> maybe confExpr <*> onConflictDo
+
+onConflictDo = choice [
+    UpdateOnConflictDo <$> setClauseList <*> maybe whereClause,
+    pure NothingOnConflictDo
+  ]
+
+confExpr = choice [
+    WhereConfExpr <$> indexParams <*> maybe whereClause,
+    ConstraintConfExpr <$> name
+  ]
+
+returningClause = targetList
+
+
+-- * Update
+-------------------------
+
+updateStmt = UpdateStmt <$> maybe withClause <*> relationExprOptAlias <*> setClauseList <*> maybe fromClause <*> maybe whereOrCurrentClause <*> maybe returningClause
+
+setClauseList = nonEmpty (Range.exponential 1 10) setClause
+
+setClause = choice [
+    TargetSetClause <$> setTarget <*> aExpr,
+    TargetListSetClause <$> setTargetList <*> aExpr
+  ]
+
+setTarget = SetTarget <$> colId <*> maybe indirection
+
+setTargetList = nonEmpty (Range.exponential 1 10) setTarget
+
+
+-- * Delete
+-------------------------
+
+deleteStmt = DeleteStmt <$> maybe withClause <*> relationExprOptAlias <*> maybe usingClause <*> maybe whereOrCurrentClause <*> maybe returningClause
+
+usingClause = fromList
 
 
 -- * Select
@@ -145,17 +206,24 @@ optTempTableName = choice [
 -- * From Clause
 -------------------------
 
-fromClause = nonEmpty (Range.exponential 1 8) tableRef
+fromList = nonEmpty (Range.exponential 1 8) tableRef
+
+fromClause = fromList
 
 tableRef = choice [relationExprTableRef, selectTableRef, joinTableRef]
+
 relationExprTableRef = RelationExprTableRef <$> relationExpr <*> maybe aliasClause
+
 selectTableRef = SelectTableRef <$> bool <*> small selectWithParens <*> maybe aliasClause
+
 joinTableRef = JoinTableRef <$> joinedTable <*> maybe aliasClause
 
 relationExpr = choice [
     SimpleRelationExpr <$> qualifiedName <*> bool,
     OnlyRelationExpr <$> qualifiedName <*> bool
   ]
+
+relationExprOptAlias = RelationExprOptAlias <$> relationExpr <*> maybe ((,) <$> bool <*> colId)
 
 aliasClause = AliasClause <$> name <*> maybe (nonEmpty (Range.exponential 1 8) name)
 
@@ -208,6 +276,11 @@ havingClause = aExpr
 
 whereClause = aExpr
 
+whereOrCurrentClause = choice [
+    ExprWhereOrCurrentClause <$> aExpr,
+    CursorWhereOrCurrentClause <$> cursorName
+  ]
+
 
 -- * Window Clause
 -------------------------
@@ -249,9 +322,7 @@ valuesClause = nonEmpty (Range.exponential 1 8) (nonEmpty (Range.exponential 1 8
 
 sortClause = nonEmpty (Range.exponential 1 8) sortBy
 
-sortBy = SortBy <$> nonSuffixOpAExpr <*> maybe order
-
-order = element [AscAscDesc, DescAscDesc]
+sortBy = SortBy <$> nonSuffixOpAExpr <*> maybe ascDesc
 
 
 -- * All or distinct
@@ -457,6 +528,11 @@ implicitRow = ImplicitRow <$> exprList <*> aExpr
 funcExpr = choice [
     ApplicationFuncExpr <$> funcApplication <*> maybe withinGroupClause <*> maybe filterClause <*> maybe overClause,
     SubexprFuncExpr <$> funcExprCommonSubexpr
+  ]
+
+funcExprWindowless = choice [
+    ApplicationFuncExprWindowless <$> funcApplication,
+    CommonSubexprFuncExprWindowless <$> funcExprCommonSubexpr
   ]
 
 funcApplication = FuncApplication <$> funcName <*> maybe funcApplicationParams
@@ -751,6 +827,8 @@ typeName = identWithSet HashSet.typeFunctionName
 
 name = identWithSet HashSet.colId
 
+cursorName = name
+
 identWithSet set = frequency [
     (95,) $ UnquotedIdent <$> (keywordNotInSet . HashSet.difference HashSet.keyword) set,
     (5,) $ QuotedIdent <$> text (Range.linear 1 30) quotedChar
@@ -786,3 +864,25 @@ funcName = choice [
   ]
 
 anyName = AnyName <$> colId <*> maybe attrs
+
+
+-- * Indexes
+-------------------------
+
+indexParams = nonEmpty (Range.exponential 1 5) indexElem
+
+indexElem = IndexElem <$> indexElemDef <*> maybe collate <*> maybe class_ <*> maybe ascDesc <*> maybe nullsOrder
+
+indexElemDef = choice [
+    IdIndexElemDef <$> colId,
+    FuncIndexElemDef <$> funcExprWindowless,
+    ExprIndexElemDef <$> aExpr
+  ]
+
+collate = anyName
+
+class_ = anyName
+
+ascDesc = enumBounded
+
+nullsOrder = enumBounded
