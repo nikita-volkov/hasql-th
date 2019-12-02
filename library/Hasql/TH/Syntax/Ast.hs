@@ -767,7 +767,9 @@ type WhereClause = AExpr
 | WHERE CURRENT_P OF cursor_name
 | /*EMPTY*/
 -}
-newtype WhereOrCurrentClause = WhereOrCurrentClause (Maybe (Either AExpr Ident))
+data WhereOrCurrentClause = 
+  ExprWhereOrCurrentClause AExpr |
+  CursorWhereOrCurrentClause CursorName
   deriving (Show, Generic, Eq, Ord)
 
 
@@ -1541,6 +1543,12 @@ name:
   | ColId
 -}
 type Name = ColId
+
+{-
+cursor_name:
+  | name
+-}
+type CursorName = Name
 
 {-
 columnref:
