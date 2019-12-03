@@ -37,6 +37,8 @@ module Hasql.TH
     :: Data.Vector.Generic.Base.Vector v Int32 =>
        Statement () (Maybe (v Int32))
 
+  And of arrays themselves:
+
   >>> :t [singletonStatement| select a :: int4?[]? |]
   ...
     :: Data.Vector.Generic.Base.Vector v (Maybe Int32) =>
