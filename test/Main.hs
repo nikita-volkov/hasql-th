@@ -31,6 +31,6 @@ main = defaultMain [
           ,
           p "aExpr" 100000 Gen.aExpr Parsing.aExpr Rendering.aExpr
           ,
-          p "preparableStmt" 40000 Gen.preparableStmt Parsing.preparableStmt Rendering.preparableStmt
+          p "preparableStmt" 35000 Gen.preparableStmt Parsing.preparableStmt Rendering.preparableStmt
         ]
   ]
