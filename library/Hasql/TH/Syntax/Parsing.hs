@@ -307,12 +307,12 @@ usingClause = do
 {-|
 >>> test = testParser selectStmt
 
->>> test "select id from user"
-1:20:
+>>> test "select id from as"
+...
   |
-1 | select id from user
-  |                    ^
-Reserved keyword "user" used as an identifier. If that's what you intend, you have to wrap it in double quotes.
+1 | select id from as
+  |                  ^
+Reserved keyword "as" used as an identifier. If that's what you intend, you have to wrap it in double quotes.
 -}
 selectStmt = Left <$> selectNoParens <|> Right <$> selectWithParens
 
