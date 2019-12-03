@@ -42,13 +42,13 @@ Fortunately the original parser is implemented using a declarative notation (the
 
 For these reasons it's been decided to port the original parser and AST as close as possible to Haskell using the "megaparsec" library.
 
-# The unexpected goodies
+# Error messages
 
 The parser turns out to be actually better than the one in Postgres in terms of error-reporting. That's because instead of relying on an old C-mangling transcompiler, it uses Haskell's own superpowerful "megaparsec" library and the "headed-megaparsec" extension for it. As the result of that, the error messages produced by this parser are more informative than the ones in Postgres. Following is an example.
 
-## Parser errors example
+## Error example 1
 
-Consider the following statement:
+Consider the following broken statement:
 
 ```sql
 select 1 from a where b >= 3 && b < 4
@@ -71,7 +71,34 @@ Here's what "hasql-th" says:
 unexpected '&'
 ```
 
-In fact, the original Postgres parser never produces any other messages than the opaque "syntax error at or near". "hasql-th" on the other hand is quite descriptive. E.g., here's how it gradually guides to insert the missing expected pieces.
+## Error example 2
+
+It's not obvious what is wrong in the following statement either:
+
+```sql
+insert into user (name) values ($1)
+```
+
+The Postgres parser doesn't help much:
+
+```
+ERROR:  syntax error at or near "user"
+LINE 1: insert into user (name) values ($1);
+                    ^
+```
+
+Here's what "hasql-th" says though:
+
+```
+  |
+2 |       insert into user (name) values ($1)
+  |                       ^
+Reserved keyword "user" used as an identifier. If that's what you intend, you have to wrap it in double quotes.
+```
+
+## Error example 3
+
+It turns out that the original Postgres parser never produces any other messages than the opaque "syntax error at or near". "hasql-th" on the other hand is quite descriptive. E.g., here's how it gradually guides to insert the missing expected pieces.
 
 Input:
 
