@@ -757,7 +757,7 @@ optOrdinality = string' "with" *> space1 *> string' "ordinality"
 tableFuncElementList = sep1 commaSeparator tableFuncElement
 
 tableFuncElement = do
-  a <- colId
+  a <- wrapToHead colId
   space1
   b <- typename
   c <- optional (space1 *> collateClause)
@@ -784,7 +784,7 @@ funcAliasClause = asum [
                   inParens $ do
                     endHead
                     asum [
-                        AsColIdFuncAliasClause a <$> tableFuncElementList,
+                        AsColIdFuncAliasClause a <$> wrapToHead tableFuncElementList,
                         AliasFuncAliasClause <$> AliasClause True a <$> Just <$> nameList
                       ]
                 ,
@@ -800,7 +800,7 @@ funcAliasClause = asum [
             inParens $ do
               endHead
               asum [
-                  ColIdFuncAliasClause a <$> tableFuncElementList,
+                  ColIdFuncAliasClause a <$> wrapToHead tableFuncElementList,
                   AliasFuncAliasClause <$> AliasClause False a <$> Just <$> nameList
                 ]
           ,
