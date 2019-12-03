@@ -22,7 +22,7 @@ You can get the latest development version of the project here: https://github.c
 
 # Status
 
-This is a closed-beta version, which brings limited functionality. At the moment the library only supports the Select statements. However support for other types of statements is close to being finished. It's only a matter of porting the remaining pieces of the parser and AST. Since the syntax tree is highly shared, most of their pieces have already been ported, during the work on Select.
+This is a closed-beta version. The library fully supports Select, Insert, Update, Delete statements.
 
 # Quality
 
@@ -67,4 +67,38 @@ Here's what "hasql-th" says:
 2 |     select 1 from a where b >= 3 && b < 4;
   |                                  ^
 unexpected '&'
+```
+
+In fact, the original Postgres parser never produces any other messages than the opaque "syntax error at or near". "hasql-th" on the other hand is quite descriptive. E.g., here's how it gradually guides to insert the missing expected pieces.
+
+SQL:
+
+```haskell
+[resultlessStatement|insert into |]
+```
+
+Error:
+
+```
+  |
+1 | insert into 
+  |             ^
+unexpected end of input
+expecting identifier or white space
+```
+
+SQL:
+
+```haskell
+[resultlessStatement|insert into a |]
+```
+
+Error:
+
+```
+  |
+1 | insert into a 
+  |               ^
+unexpected end of input
+expecting "default", "overriding", "select", "values", '(', white space, or with clause
 ```
