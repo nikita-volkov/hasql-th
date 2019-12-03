@@ -931,7 +931,7 @@ sortClause = do
   return a
 
 sortBy = do
-  a <- aExpr
+  a <- filteredAExpr ["using", "asc", "desc", "nulls"]
   asum [
       do
         space1
@@ -970,7 +970,12 @@ Composite on the left:
 >>> testParser aExpr "a = b :: int4 and c"
 SymbolicBinOpAExpr (CExprAExpr (ColumnrefCExpr (Columnref (UnquotedIdent "a") Nothing))) (MathSymbolicExprBinOp EqualsMathOp) (AndAExpr (TypecastAExpr (CExprAExpr (ColumnrefCExpr (Columnref (UnquotedIdent "b") Nothing))) (TypecastTypename (UnquotedIdent "int4") False 0 False)) (CExprAExpr (ColumnrefCExpr (Columnref (UnquotedIdent "c") Nothing))))
 -}
-aExpr = suffixRec base suffix where
+aExpr = customizedAExpr cExpr
+
+filteredAExpr = customizedAExpr . customizedCExpr . filteredColumnref
+
+customizedAExpr cExpr = suffixRec base suffix where
+  aExpr = customizedAExpr cExpr
   base = asum [
       DefaultAExpr <$ string' "default",
       UniqueAExpr <$> (string' "unique" *> space1 *> selectWithParens),
@@ -1067,7 +1072,11 @@ aExpr = suffixRec base suffix where
       NotnullAExpr a <$ (space1 *> string' "notnull")
     ]
 
-bExpr = suffixRec base suffix where
+bExpr = customizedBExpr cExpr
+
+customizedBExpr cExpr = suffixRec base suffix where
+  aExpr = customizedAExpr cExpr
+  bExpr = customizedBExpr cExpr
   base = asum [
       qualOpExpr bExpr QualOpBExpr,
       PlusBExpr <$> plusedExpr bExpr,
@@ -1091,7 +1100,9 @@ bExpr = suffixRec base suffix where
         return (IsOpBExpr a b c)
     ]
 
-cExpr = asum [
+cExpr = customizedCExpr columnref
+
+customizedCExpr columnref = asum [
     ParamCExpr <$> (char '$' *> decimal <* endHead) <*> optional (space *> indirection)
     ,
     CaseCExpr <$> caseExpr
@@ -1921,20 +1932,22 @@ qualifiedName =
   IndirectedQualifiedName <$> wrapToHead colId <*> (space *> indirection) <|>
   SimpleQualifiedName <$> colId
 
-columnref = do
+columnref = customizedColumnref colId
+
+filteredColumnref _keywords = customizedColumnref (filteredColId _keywords)
+
+customizedColumnref colId = do
   a <- wrapToHead colId
   endHead
   b <- optional (space *> indirection)
   return (Columnref a b)
 
-anyName = do
-  a <- wrapToHead colId
-  endHead
-  b <- optional (space *> attrs)
-  return (AnyName a b)
+anyName = customizedAnyName colId
 
-filteredAnyName _keywords = do
-  a <- wrapToHead (filteredColId _keywords)
+filteredAnyName _keywords = customizedAnyName (filteredColId _keywords)
+
+customizedAnyName colId = do
+  a <- wrapToHead colId
   endHead
   b <- optional (space *> attrs)
   return (AnyName a b)
