@@ -22,7 +22,7 @@ You can get the latest development version of the project here: https://github.c
 
 # Status
 
-This is a closed-beta version. The library supports almost all of Postgresql syntax in Select, Insert, Update and Delete statements, with an exception of some very rarely used features, such as XML-related functionality and custom suffix operators.
+This is a closed-beta version. The library supports almost all of Postgresql syntax in Select, Insert, Update and Delete statements, with an exception of some very rarely used features, such as XML-related functionality.
 
 ## Quality
 
