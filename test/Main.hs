@@ -14,8 +14,8 @@ import qualified Data.Text as Text
 
 main = defaultMain [
     checkParallel $ Group "Parsing a rendered AST produces the same AST" $ let
-      p _name _gen _parser _renderer =
-        (,) _name $ withDiscards 100000000 $ withTests 200000 $ property $ do
+      p _name _amount _gen _parser _renderer =
+        (,) _name $ withDiscards (fromIntegral _amount * 200) $ withTests _amount $ property $ do
           ast <- forAll _gen
           let
             sql = Rendering.toText (_renderer ast)
@@ -27,6 +27,8 @@ main = defaultMain [
                   failure
                 Right ast' -> ast === ast'
       in [
-          p "preparableStmt" Gen.preparableStmt Parsing.preparableStmt Rendering.preparableStmt
+          p "aExpr" 100000 Gen.aExpr Parsing.aExpr Rendering.aExpr
+          ,
+          p "preparableStmt" 20000 Gen.preparableStmt Parsing.preparableStmt Rendering.preparableStmt
         ]
   ]
