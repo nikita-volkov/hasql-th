@@ -59,6 +59,7 @@ selectClause = either simpleSelect selectWithParens
 simpleSelect = \ case
   NormalSimpleSelect a _ _ _ _ _ _ -> foldable targeting a
   ValuesSimpleSelect a -> valuesClause a
+  TableSimpleSelect _ -> Left "TABLE cannot be used as a final statement, since it's impossible to specify the output types"
   BinSimpleSelect _ a _ b -> do
     c <- selectClause a
     d <- selectClause b

@@ -246,12 +246,11 @@ simple_select:
   |  select_clause UNION all_or_distinct select_clause
   |  select_clause INTERSECT all_or_distinct select_clause
   |  select_clause EXCEPT all_or_distinct select_clause
-
-TODO: Cover TABLE clause.
 -}
 data SimpleSelect =
   NormalSimpleSelect (Maybe Targeting) (Maybe IntoClause) (Maybe FromClause) (Maybe WhereClause) (Maybe GroupClause) (Maybe HavingClause) (Maybe WindowClause) |
   ValuesSimpleSelect ValuesClause |
+  TableSimpleSelect RelationExpr |
   BinSimpleSelect SelectBinOp SelectClause (Maybe Bool) SelectClause
   deriving (Show, Generic, Eq, Ord)
 
@@ -512,17 +511,14 @@ sortby_list:
 -}
 type SortClause = NonEmpty SortBy
 
-{-|
-@
+{-
 sortby:
   |  a_expr USING qual_all_Op opt_nulls_order
   |  a_expr opt_asc_desc opt_nulls_order
-@
-
-TODO: Add qual_all_Op support
-TODO: Add opt_nulls_order support
 -}
-data SortBy = SortBy AExpr (Maybe AscDesc)
+data SortBy =
+  UsingSortBy AExpr QualAllOp (Maybe NullsOrder) |
+  AscDescSortBy AExpr (Maybe AscDesc) (Maybe NullsOrder)
   deriving (Show, Generic, Eq, Ord)
 
 {-
@@ -663,14 +659,19 @@ type FromList = NonEmpty TableRef
 | joined_table
 | '(' joined_table ')' alias_clause
 
-TODO: Add tablesample_clause
+TODO: Add xmltable
 -}
 data TableRef =
   {-
   | relation_expr opt_alias_clause
   | relation_expr opt_alias_clause tablesample_clause
   -}
-  RelationExprTableRef RelationExpr (Maybe AliasClause) |
+  RelationExprTableRef RelationExpr (Maybe AliasClause) (Maybe TablesampleClause) |
+  {-
+  | func_table func_alias_clause
+  | LATERAL_P func_table func_alias_clause
+  -}
+  FuncTableRef Bool FuncTable (Maybe FuncAliasClause) |
   {-
   | select_with_parens opt_alias_clause
   | LATERAL_P select_with_parens opt_alias_clause
@@ -704,13 +705,101 @@ data RelationExprOptAlias = RelationExprOptAlias RelationExpr (Maybe (Bool, ColI
   deriving (Show, Generic, Eq, Ord)
 
 {-
+tablesample_clause:
+  | TABLESAMPLE func_name '(' expr_list ')' opt_repeatable_clause
+-}
+data TablesampleClause = TablesampleClause FuncName ExprList (Maybe RepeatableClause)
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+opt_repeatable_clause:
+  | REPEATABLE '(' a_expr ')'
+  | EMPTY
+-}
+type RepeatableClause = AExpr
+
+{-
+func_table:
+  | func_expr_windowless opt_ordinality
+  | ROWS FROM '(' rowsfrom_list ')' opt_ordinality
+-}
+data FuncTable =
+  FuncExprFuncTable FuncExprWindowless OptOrdinality |
+  RowsFromFuncTable RowsfromList OptOrdinality
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+rowsfrom_item:
+  | func_expr_windowless opt_col_def_list
+-}
+data RowsfromItem = RowsfromItem FuncExprWindowless (Maybe ColDefList)
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+rowsfrom_list:
+  | rowsfrom_item
+  | rowsfrom_list ',' rowsfrom_item
+-}
+type RowsfromList = NonEmpty RowsfromItem
+
+{-
+opt_col_def_list:
+  | AS '(' TableFuncElementList ')'
+  | EMPTY
+-}
+type ColDefList = TableFuncElementList
+
+{-
+opt_ordinality:
+  | WITH_LA ORDINALITY
+  | EMPTY
+-}
+type OptOrdinality = Bool
+
+{-
+TableFuncElementList:
+  | TableFuncElement
+  | TableFuncElementList ',' TableFuncElement
+-}
+type TableFuncElementList = NonEmpty TableFuncElement
+
+{-
+TableFuncElement:
+  | ColId Typename opt_collate_clause
+-}
+data TableFuncElement = TableFuncElement ColId Typename (Maybe CollateClause)
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+opt_collate_clause:
+  | COLLATE any_name
+  | EMPTY
+-}
+type CollateClause = AnyName
+
+{-
 alias_clause:
   |  AS ColId '(' name_list ')'
   |  AS ColId
   |  ColId '(' name_list ')'
   |  ColId
 -}
-data AliasClause = AliasClause Ident (Maybe (NonEmpty Ident))
+data AliasClause = AliasClause Bool ColId (Maybe NameList)
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+func_alias_clause:
+  | alias_clause
+  | AS '(' TableFuncElementList ')'
+  | AS ColId '(' TableFuncElementList ')'
+  | ColId '(' TableFuncElementList ')'
+  | EMPTY
+-}
+data FuncAliasClause =
+  AliasFuncAliasClause AliasClause |
+  AsFuncAliasClause TableFuncElementList |
+  AsColIdFuncAliasClause ColId TableFuncElementList |
+  ColIdFuncAliasClause ColId TableFuncElementList
   deriving (Show, Generic, Eq, Ord)
 
 {-
@@ -1553,6 +1642,13 @@ name:
 type Name = ColId
 
 {-
+name_list:
+  | name
+  | name_list ',' name
+-}
+type NameList = NonEmpty Name
+
+{-
 cursor_name:
   | name
 -}
@@ -1737,6 +1833,16 @@ qual_Op:
 data QualOp =
   OpQualOp Op |
   OperatorQualOp AnyOperator
+  deriving (Show, Generic, Eq, Ord)
+
+{-
+qual_all_Op:
+  | all_Op
+  | OPERATOR '(' any_operator ')'
+-}
+data QualAllOp =
+  AllQualAllOp AllOp |
+  AnyQualAllOp AnyOperator
   deriving (Show, Generic, Eq, Ord)
 
 {-

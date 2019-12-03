@@ -136,13 +136,16 @@ nonTrailingSelectClause = Left <$> nonTrailingSimpleSelect
 
 simpleSelect = choice [
     normalSimpleSelect,
+    tableSimpleSelect,
     valuesSimpleSelect,
     small nonTrailingSelectClause >>= binSimpleSelect
   ]
 
-nonTrailingSimpleSelect = choice [normalSimpleSelect, valuesSimpleSelect]
+nonTrailingSimpleSelect = choice [normalSimpleSelect, valuesSimpleSelect, tableSimpleSelect]
 
 normalSimpleSelect = NormalSimpleSelect <$> maybe targeting <*> maybe intoClause <*> maybe fromClause <*> maybe whereClause <*> maybe groupClause <*> maybe havingClause <*> maybe windowClause
+
+tableSimpleSelect = TableSimpleSelect <$> relationExpr
 
 valuesSimpleSelect = ValuesSimpleSelect <$> valuesClause
 
@@ -212,7 +215,9 @@ fromClause = fromList
 
 tableRef = choice [relationExprTableRef, selectTableRef, joinTableRef]
 
-relationExprTableRef = RelationExprTableRef <$> relationExpr <*> maybe aliasClause
+relationExprTableRef = RelationExprTableRef <$> relationExpr <*> maybe aliasClause <*> maybe tablesampleClause
+
+funcTableRef = FuncTableRef <$> bool <*> funcTable <*> maybe funcAliasClause
 
 selectTableRef = SelectTableRef <$> bool <*> small selectWithParens <*> maybe aliasClause
 
@@ -225,11 +230,41 @@ relationExpr = choice [
 
 relationExprOptAlias = RelationExprOptAlias <$> relationExpr <*> maybe ((,) <$> bool <*> colId)
 
-aliasClause = AliasClause <$> name <*> maybe (nonEmpty (Range.exponential 1 8) name)
+tablesampleClause = TablesampleClause <$> funcName <*> exprList <*> maybe repeatableClause
+
+repeatableClause = aExpr
+
+funcTable = choice [
+    FuncExprFuncTable <$> funcExprWindowless <*> optOrdinality,
+    RowsFromFuncTable <$> rowsfromList <*> optOrdinality
+  ]
+
+rowsfromItem = RowsfromItem <$> funcExprWindowless <*> maybe colDefList
+
+rowsfromList = nonEmpty (Range.exponential 1 8) rowsfromItem
+
+colDefList = tableFuncElementList
+
+optOrdinality = bool
+
+tableFuncElementList = nonEmpty (Range.exponential 1 7) tableFuncElement
+
+tableFuncElement = TableFuncElement <$> colId <*> typename <*> maybe collateClause
+
+collateClause = anyName
+
+aliasClause = AliasClause <$> bool <*> name <*> maybe (nonEmpty (Range.exponential 1 8) name)
+
+funcAliasClause = choice [
+    AliasFuncAliasClause <$> aliasClause,
+    AsFuncAliasClause <$> tableFuncElementList,
+    AsColIdFuncAliasClause <$> colId <*> tableFuncElementList,
+    ColIdFuncAliasClause <$> colId <*> tableFuncElementList
+  ]
 
 joinedTable = frequency [
     (5,) $ InParensJoinedTable <$> joinedTable,
-    (95,) $ MethJoinedTable <$> joinMeth <*> choice [relationExprTableRef, selectTableRef] <*> tableRef
+    (95,) $ MethJoinedTable <$> joinMeth <*> choice [relationExprTableRef, selectTableRef, funcTableRef] <*> tableRef
   ]
 
 joinMeth = choice [
@@ -322,7 +357,10 @@ valuesClause = nonEmpty (Range.exponential 1 8) (nonEmpty (Range.exponential 1 8
 
 sortClause = nonEmpty (Range.exponential 1 8) sortBy
 
-sortBy = SortBy <$> nonSuffixOpAExpr <*> maybe ascDesc
+sortBy = choice [
+    UsingSortBy <$> nonSuffixOpAExpr <*> qualAllOp <*> maybe nullsOrder,
+    AscDescSortBy <$> nonSuffixOpAExpr <*> maybe ascDesc <*> maybe nullsOrder
+  ]
 
 
 -- * All or distinct
@@ -629,6 +667,11 @@ trimList = choice [
 -------------------------
 
 qualOp = choice [OpQualOp <$> op, OperatorQualOp <$> anyOperator]
+
+qualAllOp = choice [
+    AllQualAllOp <$> allOp,
+    AnyQualAllOp <$> anyOperator
+  ]
 
 op = do
   a <- text (Range.exponential 1 7) (element "+-*/<>=~!@#%^&|`?")

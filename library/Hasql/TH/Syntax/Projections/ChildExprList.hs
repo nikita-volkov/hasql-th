@@ -207,6 +207,7 @@ simpleSelect = \ case
     foldMap whereClause d <> foldMap groupClause e <> foldMap havingClause f <>
     foldMap windowClause g
   ValuesSimpleSelect a -> valuesClause a
+  TableSimpleSelect a -> relationExpr a
   BinSimpleSelect _ a _ b -> selectClause a <> selectClause b
 
 targeting = \ case
@@ -270,14 +271,17 @@ frameBound = \ case
 
 sortClause = foldMap sortBy
 
-sortBy (SortBy a _) = aExpr a
+sortBy = \ case
+  UsingSortBy a b c -> aExpr a <> qualAllOp b <> foldMap nullsOrder c
+  AscDescSortBy a b c -> aExpr a <> foldMap ascDesc b <> foldMap nullsOrder c
 
 
 -- * Table refs
 -------------------------
 
 tableRef = \ case
-  RelationExprTableRef a _ -> relationExpr a
+  RelationExprTableRef a b c -> relationExpr a <> foldMap aliasClause b <> foldMap tablesampleClause c
+  FuncTableRef a b c -> funcTable b <> foldMap funcAliasClause c
   SelectTableRef _ a _ -> selectWithParens a
   JoinTableRef a _ -> joinedTable a
 
@@ -286,6 +290,36 @@ relationExpr = \ case
   OnlyRelationExpr a _ -> qualifiedName a
 
 relationExprOptAlias (RelationExprOptAlias a b) = relationExpr a <> foldMap (colId . snd) b
+
+tablesampleClause (TablesampleClause a b c) = funcName a <> exprList b <> foldMap repeatableClause c
+
+repeatableClause = aExpr
+
+funcTable = \ case
+  FuncExprFuncTable a b -> funcExprWindowless a <> optOrdinality b
+  RowsFromFuncTable a b -> rowsfromList a <> optOrdinality b
+
+rowsfromItem (RowsfromItem a b) = funcExprWindowless a <> foldMap colDefList b
+
+rowsfromList = foldMap rowsfromItem
+
+colDefList = tableFuncElementList
+
+optOrdinality = const []
+
+tableFuncElementList = foldMap tableFuncElement
+
+tableFuncElement (TableFuncElement a b c) = colId a <> typename b <> foldMap collateClause c
+
+collateClause = anyName
+
+aliasClause = const []
+
+funcAliasClause = \ case
+  AliasFuncAliasClause a -> aliasClause a
+  AsFuncAliasClause a -> tableFuncElementList a
+  AsColIdFuncAliasClause a b -> colId a <> tableFuncElementList b
+  ColIdFuncAliasClause a b -> colId a <> tableFuncElementList b
 
 joinedTable = \ case
   InParensJoinedTable a -> joinedTable a
@@ -416,6 +450,10 @@ symbolicExprBinOp = \ case
 qualOp = \ case
   OpQualOp a -> op a
   OperatorQualOp a -> anyOperator a
+
+qualAllOp = \ case
+  AllQualAllOp a -> allOp a
+  AnyQualAllOp a -> anyOperator a
 
 verbalExprBinOp = const []
 
@@ -594,3 +632,7 @@ indexElemDef = \ case
   IdIndexElemDef a -> colId a
   FuncIndexElemDef a -> funcExprWindowless a
   ExprIndexElemDef a -> aExpr a
+
+ascDesc = const []
+
+nullsOrder = const []

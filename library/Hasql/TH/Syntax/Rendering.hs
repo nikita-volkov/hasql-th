@@ -252,6 +252,7 @@ simpleSelect = \ case
         fmap windowClause g
       ]
   ValuesSimpleSelect a -> valuesClause a
+  TableSimpleSelect a -> "TABLE " <> relationExpr a
   BinSimpleSelect a b c d -> selectClause b <> " " <> selectBinOp a <> foldMap (mappend " ". allOrDistinct) c <> " " <> selectClause d
 
 selectBinOp = \ case
@@ -300,15 +301,20 @@ fromClause a = "FROM " <> fromList a
 fromList = commaNonEmpty tableRef
 
 tableRef = \ case
-  RelationExprTableRef a b ->
-    optLexemes
-      [
+  RelationExprTableRef a b c ->
+    optLexemes [
         Just (relationExpr a),
-        fmap aliasClause b
+        fmap aliasClause b,
+        fmap tablesampleClause c
+      ]
+  FuncTableRef a b c ->
+    optLexemes [
+        if a then Just "LATERAL" else Nothing,
+        Just (funcTable b),
+        fmap funcAliasClause c
       ]
   SelectTableRef a b c ->
-    optLexemes
-      [
+    optLexemes [
         if a then Just "LATERAL" else Nothing,
         Just (selectWithParens b),
         fmap aliasClause c
@@ -325,13 +331,40 @@ relationExprOptAlias (RelationExprOptAlias a b) = relationExpr a <> suffixMaybe 
 
 optAlias (a, b) = bool "" "AS " a <> colId b
 
-aliasClause (AliasClause a b) =
+tablesampleClause (TablesampleClause a b c) =
+  "TABLESAMPLE " <> funcName a <> " (" <> exprList b <> ")" <> suffixMaybe repeatableClause c
+
+repeatableClause a = "REPEATABLE (" <> aExpr a <> ")"
+
+funcTable = \ case
+  FuncExprFuncTable a b -> funcExprWindownless a <> bool "" " WITH ORDINALITY" b
+  RowsFromFuncTable a b -> "ROWS FROM (" <> rowsfromList a <> ")" <> bool "" " WITH ORDINALITY" b
+
+rowsfromItem (RowsfromItem a b) = funcExprWindownless a <> suffixMaybe colDefList b
+
+rowsfromList = commaNonEmpty rowsfromItem
+
+colDefList a = "AS (" <> tableFuncElementList a <> ")"
+
+tableFuncElementList = commaNonEmpty tableFuncElement
+
+tableFuncElement (TableFuncElement a b c) = colId a <> " " <> typename b <> suffixMaybe collateClause c
+
+collateClause a = "COLLATE " <> anyName a
+
+aliasClause (AliasClause a b c) =
   optLexemes
     [
-      Just "AS",
-      Just (ident a),
-      fmap (inParens . commaNonEmpty ident) b
+      if a then Just "AS" else Nothing,
+      Just (ident b),
+      fmap (inParens . commaNonEmpty ident) c
     ]
+
+funcAliasClause = \ case
+  AliasFuncAliasClause a -> aliasClause a
+  AsFuncAliasClause a -> "AS (" <> tableFuncElementList a <> ")"
+  AsColIdFuncAliasClause a b -> "AS " <> colId a <> " (" <> tableFuncElementList b <> ")"
+  ColIdFuncAliasClause a b -> colId a <> " (" <> tableFuncElementList b <> ")"
 
 joinedTable = \ case
   InParensJoinedTable a -> inParens (joinedTable a)
@@ -434,7 +467,9 @@ windowExclusionCause = \ case
 
 sortClause a = "ORDER BY " <> commaNonEmpty sortBy a
 
-sortBy (SortBy a b) = optLexemes [Just (aExpr a), fmap ascDesc b]
+sortBy = \ case
+  UsingSortBy a b c -> aExpr a <> " USING " <> qualAllOp b <> suffixMaybe nullsOrder c
+  AscDescSortBy a b c -> aExpr a <> suffixMaybe ascDesc b <> suffixMaybe nullsOrder c
 
 
 -- * Values
@@ -532,6 +567,10 @@ symbolicExprBinOp = \ case
 qualOp = \ case
   OpQualOp a -> op a
   OperatorQualOp a -> "OPERATOR (" <> anyOperator a <> ")"
+
+qualAllOp = \ case
+  AllQualAllOp a -> allOp a
+  AnyQualAllOp a -> "OPERATOR (" <> anyOperator a <> ")"
 
 op = text
 

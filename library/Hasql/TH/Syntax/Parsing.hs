@@ -350,25 +350,10 @@ selectClause = suffixRec base suffix where
     ]
   suffix a = Left <$> extensionSimpleSelect a
 
-{-
-simple_select:
-  |  SELECT opt_all_clause opt_target_list
-      into_clause from_clause where_clause
-      group_clause having_clause window_clause
-  |  SELECT distinct_clause target_list
-      into_clause from_clause where_clause
-      group_clause having_clause window_clause
-  |  values_clause
-  |  TABLE relation_expr
-  |  select_clause UNION all_or_distinct select_clause
-  |  select_clause INTERSECT all_or_distinct select_clause
-  |  select_clause EXCEPT all_or_distinct select_clause
--}
-
 baseSimpleSelect = asum [
     do
       string' "select"
-      parse $ Megaparsec.notFollowedBy $ Megaparsec.satisfy $ isAlphaNum
+      notFollowedBy $ satisfy $ isAlphaNum
       endHead
       _targeting <- optional (space1 *> targeting)
       _intoClause <- optional (space1 *> string' "into" *> endHead *> space1 *> optTempTableName)
@@ -378,6 +363,12 @@ baseSimpleSelect = asum [
       _havingClause <- optional (space1 *> string' "having" *> endHead *> space1 *> aExpr)
       _windowClause <- optional (space1 *> string' "window" *> endHead *> space1 *> sep1 commaSeparator windowDefinition)
       return (NormalSimpleSelect _targeting _intoClause _fromClause _whereClause _groupClause _havingClause _windowClause)
+    ,
+    do
+      string' "table"
+      space1
+      endHead
+      TableSimpleSelect <$> relationExpr
     ,
     ValuesSimpleSelect <$> valuesClause
   ]
@@ -430,19 +421,6 @@ materialized =
   True <$ string' "materialized" <|>
   False <$ keyphrase "not materialized"
 
-{-
-simple_select:
-  |  SELECT opt_all_clause opt_target_list
-      into_clause from_clause where_clause
-      group_clause having_clause window_clause
-  |  SELECT distinct_clause target_list
-      into_clause from_clause where_clause
-      group_clause having_clause window_clause
-
-distinct_clause:
-  |  DISTINCT
-  |  DISTINCT ON '(' expr_list ')'
--}
 targeting = distinct <|> allWithTargetList <|> all <|> normal where
   normal = NormalTargeting <$> targetList
   allWithTargetList = do
@@ -463,13 +441,6 @@ targetList = sep1 commaSeparator targetEl
 {-|
 >>> testParser targetEl "a.b as c"
 AliasedExprTargetEl (CExprAExpr (ColumnrefCExpr (Columnref (UnquotedIdent "a") (Just (AttrNameIndirectionEl (UnquotedIdent "b") :| []))))) (UnquotedIdent "c")
--}
-{-
-target_el:
-  |  a_expr AS ColLabel
-  |  a_expr IDENT
-  |  a_expr
-  |  '*'
 -}
 targetEl = label "target" $ asum [
     do
@@ -648,28 +619,14 @@ expecting "on", "using", or white space
 JoinTableRef (MethJoinedTable (QualJoinMeth...
 
 -}
-{-
-| relation_expr opt_alias_clause
-| relation_expr opt_alias_clause tablesample_clause
-| func_table func_alias_clause
-| LATERAL_P func_table func_alias_clause
-| xmltable opt_alias_clause
-| LATERAL_P xmltable opt_alias_clause
-| select_with_parens opt_alias_clause
-| LATERAL_P select_with_parens opt_alias_clause
-| joined_table
-| '(' joined_table ')' alias_clause
-
-TODO: Add support for missing cases.
--}
 tableRef = label "table reference" $ do
   _tr <- nonTrailingTableRef
   (space1 *> trailingTableRef _tr) <|> pure _tr
 
 nonTrailingTableRef = asum [
-    relationExprTableRef <|>
     lateralTableRef <|>
     wrapToHead nonLateralTableRef <|>
+    relationExprTableRef <|>
     joinedTableWithAliasTableRef <|>
     inParensJoinedTableTableRef
   ]
@@ -678,32 +635,39 @@ nonTrailingTableRef = asum [
     {-
     | relation_expr opt_alias_clause
     | relation_expr opt_alias_clause tablesample_clause
-
-    TODO: Add support for TABLESAMPLE.
     -}
     relationExprTableRef = do
       _relationExpr <- relationExpr
       endHead
-      _optAliasClause <- optional $ space1 *> aliasClause
-      return (RelationExprTableRef _relationExpr _optAliasClause)
+      _optAliasClause <- optional (space1 *> aliasClause)
+      _optTablesampleClause <- optional (space1 *> tablesampleClause)
+      return (RelationExprTableRef _relationExpr _optAliasClause _optTablesampleClause)
 
     {-
     | LATERAL_P func_table func_alias_clause
     | LATERAL_P xmltable opt_alias_clause
     | LATERAL_P select_with_parens opt_alias_clause
+    TODO: add xmltable
     -}
     lateralTableRef = do
       string' "lateral"
-      endHead
       space1
-      selectWithParensTableRef True
+      endHead
+      lateralableTableRef True
 
-    nonLateralTableRef = selectWithParensTableRef False
+    nonLateralTableRef = lateralableTableRef False
 
-    selectWithParensTableRef _lateral = do
-      _select <- selectWithParens
-      _optAliasClause <- optional $ space1 *> aliasClause
-      return (SelectTableRef _lateral _select _optAliasClause)
+    lateralableTableRef _lateral = asum [
+        do
+          a <- funcTable
+          b <- optional (space1 *> funcAliasClause)
+          return (FuncTableRef _lateral a b)
+        ,
+        do
+          _select <- selectWithParens
+          _optAliasClause <- optional $ space1 *> aliasClause
+          return (SelectTableRef _lateral _select _optAliasClause)
+      ]
 
     inParensJoinedTableTableRef = JoinTableRef <$> inParensJoinedTable <*> pure Nothing
 
@@ -716,12 +680,6 @@ nonTrailingTableRef = asum [
 trailingTableRef _tableRef =
   JoinTableRef <$> trailingJoinedTable _tableRef <*> pure Nothing
 
-{-
-| qualified_name
-| qualified_name '*'
-| ONLY qualified_name
-| ONLY '(' qualified_name ')'
--}
 relationExpr =
   label "relation expression" $
   asum
@@ -752,6 +710,103 @@ relationExprOptAlias reservedKeywords = do
     c <- filteredColId reservedKeywords
     return (b, c)
   return (RelationExprOptAlias a b)
+
+tablesampleClause = do
+  string' "tablesample"
+  space1
+  endHead
+  a <- funcName
+  space
+  b <- inParens exprList
+  c <- optional (space *> repeatableClause)
+  return (TablesampleClause a b c)
+
+repeatableClause = do
+  string' "repeatable"
+  space
+  inParens (endHead *> aExpr)
+
+funcTable = asum [
+    do
+      string' "rows"
+      space1
+      string' "from"
+      space
+      a <- inParens (endHead *> rowsfromList)
+      b <- trueIfPresent (space *> optOrdinality)
+      return (RowsFromFuncTable a b)
+    ,
+    do
+      a <- funcExprWindowless
+      b <- trueIfPresent (space1 *> optOrdinality)
+      return (FuncExprFuncTable a b)
+  ]
+
+rowsfromItem = do
+  a <- funcExprWindowless
+  endHead
+  b <- optional (space1 *> colDefList)
+  return (RowsfromItem a b)
+
+rowsfromList = sep1 commaSeparator rowsfromItem
+
+colDefList = string' "as" *> space *> inParens (endHead *> tableFuncElementList)
+
+optOrdinality = string' "with" *> space1 *> string' "ordinality"
+
+tableFuncElementList = sep1 commaSeparator tableFuncElement
+
+tableFuncElement = do
+  a <- colId
+  space1
+  b <- typename
+  c <- optional (space1 *> collateClause)
+  return (TableFuncElement a b c)
+
+collateClause = string' "collate" *> space1 *> endHead *> anyName
+
+funcAliasClause = asum [
+    do
+      string' "as"
+      asum [
+          do
+            space
+            inParens $ do
+              endHead
+              AsFuncAliasClause <$> tableFuncElementList
+          ,
+          do
+            space1
+            a <- colId
+            asum [
+                do
+                  space
+                  inParens $ do
+                    endHead
+                    asum [
+                        AsColIdFuncAliasClause a <$> tableFuncElementList,
+                        AliasFuncAliasClause <$> AliasClause True a <$> Just <$> nameList
+                      ]
+                ,
+                pure (AliasFuncAliasClause (AliasClause True a Nothing))
+              ]
+        ]
+    ,
+    do
+      a <- colId
+      asum [
+          do
+            space
+            inParens $ do
+              endHead
+              asum [
+                  ColIdFuncAliasClause a <$> tableFuncElementList,
+                  AliasFuncAliasClause <$> AliasClause False a <$> Just <$> nameList
+                ]
+          ,
+          pure (AliasFuncAliasClause (AliasClause False a Nothing))
+        ]
+  ]
 
 joinedTable =
   asum [
@@ -836,22 +891,10 @@ joinQual = asum [
     string' "on" *> space1 *> aExpr <&> OnJoinQual
   ]
 
-{-
-alias_clause:
-  |  AS ColId '(' name_list ')'
-  |  AS ColId
-  |  ColId '(' name_list ')'
-  |  ColId
-name_list:
-  |  name
-  |  name_list ',' name
-name:
-  |  ColId
--}
 aliasClause = do
-  _alias <- (string' "as" *> space1 *> endHead *> colId) <|> colId
+  (_as, _alias) <- (True,) <$> (string' "as" *> space1 *> endHead *> colId) <|> (False,) <$> colId
   _columnAliases <- optional (space1 *> inParens (sep1 commaSeparator colId))
-  return (AliasClause _alias _columnAliases)
+  return (AliasClause _as _alias _columnAliases)
 
 
 -- * Where
@@ -888,9 +931,22 @@ sortClause = do
   return a
 
 sortBy = do
-  _expr <- aExpr
-  _optAscDesc <- optional (space1 *> ascDesc)
-  return (SortBy _expr _optAscDesc)
+  a <- aExpr
+  asum [
+      do
+        space1
+        string' "using"
+        space1
+        endHead
+        b <- qualAllOp
+        c <- optional (space1 *> nullsOrder)
+        return (UsingSortBy a b c)
+      ,
+      do
+        b <- optional (space1 *> ascDesc)
+        c <- optional (space1 *> nullsOrder)
+        return (AscDescSortBy a b c)
+    ]
 
 
 -- * Expressions
@@ -1395,6 +1451,11 @@ qualOp = asum [
     OperatorQualOp <$> inParensWithClause (string' "operator") anyOperator
   ]
 
+qualAllOp = asum [
+    AnyQualAllOp <$> (string' "operator" *> space *> inParens (endHead *> anyOperator)),
+    AllQualAllOp <$> allOp
+  ]
+
 op = do
   a <- takeWhile1P Nothing Predicate.opChar
   case Validator.op a of
@@ -1879,6 +1940,8 @@ filteredAnyName _keywords = do
   return (AnyName a b)
 
 name = colId
+
+nameList = sep1 commaSeparator name
 
 cursorName = name
 

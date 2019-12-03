@@ -84,6 +84,9 @@ Lifted megaparsec\'s `Megaparsec.takeWhile1P`.
 takeWhile1P :: (Ord err, Stream strm) => Maybe String -> (Megaparsec.Token strm -> Bool) -> HeadedParsec err strm (Megaparsec.Tokens strm)
 takeWhile1P label predicate = parse (Megaparsec.takeWhile1P label predicate)
 
+satisfy :: (Ord err, Stream strm) => (Megaparsec.Token strm -> Bool) -> HeadedParsec err strm (Megaparsec.Token strm)
+satisfy = parse . Megaparsec.satisfy
+
 decimal :: (Ord err, Stream strm, Megaparsec.Token strm ~ Char, Integral decimal) => HeadedParsec err strm decimal
 decimal = parse MegaparsecLexer.decimal
 
@@ -117,3 +120,6 @@ sepEnd1 sepP endP elP = do
             loop (el : list)
         ]
     in loop []
+
+notFollowedBy :: (Ord err, Stream strm) => HeadedParsec err strm a -> HeadedParsec err strm ()
+notFollowedBy a = parse (Megaparsec.notFollowedBy (toParsec a))
