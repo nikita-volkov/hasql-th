@@ -1,6 +1,6 @@
 module Hasql.TH.Extras.NonEmpty where
 
-import Hasql.TH.Prelude hiding (reverse, head, tail, init, last, cons, uncons)
+import Hasql.TH.Prelude hiding (reverse, head, tail, init, last, cons, uncons, fromList)
 import Data.List.NonEmpty
 
 

@@ -307,39 +307,12 @@ usingClause = do
 {-|
 >>> test = testParser selectStmt
 
->>> test "select"
-...NormalSimpleSelect Nothing Nothing Nothing Nothing Nothing Nothing Nothing...
-
->>> test "select distinct 1"
-...DistinctTargeting Nothing (ExprTarget (AexprConstExpr (IAexprConst 1)) :| [])...
-
->>> test "select $1"
-...NormalTargeting (ExprTarget (PlaceholderExpr 1) :| [])...
-
->>> test "select $1 + $2"
-...BinOpExpr "+" (PlaceholderExpr 1) (PlaceholderExpr 2)...
-
->>> test "select a, b"
-...ExprTarget (QualifiedNameExpr (SimpleQualifiedName (UnquotedIdent "a"))) :| [ExprTarget (QualifiedNameExpr (SimpleQualifiedName (UnquotedIdent "b")))]...
-
->>> test "select $1 :: text"
-...TypecastExpr (PlaceholderExpr 1) (TypecastTypename (UnquotedIdent "text") False 0 False)...
-
->>> test "select 1"
-...ExprTarget (AexprConstExpr (IAexprConst 1))...
-
->>> test "select id"
-...ExprTarget (QualifiedNameExpr (SimpleQualifiedName (UnquotedIdent "id")))...
-
 >>> test "select id from user"
 1:20:
   |
 1 | select id from user
   |                    ^
 Reserved keyword "user" used as an identifier. If that's what you intend, you have to wrap it in double quotes.
-
->>> test "select id :: int4 from \"user\""
-...TypecastExpr (QualifiedNameExpr (SimpleQualifiedName (UnquotedIdent "id"))) (TypecastTypename (UnquotedIdent "int4") False 0 False)...
 -}
 selectStmt = Left <$> selectNoParens <|> Right <$> selectWithParens
 
@@ -488,8 +461,8 @@ targeting = distinct <|> allWithTargetList <|> all <|> normal where
 targetList = sep1 commaSeparator targetEl
 
 {-|
->>> testParser target "a.b as c"
-AliasedExprTarget (QualifiedNameExpr (IndirectedQualifiedName (UnquotedIdent "a") (AttrNameIndirectionEl (UnquotedIdent "b") :| []))) (UnquotedIdent "c")
+>>> testParser targetEl "a.b as c"
+AliasedExprTargetEl (CExprAExpr (ColumnrefCExpr (Columnref (UnquotedIdent "a") (Just (AttrNameIndirectionEl (UnquotedIdent "b") :| []))))) (UnquotedIdent "c")
 -}
 {-
 target_el:
@@ -934,12 +907,12 @@ For the purposes of this library it simply doesn't matter,
 so we're not bothering with that.
 
 Composite on the right:
->>> testParser aExpr "$1 = $2 :: int4"
-BinOpExpr "=" (PlaceholderExpr 1) (TypecastExpr (PlaceholderExpr 2) (TypecastTypename (UnquotedIdent "int4") False 0 False))
+>>> testParser aExpr "a = b :: int4"
+SymbolicBinOpAExpr (CExprAExpr (ColumnrefCExpr (Columnref (UnquotedIdent "a") Nothing))) (MathSymbolicExprBinOp EqualsMathOp) (TypecastAExpr (CExprAExpr (ColumnrefCExpr (Columnref (UnquotedIdent "b") Nothing))) (TypecastTypename (UnquotedIdent "int4") False 0 False))
 
 Composite on the left:
->>> testParser aExpr "$1 = $2 :: int4 and $3"
-BinOpExpr "=" (PlaceholderExpr 1) (BinOpExpr "AND" (TypecastExpr (PlaceholderExpr 2) (TypecastTypename (UnquotedIdent "int4") False 0 False)) (PlaceholderExpr 3))
+>>> testParser aExpr "a = b :: int4 and c"
+SymbolicBinOpAExpr (CExprAExpr (ColumnrefCExpr (Columnref (UnquotedIdent "a") Nothing))) (MathSymbolicExprBinOp EqualsMathOp) (AndAExpr (TypecastAExpr (CExprAExpr (ColumnrefCExpr (Columnref (UnquotedIdent "b") Nothing))) (TypecastTypename (UnquotedIdent "int4") False 0 False)) (CExprAExpr (ColumnrefCExpr (Columnref (UnquotedIdent "c") Nothing))))
 -}
 aExpr = suffixRec base suffix where
   base = asum [
@@ -1156,17 +1129,6 @@ arrayExprCont = inBracketsCont $ asum [
     pure EmptyArrayExpr
   ]
 
-{-|
-Full specification:
-
->>> testParser caseExpr "CASE WHEN a = b THEN c WHEN d THEN e ELSE f END"
-CaseExpr Nothing (WhenClause (BinOpExpr "=" (QualifiedNameExpr (SimpleQualifiedName (UnquotedIdent "a"))) (QualifiedNameExpr (SimpleQualifiedName (UnquotedIdent "b")))) (QualifiedNameExpr (SimpleQualifiedName (UnquotedIdent "c"))) :| [WhenClause (QualifiedNameExpr (SimpleQualifiedName (UnquotedIdent "d"))) (QualifiedNameExpr (SimpleQualifiedName (UnquotedIdent "e")))]) (Just (QualifiedNameExpr (SimpleQualifiedName (UnquotedIdent "f"))))
-
-Implicit argument:
-
->>> testParser caseExpr "CASE a WHEN b THEN c ELSE d END"
-CaseExpr (Just (QualifiedNameExpr (SimpleQualifiedName (UnquotedIdent "a")))) (WhenClause (QualifiedNameExpr (SimpleQualifiedName (UnquotedIdent "b"))) (QualifiedNameExpr (SimpleQualifiedName (UnquotedIdent "c"))) :| []) (Just (QualifiedNameExpr (SimpleQualifiedName (UnquotedIdent "d"))))
--}
 caseExpr = label "case expression" $ do
   string' "case"
   space1

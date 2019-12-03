@@ -64,12 +64,16 @@ statementExp _exp _extract = exp (either (fail . Text.unpack) (return . _exp) . 
 {-|
 Statement producing exactly one result row.
 
-Will raise the `Hasql.Session.UnexpectedAmountOfRows` error if it's any other.
+Will raise `Hasql.Session.UnexpectedAmountOfRows` error if it's any other.
 
 === Examples
 
 >>> :t [singletonStatement|select 1 :: int2|]
-[singletonStatement|select 1 :: int2|] :: Statement () Int16
+... :: Statement () Int16
+
+>>> :t [singletonStatement|insert into "user" (email, name) values ($1 :: text, $2 :: text) returning id :: int4|]
+...
+... :: Statement (Text, Text) Int32
 
 Incorrect SQL:
 
@@ -86,35 +90,35 @@ singletonStatement = statementExp Exp.singletonStatement Extraction.statement
 
 {-|
 >>> :t [maybeStatement|select 1 :: int2|]
-[maybeStatement|select 1 :: int2|] :: Statement () (Maybe Int16)
+... :: Statement () (Maybe Int16)
 -}
 maybeStatement :: QuasiQuoter
 maybeStatement = statementExp Exp.maybeStatement Extraction.statement
 
 {-|
 >>> :t [vectorStatement|select 1 :: int2|]
-[vectorStatement|select 1 :: int2|] :: Statement () (Vector Int16)
+... :: Statement () (Vector Int16)
 -}
 vectorStatement :: QuasiQuoter
 vectorStatement = statementExp Exp.vectorStatement Extraction.statement
 
 {-|
 >>> :t [foldStatement|select 1 :: int2|]
-[foldStatement|select 1 :: int2|] :: Fold Int16 b -> Statement () b
+... :: Fold Int16 b -> Statement () b
 -}
 foldStatement :: QuasiQuoter
 foldStatement = statementExp Exp.foldStatement Extraction.statement
 
 {-|
 >>> :t [resultlessStatement|select 1|]
-[resultlessStatement|select 1|] :: Statement () ()
+... :: Statement () ()
 -}
 resultlessStatement :: QuasiQuoter
 resultlessStatement = statementExp Exp.resultlessStatement Extraction.rowlessStatement
 
 {-|
 >>> :t [rowsAffectedStatement|select 1|]
-[rowsAffectedStatement|select 1|] :: Statement () Int64
+... :: Statement () Int64
 -}
 rowsAffectedStatement :: QuasiQuoter
 rowsAffectedStatement = statementExp Exp.rowsAffectedStatement Extraction.rowlessStatement
