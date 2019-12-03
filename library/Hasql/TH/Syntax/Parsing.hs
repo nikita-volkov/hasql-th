@@ -1158,7 +1158,7 @@ subType = asum [
     AllSubType <$ string' "all"
   ]
 
-inExpr = SelectInExpr <$> selectWithParens <|> ExprListInExpr <$> inParens exprList
+inExpr = SelectInExpr <$> wrapToHead selectWithParens <|> ExprListInExpr <$> inParens exprList
 
 symbolicBinOpExpr _a _bParser _constr = do
   _binOp <- label "binary operator" (space *> wrapToHead symbolicExprBinOp <* space)
