@@ -71,7 +71,7 @@ unexpected '&'
 
 In fact, the original Postgres parser never produces any other messages than the opaque "syntax error at or near". "hasql-th" on the other hand is quite descriptive. E.g., here's how it gradually guides to insert the missing expected pieces.
 
-SQL:
+Input:
 
 ```haskell
 [resultlessStatement|insert into |]
@@ -87,7 +87,7 @@ unexpected end of input
 expecting identifier or white space
 ```
 
-SQL:
+Input:
 
 ```haskell
 [resultlessStatement|insert into a |]
