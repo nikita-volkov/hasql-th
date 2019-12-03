@@ -99,7 +99,13 @@ Will raise `Hasql.Session.UnexpectedAmountOfRows` error if it's any other.
 >>> :t [singletonStatement|select 1 :: int2|]
 ... :: Statement () Int16
 
->>> :t [singletonStatement|insert into "user" (email, name) values ($1 :: text, $2 :: text) returning id :: int4|]
+>>> :{
+  :t [singletonStatement|
+       insert into "user" (email, name)
+       values ($1 :: text, $2 :: text)
+       returning id :: int4
+       |]
+:}
 ...
 ... :: Statement (Text, Text) Int32
 
@@ -117,6 +123,8 @@ singletonStatement :: QuasiQuoter
 singletonStatement = statementExp Exp.singletonStatement Extraction.statement
 
 {-|
+Statement producing one row or none.
+
 >>> :t [maybeStatement|select 1 :: int2|]
 ... :: Statement () (Maybe Int16)
 -}
@@ -124,6 +132,8 @@ maybeStatement :: QuasiQuoter
 maybeStatement = statementExp Exp.maybeStatement Extraction.statement
 
 {-|
+Statement producing a vector of rows.
+
 >>> :t [vectorStatement|select 1 :: int2|]
 ... :: Statement () (Vector Int16)
 -}
@@ -131,6 +141,9 @@ vectorStatement :: QuasiQuoter
 vectorStatement = statementExp Exp.vectorStatement Extraction.statement
 
 {-|
+Function from `Fold` over rows to a statement producing the result of folding.
+Use this when you need to aggregate rows customly.
+
 >>> :t [foldStatement|select 1 :: int2|]
 ... :: Fold Int16 b -> Statement () b
 -}
@@ -138,14 +151,20 @@ foldStatement :: QuasiQuoter
 foldStatement = statementExp Exp.foldStatement Extraction.statement
 
 {-|
->>> :t [resultlessStatement|select 1|]
-... :: Statement () ()
+Statement producing no results.
+
+>>> :t [resultlessStatement|insert into "user" (name, email) values ($1 :: text, $2 :: text)|]
+...
+... :: Statement (Text, Text) ()
 -}
 resultlessStatement :: QuasiQuoter
 resultlessStatement = statementExp Exp.resultlessStatement Extraction.rowlessStatement
 
 {-|
->>> :t [rowsAffectedStatement|select 1|]
+Statement counting the rows it affects.
+
+>>> :t [rowsAffectedStatement|delete from "user" where password is null|]
+...
 ... :: Statement () Int64
 -}
 rowsAffectedStatement :: QuasiQuoter
