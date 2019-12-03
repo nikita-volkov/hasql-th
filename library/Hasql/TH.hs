@@ -4,17 +4,43 @@ module Hasql.TH
   {-|
   Quasiquoters in this category produce Hasql `Statement`s,
   checking the correctness of SQL at compile-time.
+  
+  To extract the information about parameters and results of the statement,
+  the quoter requires you to explicitly specify the Postgres types for placeholders and results.
+  
+  Here's an example of how to use it:
 
-  To achieve this a custom parser is used,
-  which for now ports a part of functionality
-  from the parser used in Postgres itself.
+  >selectUserDetails :: Statement Int32 (Maybe (Text, Text, Maybe Text))
+  >selectUserDetails =
+  >  [maybeStatement|
+  >    select name :: text, email :: text, phone :: text?
+  >    from "user"
+  >    where id = $1 :: int4
+  >    |]
+  
+  === Nullability
 
-  Because it is a partial port,
-  you may bump into situations,
-  where a correct statement won't pass the checker.
-  In such cases you can always downgrade to implementing `Statement`
-  and its codecs explicitly.
-  Please report such cases at the project\'s issue tracker.
+  As you might have noticed in the example,
+  we introduce one change to the Postgres syntax in the way
+  the typesignatures are parsed:
+  we interpret question-marks in them as specification of nullability.
+  Here's more examples of that:
+
+  >>> :t [singletonStatement| select a :: int4? |]
+  ...
+    :: Statement () (Maybe Int32)
+  
+  You can use it to specify the nullability of array elements:
+
+  >>> :t [singletonStatement| select a :: int4[]? |]
+  ...
+    :: Data.Vector.Generic.Base.Vector v Int32 =>
+       Statement () (Maybe (v Int32))
+
+  >>> :t [singletonStatement| select a :: int4?[]? |]
+  ...
+    :: Data.Vector.Generic.Base.Vector v (Maybe Int32) =>
+       Statement () (Maybe (v (Maybe Int32)))
   -}
   -- ** Row-parsing statements
   singletonStatement,
