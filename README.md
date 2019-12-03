@@ -1,6 +1,6 @@
 # Summary
 
-A Hasql extension-library, which brings compile-time syntax checking of queries atop of a great simplification of declaration of statements. All using quasi-quotes and a port of Postgres SQL syntax parser.
+A Hasql extension-library, which brings compile-time syntax checking of queries atop of a great simplification of declaration of statements. All using quasi-quotes.
 
 Here's a brief example of how it works:
 
@@ -22,15 +22,17 @@ You can get the latest development version of the project here: https://github.c
 
 # Status
 
-This is a closed-beta version. The library supports most of Postgresql syntax in Select, Insert, Update and Delete statements, with an exception of some very rarely used features, such as XML-related functionality.
+This is a closed-beta version. The library supports almost all of Postgresql syntax in Select, Insert, Update and Delete statements, with an exception of some very rarely used features, such as XML-related functionality and custom suffix operators.
 
-# Quality
+## Quality
 
 [![Build Status](https://travis-ci.org/nikita-volkov/hasql-th.svg?branch=0.3/master)](https://travis-ci.org/nikita-volkov/hasql-th)
 
 The parser and renderer get heavily tested using the following property: rendering a random AST then parsing it should produce the same AST. This pretty much covers most possible reasons for bugs in the library.
 
-# Why not use the original Postgres parser?
+# Implementation
+
+This library internally implements a port of the original Postgres SQL syntax parser. Yes, it sounds like an overkill, but the other options are worse.
 
 Unfortunately Postgres doesn't export it's own parser in any of its distributions, so there's no C-library to link to and wrap.
 
