@@ -18,7 +18,7 @@ As you can see, it completely eliminates the need to mess with codecs. The quasi
 
 # Status
 
-The library supports almost all of Postgresql syntax in Select, Insert, Update and Delete statements, with an exception of some very rarely used features, such as XML-related functionality.
+The library supports almost all of Postgresql syntax available for preparable statements. This includes Select, Insert, Update and Delete among others. The only thing that is not supported yet is some of its very rarely used XML-related features.
 
 ## Quality
 
