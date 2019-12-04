@@ -14,7 +14,7 @@ selectUserDetails =
     |]
 ```
 
-As you can see, it completely eliminates the need to mess with codecs. The quasiquoters directly produce `Statement`, which you can then `dimap` over using its `Profunctor` instance to map to your domain types.
+As you can see, it completely eliminates the need to mess with codecs. The quasiquoters directly produce `Statement`, which you can then [`dimap`](https://hackage.haskell.org/package/profunctors-5.5.1/docs/Data-Profunctor.html#v:dimap) over using its `Profunctor` instance to map to your domain types.
 
 # Status
 
