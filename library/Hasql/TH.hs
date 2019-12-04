@@ -18,6 +18,10 @@ module Hasql.TH
   >    where id = $1 :: int4
   >    |]
   
+  As you can see, it completely eliminates the need to mess with codecs.
+  The quasiquoters directly produce `Statement`,
+  which you can then `dimap` over using its `Profunctor` instance to get to your domain types.
+
   === Nullability
 
   As you might have noticed in the example,
