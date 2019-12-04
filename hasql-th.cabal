@@ -7,6 +7,8 @@ description:
   bringing compile-time syntax checking,
   great simplification of declaration of statements and
   other TemplateHaskell-based utilities.
+  .
+  For details please see <https://github.com/nikita-volkov/hasql-th the readme>.
 homepage: https://github.com/nikita-volkov/hasql-th
 bug-reports: https://github.com/nikita-volkov/hasql-th/issues
 author: Nikita Volkov <nikita.y.volkov@mail.ru>
