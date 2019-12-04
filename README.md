@@ -1,6 +1,6 @@
 # Summary
 
-A Hasql extension-library, which brings compile-time syntax checking of queries atop of a great simplification of declaration of statements. All using quasi-quotes.
+An extension library for the ["hasql"](https://github.com/nikita-volkov/hasql) Postgres driver, bringing compile-time syntax checking of queries atop of a great simplification of declaration of statements. All the user is left with doing is the specification of SQL.
 
 Here's a brief example of how it works:
 
