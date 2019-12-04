@@ -42,7 +42,7 @@ For these reasons it's been decided to port the original parser and AST as close
 
 # Error messages
 
-The parser turns out to be actually better than the one in Postgres in terms of error-reporting. That's because instead of relying on an old C-mangling transcompiler, it uses Haskell's own superpowerful "megaparsec" library and the "headed-megaparsec" extension for it. As the result of that, the error messages produced by this parser are more informative than the ones in Postgres. Following is an example.
+The parser turns out to be actually better than the one in Postgres in terms of error-reporting. That's because of Haskell's superabilities in the area of parsing compared to C. The library uses the "megaparsec" library and the ["headed-megaparsec"](http://hackage.haskell.org/package/headed-megaparsec) extension for it. As the result of that, the error messages produced by this parser are more informative than the ones in Postgres. Following are a few examples.
 
 ## Error example 1
 
