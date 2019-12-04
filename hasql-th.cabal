@@ -2,6 +2,11 @@ name: hasql-th
 version: 0.3
 category: Hasql, Database, PostgreSQL, Template Haskell
 synopsis: Template Haskell utilities for Hasql
+description:
+  Extension-library for Hasql,
+  bringing compile-time syntax checking,
+  great simplification of declaration of statements and
+  other TemplateHaskell-based utilities.
 homepage: https://github.com/nikita-volkov/hasql-th
 bug-reports: https://github.com/nikita-volkov/hasql-th/issues
 author: Nikita Volkov <nikita.y.volkov@mail.ru>
