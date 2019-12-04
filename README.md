@@ -30,6 +30,9 @@ The parser and renderer get heavily tested using the following property: renderi
 
 This library internally implements a port of the original Postgres SQL syntax parser. It might sound like an overkill, but there really were no better options.
 
+<details>
+<summary>Why not reuse the parser?</summary>
+
 Unfortunately Postgres doesn't export it's own parser in any of its distributions, so there's no C-library to link to and wrap.
 
 Isolating the original C-code and including it in a Haskell project is also not an option, because it's heavily based on code generators and complex make-file instructions. Maintaining such a codebase also seems like a non-viable option.
@@ -39,6 +42,8 @@ Fortunately the original parser is implemented using a declarative notation (the
 Also for the purposes of this library we need access to the full syntax tree for extracting data on placeholders and statement results. Quick and dirty hacks won't do.
 
 For these reasons it's been decided to port the original parser and AST as close as possible to Haskell using the "megaparsec" library.
+
+</details>
 
 # Error messages
 
