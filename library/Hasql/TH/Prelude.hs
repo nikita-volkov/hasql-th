@@ -1,14 +1,15 @@
 module Hasql.TH.Prelude
 ( 
   module Exports,
+  showAsText,
+  suffixRec,
 )
 where
-
 
 -- base
 -------------------------
 import Control.Applicative as Exports
-import Control.Arrow as Exports
+import Control.Arrow as Exports hiding (first, second)
 import Control.Category as Exports
 import Control.Concurrent as Exports
 import Control.Exception as Exports
@@ -17,6 +18,7 @@ import Control.Monad.IO.Class as Exports
 import Control.Monad.Fail as Exports
 import Control.Monad.Fix as Exports hiding (fix)
 import Control.Monad.ST as Exports
+import Data.Bifunctor as Exports
 import Data.Bits as Exports
 import Data.Bool as Exports
 import Data.Char as Exports
@@ -26,7 +28,7 @@ import Data.Data as Exports
 import Data.Dynamic as Exports
 import Data.Either as Exports
 import Data.Fixed as Exports
-import Data.Foldable as Exports hiding (toList)
+import Data.Foldable as Exports
 import Data.Function as Exports hiding (id, (.))
 import Data.Functor as Exports
 import Data.Functor.Contravariant as Exports
@@ -35,6 +37,7 @@ import Data.Int as Exports
 import Data.IORef as Exports
 import Data.Ix as Exports
 import Data.List as Exports hiding (sortOn, isSubsequenceOf, uncons, concat, foldr, foldl1, maximum, minimum, product, sum, all, and, any, concatMap, elem, foldl, foldr1, notElem, or, find, maximumBy, minimumBy, mapAccumL, mapAccumR, foldl')
+import Data.List.NonEmpty as Exports (NonEmpty(..))
 import Data.Maybe as Exports
 import Data.Monoid as Exports hiding (Last(..), First(..), (<>))
 import Data.Ord as Exports
@@ -47,14 +50,15 @@ import Data.Traversable as Exports
 import Data.Tuple as Exports
 import Data.Unique as Exports
 import Data.Version as Exports
+import Data.Void as Exports
 import Data.Word as Exports
 import Debug.Trace as Exports
 import Foreign.ForeignPtr as Exports
 import Foreign.Ptr as Exports
 import Foreign.StablePtr as Exports
 import Foreign.Storable as Exports hiding (sizeOf, alignment)
-import GHC.Conc as Exports hiding (withMVar, threadWaitWriteSTM, threadWaitWrite, threadWaitReadSTM, threadWaitRead)
-import GHC.Exts as Exports (lazy, inline, sortWith, groupWith, IsList(..))
+import GHC.Conc as Exports hiding (orElse, withMVar, threadWaitWriteSTM, threadWaitWrite, threadWaitReadSTM, threadWaitRead)
+import GHC.Exts as Exports (lazy, inline, sortWith, groupWith, IsList(fromList, Item))
 import GHC.Generics as Exports (Generic, Generic1)
 import GHC.IO.Exception as Exports
 import Numeric as Exports
@@ -73,6 +77,14 @@ import Text.Printf as Exports (printf, hPrintf)
 import Text.Read as Exports (Read(..), readMaybe, readEither)
 import Unsafe.Coerce as Exports
 
+-- contravariant
+-------------------------
+import Data.Functor.Contravariant.Divisible as Exports
+
+-- selective
+-------------------------
+import Control.Selective as Exports
+
 -- bytestring
 -------------------------
 import Data.ByteString as Exports (ByteString)
@@ -80,3 +92,45 @@ import Data.ByteString as Exports (ByteString)
 -- text
 -------------------------
 import Data.Text as Exports (Text)
+
+-- containers
+-------------------------
+import Data.IntMap.Strict as Exports (IntMap)
+import Data.IntSet as Exports (IntSet)
+import Data.Map.Strict as Exports (Map)
+import Data.Sequence as Exports (Seq)
+import Data.Set as Exports (Set)
+
+-- unordered-containers
+-------------------------
+import Data.HashSet as Exports (HashSet)
+import Data.HashMap.Strict as Exports (HashMap)
+
+-- hashable
+-------------------------
+import Data.Hashable as Exports (Hashable)
+
+-- foldl
+-------------------------
+import Control.Foldl as Exports (Fold(..))
+
+-- uuid
+-------------------------
+import Data.UUID as Exports (UUID)
+
+-- case-insensitive
+-------------------------
+import Data.CaseInsensitive as Exports (CI, FoldCase)
+
+
+showAsText :: Show a => a -> Text
+showAsText = show >>> fromString
+
+{-|
+Compose a monad, which attempts to extend a value, based on the following input.
+It does that recursively until the suffix alternative fails.
+-}
+suffixRec :: (Monad m, Alternative m) => m a -> (a -> m a) -> m a
+suffixRec base suffix = do
+  _base <- base
+  suffixRec (suffix _base) suffix <|> pure _base
