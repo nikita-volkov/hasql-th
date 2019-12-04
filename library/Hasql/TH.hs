@@ -32,10 +32,10 @@ module Hasql.TH
   
   You can use it to specify the nullability of array elements:
 
-  >>> :t [singletonStatement| select a :: int4[]? |]
+  >>> :t [singletonStatement| select a :: int4?[] |]
   ...
-    :: Data.Vector.Generic.Base.Vector v Int32 =>
-       Statement () (Maybe (v Int32))
+    :: Data.Vector.Generic.Base.Vector v (Maybe Int32) =>
+       Statement () (v (Maybe Int32))
 
   And of arrays themselves:
 
