@@ -1,5 +1,5 @@
 name: hasql-th
-version: 0.3
+version: 0.3.0.1
 category: Hasql, Database, PostgreSQL, Template Haskell
 synopsis: Template Haskell utilities for Hasql
 description:
