@@ -14,7 +14,50 @@ selectUserDetails =
     |]
 ```
 
-As you can see, it completely eliminates the need to mess with codecs. The quasiquoters directly produce `Statement`, which you can then [`dimap`](https://hackage.haskell.org/package/profunctors-5.5.1/docs/Data-Profunctor.html#v:dimap) over using its `Profunctor` instance to get to your domain types.
+As you can see, it completely eliminates the need to deal with codecs. The quasiquoters directly produce `Statement`, which you can then [`dimap`](https://hackage.haskell.org/package/profunctors-5.5.1/docs/Data-Profunctor.html#v:dimap) over using its `Profunctor` instance to get to your domain types.
+
+<details>
+<summary>Examples of mapping to custom types</summary>
+
+```haskell
+newtype UserId = UserId Int32
+
+data UserDetails = UserDetails {
+  _name :: Text,
+  _email :: Text,
+  _phone :: Maybe Text
+}
+
+selectUserDetails :: Statement UserId (Maybe UserDetails)
+selectUserDetails =
+  dimap
+    (\ (UserId a) -> a)
+    (\ case
+      Just (a, b, c) -> Just (UserDetails a b c)
+      Nothing -> Nothing)
+    [maybeStatement|
+      select name :: text, email :: text, phone :: text?
+      from "user"
+      where id = $1 :: int4
+      |]
+```
+
+Using some Haskell's advanced techniques we can reduce the boilerplate in the previous definition:
+
+```haskell
+import Data.Tuple.Curry -- from the "tuple" library
+
+selectUserDetails :: Statement UserId (Maybe UserDetails)
+selectUserDetails =
+  dimap coerce (fmap (uncurryN UserDetails))
+    [maybeStatement|
+      select name :: text, email :: text, phone :: text?
+      from "user"
+      where id = $1 :: int4
+      |]
+```
+
+</details>
 
 # Status
 
