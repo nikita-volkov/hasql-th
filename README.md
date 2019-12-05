@@ -42,7 +42,7 @@ selectUserDetails =
       |]
 ```
 
-Using some Haskell's advanced techniques we can reduce the boilerplate in the previous definition:
+Using some Haskell's advanced techniques and the ["tuple"](http://hackage.haskell.org/package/tuple) library we can reduce the boilerplate in the previous definition:
 
 ```haskell
 import Data.Tuple.Curry -- from the "tuple" library
@@ -85,7 +85,7 @@ For these reasons it's been decided to port the original parser and AST as close
 
 # Error messages
 
-The parser turns out to be actually better than the one in Postgres in terms of error-reporting. That's because of Haskell's superabilities in the area of parsing compared to C. The library uses the "megaparsec" library and the ["headed-megaparsec"](http://hackage.haskell.org/package/headed-megaparsec) extension for it. As the result of that, the error messages produced by this parser are more informative than the ones in Postgres. Following are a few examples.
+The parser turns out to be actually better than the one in Postgres in terms of error-reporting. That's because of Haskell's superabilities in the area of parsing compared to C. The library uses the ["megaparsec"](http://hackage.haskell.org/package/megaparsec) library and the ["headed-megaparsec"](http://hackage.haskell.org/package/headed-megaparsec) extension for it. As the result of that, the error messages produced by this parser are more informative than the ones in Postgres. Following are a few examples.
 
 ## Error example 1
 
