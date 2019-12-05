@@ -16,6 +16,18 @@ selectUserDetails =
 
 As you can see, it completely eliminates the need to mess with codecs. The quasiquoters directly produce `Statement`, which you can then [`dimap`](https://hackage.haskell.org/package/profunctors-5.5.1/docs/Data-Profunctor.html#v:dimap) over using its `Profunctor` instance to get to your domain types.
 
+```haskell
+data User = User
+    { _name  :: Text
+    , _email :: Text
+    , _phone :: Maybe Text
+    }
+
+selectUserById :: Int -> Session (Maybe User)
+selectUserById userId =
+    statement userId $ dimap fromIntegral (uncurryN User <$>) selectUserDetails
+```
+
 # Status
 
 The library supports almost all of Postgresql syntax available for preparable statements. This includes Select, Insert, Update and Delete among others. The only thing that is not supported yet is some of its very rarely used XML-related features.
