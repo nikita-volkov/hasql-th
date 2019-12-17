@@ -205,7 +205,7 @@ encoder = let
   applyArray levels = AppE (VarE 'Encoders.array) . applyArrayDimensionality levels
   applyArrayDimensionality levels =
     if levels > 0
-      then AppE (AppE (VarE 'Encoders.dimension) (VarE 'foldl')) . applyArrayDimensionality (pred levels)
+      then AppE (AppE (VarE 'Encoders.dimension) (VarE 'Vector.foldl')) . applyArrayDimensionality (pred levels)
       else AppE (VarE 'Encoders.element)
   applyNullability nullable = AppE (VarE (if nullable then 'Encoders.nullable else 'Encoders.nonNullable))
   in \ (Extraction.Encoder valueEncoderName valueNull dimensionality arrayNull) ->
