@@ -21,8 +21,43 @@ module Hasql.TH
   As you can see, it completely eliminates the need to mess with codecs.
   The quasiquoters directly produce `Statement`,
   which you can then `dimap` over using its `Profunctor` instance to get to your domain types.
+  
+  == Type mappings
+  
+  === Primitives
+  
+  Following is a list of supported Postgres types and their according types on the Haskell end.
 
-  === Nullability
+  - @bool@ - `Bool`
+  - @int2@ - `Int16`
+  - @int4@ - `Int32`
+  - @int8@ - `Int64`
+  - @float4@ - `Float`
+  - @float8@ - `Double`
+  - @numeric@ - `Data.Scientific.Scientific`
+  - @char@ - `Char`
+  - @text@ - `Data.Text.Text`
+  - @bytea@ - `Data.ByteString.ByteString`
+  - @date@ - `Data.Time.Day`
+  - @timestamp@ - `Data.Time.LocalTime`
+  - @timestamptz@ - `Data.Time.UTCTime`
+  - @time@ - `Data.Time.TimeOfDay`
+  - @timetz@ - @(`Data.Time.TimeOfDay`, `Data.Time.TimeZone`)@
+  - @interval@ - `Data.Time.DiffTime`
+  - @uuid@ - `Data.UUID.UUID`
+  - @inet@ - @(`Network.IP.Addr.NetAddr` `Network.IP.Addr.IP`)@
+  - @json@ - `Data.Aeson.Value`
+  - @jsonb@ - `Data.Aeson.Value`
+  
+  === Arrays
+
+  Array mappings are also supported.
+  They are specified according to Postgres syntax: by appending one or more @[]@ to the primitive type,
+  depending on how many dimensions the array has.
+  On the Haskell end array is mapped to generic `Data.Vector.Generic.Base.Vector`,
+  allowing you to choose which particular vector implementation to map to.
+
+  === Nulls
 
   As you might have noticed in the example,
   we introduce one change to the Postgres syntax in the way
