@@ -20,7 +20,7 @@ module Hasql.TH
   
   As you can see, it completely eliminates the need to mess with codecs.
   The quasiquoters directly produce `Statement`,
-  which you can then `dimap` over using its `Profunctor` instance to get to your domain types.
+  which you can then `Data.Profunctor.dimap` over using its `Data.Profunctor.Profunctor` instance to get to your domain types.
   
   == Type mappings
   
