@@ -1,7 +1,7 @@
 module Hasql.TH.Exp where
 
 import Hasql.TH.Prelude hiding (sequence_, string, list)
-import Language.Haskell.TH
+import Language.Haskell.TH.Syntax
 import qualified Hasql.TH.Prelude as Prelude
 import qualified Hasql.TH.Syntax.Extraction as Extraction
 import qualified Hasql.Encoders as Encoders
@@ -11,7 +11,7 @@ import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Unsafe as ByteString
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Vector.Generic as Vector
-import qualified TupleTH
+import qualified TemplateHaskell.Compat.V0208 as Compat
 
 
 -- * Helpers
@@ -58,7 +58,14 @@ tuple :: Int -> Exp
 tuple = ConE . tupleDataName
 
 splitTupleAt :: Int -> Int -> Exp
-splitTupleAt arity position = unsafePerformIO $ runQ $ TupleTH.splitTupleAt arity position
+splitTupleAt arity position = let
+  nameByIndex index = Name (OccName ('_' : show index)) NameS
+  names = enumFromTo 0 (pred arity) & map nameByIndex
+  pats = names & map VarP
+  pat = TupP pats
+  exps = names & map VarE
+  body = splitAt position exps & \ (a, b) -> Compat.tupE [Compat.tupE a, Compat.tupE b]
+  in LamE [pat] body
 
 {-|
 Given a list of divisible functor expressions,
