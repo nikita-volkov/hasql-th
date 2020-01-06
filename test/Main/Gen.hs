@@ -539,7 +539,7 @@ whenClauseList = nonEmpty (Range.exponential 1 7) whenClause
 whenClause = WhenClause <$> small aExpr <*> small aExpr
 
 inExpr = choice [
-    SelectInExpr <$> selectWithParens,
+    SelectInExpr <$> NoParensSelectWithParens <$> selectNoParens,
     ExprListInExpr <$> exprList
   ]
 
