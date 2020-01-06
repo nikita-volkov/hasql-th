@@ -54,7 +54,7 @@ module Hasql.TH
   Array mappings are also supported.
   They are specified according to Postgres syntax: by appending one or more @[]@ to the primitive type,
   depending on how many dimensions the array has.
-  On the Haskell end array is mapped to generic `Data.Vector.Generic.Base.Vector`,
+  On the Haskell end array is mapped to generic `Data.Vector.Generic.Vector`,
   allowing you to choose which particular vector implementation to map to.
 
   === Nulls
