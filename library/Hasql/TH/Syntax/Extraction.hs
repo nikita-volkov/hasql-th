@@ -66,7 +66,6 @@ encoderName = \ case
   "inet" -> Right 'Encoders.inet
   "json" -> Right 'Encoders.json
   "jsonb" -> Right 'Encoders.jsonb
-  "enum" -> Right 'Encoders.enum
   name -> Left ("No value encoder exists for type: " <> name)
 
 decoder :: TypecastTypename -> Either Text Decoder
@@ -97,7 +96,6 @@ decoderName = \ case
   "inet" -> Right 'Decoders.inet
   "json" -> Right 'Decoders.json
   "jsonb" -> Right 'Decoders.jsonb
-  "enum" -> Right 'Decoders.enum
   name -> Left ("No value decoder exists for type: " <> name)
 
 identText :: Ident -> Either Text Text
