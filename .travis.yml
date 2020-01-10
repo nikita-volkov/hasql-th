@@ -6,6 +6,9 @@ env:
   - ghc=8.8.1 benchmarks=1 tests=1
   - ghc=8.10.1
 
+allow_failures:
+  - env: ghc=8.10.1
+
 install:
   # Set up the Shell to treat the semicolon as &&
   - set -eo pipefail
