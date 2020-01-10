@@ -450,7 +450,6 @@ aExpr = recursive choice [
 prefixAExpr = choice [
     CExprAExpr <$> cExpr,
     pure DefaultAExpr,
-    OverlapsAExpr <$> row <*> row,
     UniqueAExpr <$> selectWithParens
   ]
 
@@ -460,20 +459,17 @@ nonSuffixOpAExpr = recursive choice [
   ] [
     TypecastAExpr <$> prefixAExpr <*> typecastTypename,
     CollateAExpr <$> prefixAExpr <*> anyName,
-    AtTimeZoneAExpr <$> prefixAExpr <*> aExpr,
-    PlusAExpr <$> aExpr,
-    MinusAExpr <$> aExpr,
-    SymbolicBinOpAExpr <$> prefixAExpr <*> symbolicExprBinOp <*> aExpr,
-    PrefixQualOpAExpr <$> qualOp <*> aExpr,
-    AndAExpr <$> prefixAExpr <*> aExpr,
-    OrAExpr <$> prefixAExpr <*> aExpr,
-    NotAExpr <$> aExpr,
-    VerbalExprBinOpAExpr <$> prefixAExpr <*> bool <*> verbalExprBinOp <*> prefixAExpr <*> maybe aExpr,
-    ReversableOpAExpr <$> prefixAExpr <*> bool <*> aExprReversableOp,
+    AtTimeZoneAExpr <$> prefixAExpr <*> nonSuffixOpAExpr,
+    PlusAExpr <$> nonSuffixOpAExpr,
+    MinusAExpr <$> nonSuffixOpAExpr,
+    SymbolicBinOpAExpr <$> prefixAExpr <*> symbolicExprBinOp <*> nonSuffixOpAExpr,
+    PrefixQualOpAExpr <$> qualOp <*> nonSuffixOpAExpr,
+    AndAExpr <$> prefixAExpr <*> nonSuffixOpAExpr,
+    OrAExpr <$> prefixAExpr <*> nonSuffixOpAExpr,
+    NotAExpr <$> nonSuffixOpAExpr,
+    VerbalExprBinOpAExpr <$> prefixAExpr <*> bool <*> verbalExprBinOp <*> prefixAExpr <*> maybe nonSuffixOpAExpr,
     IsnullAExpr <$> prefixAExpr,
     NotnullAExpr <$> prefixAExpr,
-    OverlapsAExpr <$> row <*> row,
-    SubqueryAExpr <$> prefixAExpr <*> subqueryOp <*> subType <*> choice [Left <$> selectWithParens, Right <$> nonSelectAExpr],
     UniqueAExpr <$> selectWithParens
   ]
 
