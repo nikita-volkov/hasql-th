@@ -131,7 +131,8 @@ statementExp _exp _extract = exp (either (fail . Text.unpack) (return . _exp) . 
 {-|
 Statement producing exactly one result row.
 
-Will raise `Hasql.Session.UnexpectedAmountOfRows` error if it's any other.
+Will cause the running session to fail with the
+`Hasql.Session.UnexpectedAmountOfRows` error if it's any other.
 
 === Examples
 
