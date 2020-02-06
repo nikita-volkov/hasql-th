@@ -264,7 +264,7 @@ funcAliasClause = choice [
 
 joinedTable = frequency [
     (5,) $ InParensJoinedTable <$> joinedTable,
-    (95,) $ MethJoinedTable <$> joinMeth <*> choice [relationExprTableRef, selectTableRef, funcTableRef] <*> tableRef
+    (95,) $ MethJoinedTable <$> joinMeth <*> tableRef <*> choice [relationExprTableRef, selectTableRef, funcTableRef]
   ]
 
 joinMeth = choice [
