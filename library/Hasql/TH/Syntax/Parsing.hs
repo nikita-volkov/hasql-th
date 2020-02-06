@@ -821,14 +821,26 @@ funcAliasClause = asum [
   ]
 
 joinedTable =
-  asum [
-      do
-        _tr1 <- wrapToHead nonTrailingTableRef
-        space1
-        trailingJoinedTable _tr1
-      ,
-      inParensJoinedTable
-    ]
+  head >>= tail
+  where
+    head =
+      asum [
+          do
+            _tr <- wrapToHead nonTrailingTableRef
+            space1
+            trailingJoinedTable _tr
+          ,
+          inParensJoinedTable
+        ]
+    tail _jt =
+      asum [
+          do
+            _jt2 <- wrapToHead (space1 *> trailingJoinedTable (JoinTableRef _jt Nothing))
+            endHead
+            tail _jt2
+          ,
+          pure _jt
+        ]
 
 {-
   | '(' joined_table ')'
@@ -847,7 +859,7 @@ trailingJoinedTable _tr1 = asum [
       keyphrase "cross join"
       endHead
       space1
-      _tr2 <- tableRef
+      _tr2 <- nonTrailingTableRef
       return (MethJoinedTable CrossJoinMeth _tr1 _tr2)
     ,
     do
@@ -865,7 +877,7 @@ trailingJoinedTable _tr1 = asum [
       space1
       _jt <- joinTypedJoin
       space1
-      _tr2 <- tableRef
+      _tr2 <- nonTrailingTableRef
       return (MethJoinedTable (NaturalJoinMeth _jt) _tr1 _tr2)
   ]
   where
