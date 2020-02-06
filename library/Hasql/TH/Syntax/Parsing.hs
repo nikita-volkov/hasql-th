@@ -821,14 +821,26 @@ funcAliasClause = asum [
   ]
 
 joinedTable =
-  asum [
-      do
-        _tr1 <- wrapToHead nonTrailingTableRef
-        space1
-        trailingJoinedTable _tr1
-      ,
-      inParensJoinedTable
-    ]
+  head >>= tail
+  where
+    head =
+      asum [
+          do
+            _tr <- wrapToHead nonTrailingTableRef
+            space1
+            trailingJoinedTable _tr
+          ,
+          inParensJoinedTable
+        ]
+    tail _jt =
+      asum [
+          do
+            _jt2 <- wrapToHead (space1 *> trailingJoinedTable (JoinTableRef _jt Nothing))
+            endHead
+            tail _jt2
+          ,
+          pure _jt
+        ]
 
 {-
   | '(' joined_table ')'
