@@ -859,7 +859,7 @@ trailingJoinedTable _tr1 = asum [
       keyphrase "cross join"
       endHead
       space1
-      _tr2 <- tableRef
+      _tr2 <- nonTrailingTableRef
       return (MethJoinedTable CrossJoinMeth _tr1 _tr2)
     ,
     do
@@ -877,7 +877,7 @@ trailingJoinedTable _tr1 = asum [
       space1
       _jt <- joinTypedJoin
       space1
-      _tr2 <- tableRef
+      _tr2 <- nonTrailingTableRef
       return (MethJoinedTable (NaturalJoinMeth _jt) _tr1 _tr2)
   ]
   where
