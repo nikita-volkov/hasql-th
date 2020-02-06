@@ -611,10 +611,6 @@ fromList = sep1 commaSeparator tableRef
 fromClause = string' "from" *> endHead *> space1 *> fromList
 
 {-|
->>> testParser tableRef "a left join b "
-...
-expecting "on", "using", or white space
-
 >>> testParser tableRef "a left join b on (a.i = b.i)"
 JoinTableRef (MethJoinedTable (QualJoinMeth...
 
