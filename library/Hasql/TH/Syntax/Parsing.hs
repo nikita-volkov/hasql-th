@@ -619,9 +619,21 @@ expecting "on", "using", or white space
 JoinTableRef (MethJoinedTable (QualJoinMeth...
 
 -}
-tableRef = label "table reference" $ do
-  _tr <- nonTrailingTableRef
-  (space1 *> trailingTableRef _tr) <|> pure _tr
+tableRef =
+  label "table reference" $ 
+  do
+    _tr <- nonTrailingTableRef
+    recur _tr
+  where
+    recur _tr =
+      asum [
+          do
+            _tr2 <- wrapToHead (space1 *> trailingTableRef _tr)
+            endHead
+            recur _tr2
+          ,
+          pure _tr
+        ]
 
 nonTrailingTableRef = asum [
     lateralTableRef <|>
