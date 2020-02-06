@@ -129,12 +129,16 @@ statementExp _exp _extract = exp (either (fail . Text.unpack) (return . _exp) . 
 -------------------------
 
 {-|
+@
+:: `Statement` params row
+@
+
 Statement producing exactly one result row.
 
 Will cause the running session to fail with the
 `Hasql.Session.UnexpectedAmountOfRows` error if it's any other.
 
-=== Examples
+=== __Examples__
 
 >>> :t [singletonStatement|select 1 :: int2|]
 ... :: Statement () Int16
@@ -163,7 +167,13 @@ singletonStatement :: QuasiQuoter
 singletonStatement = statementExp Exp.singletonStatement Extraction.statement
 
 {-|
+@
+:: `Statement` params (Maybe row)
+@
+
 Statement producing one row or none.
+
+=== __Examples__
 
 >>> :t [maybeStatement|select 1 :: int2|]
 ... :: Statement () (Maybe Int16)
@@ -172,7 +182,13 @@ maybeStatement :: QuasiQuoter
 maybeStatement = statementExp Exp.maybeStatement Extraction.statement
 
 {-|
+@
+:: `Statement` params (`Vector` row)
+@
+
 Statement producing a vector of rows.
+
+=== __Examples__
 
 >>> :t [vectorStatement|select 1 :: int2|]
 ... :: Statement () (Vector Int16)
@@ -181,8 +197,14 @@ vectorStatement :: QuasiQuoter
 vectorStatement = statementExp Exp.vectorStatement Extraction.statement
 
 {-|
+@
+:: `Fold` row folding -> `Statement` params folding
+@
+
 Function from `Fold` over rows to a statement producing the result of folding.
 Use this when you need to aggregate rows customly.
+
+=== __Examples__
 
 >>> :t [foldStatement|select 1 :: int2|]
 ... :: Fold Int16 b -> Statement () b
@@ -191,7 +213,13 @@ foldStatement :: QuasiQuoter
 foldStatement = statementExp Exp.foldStatement Extraction.statement
 
 {-|
+@
+:: `Statement` params ()
+@
+
 Statement producing no results.
+
+=== __Examples__
 
 >>> :t [resultlessStatement|insert into "user" (name, email) values ($1 :: text, $2 :: text)|]
 ...
@@ -201,7 +229,13 @@ resultlessStatement :: QuasiQuoter
 resultlessStatement = statementExp Exp.resultlessStatement Extraction.rowlessStatement
 
 {-|
+@
+:: `Statement` params Int64
+@
+
 Statement counting the rows it affects.
+
+=== __Examples__
 
 >>> :t [rowsAffectedStatement|delete from "user" where password is null|]
 ...
