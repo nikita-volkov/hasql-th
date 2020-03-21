@@ -1741,6 +1741,9 @@ TypecastTypename (UnquotedIdent "int4") False 2 True
 
 >>> testParser typecastTypename "int4?[][]"
 TypecastTypename (UnquotedIdent "int4") True 2 False
+
+>>> testParser typecastTypename "interval"
+TypecastTypename (UnquotedIdent "interval") False 0 False
 -}
 typecastTypename = label "type" $ do
   _baseName <- typeFunctionName
