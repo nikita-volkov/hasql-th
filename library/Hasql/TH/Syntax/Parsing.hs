@@ -1744,14 +1744,36 @@ TypecastTypename (UnquotedIdent "int4") True 2 False
 
 >>> testParser typecastTypename "interval"
 TypecastTypename (UnquotedIdent "interval") False 0 False
+
+>>> testParser typecastTypename "time"
+TypecastTypename (UnquotedIdent "time") False 0 False
+
+>>> testParser typecastTypename "timestamp"
+TypecastTypename (UnquotedIdent "timestamp") False 0 False
+
+>>> testParser typecastTypename "timestamptz"
+TypecastTypename (UnquotedIdent "timestamptz") False 0 False
 -}
 typecastTypename = label "type" $ do
-  _baseName <- typeFunctionName
+  _baseName <- baseIdent
   endHead
   _baseNullable <- option False (True <$ space <* char '?')
   _arrayLevels <- fmap length $ many $ space *> char '[' *> endHead *> space *> char ']'
   _arrayNullable <- option False (True <$ space <* char '?')
   return (TypecastTypename _baseName _baseNullable _arrayLevels _arrayNullable)
+  where
+    {-
+    A custom derivation from definition of SimpleTypename,
+    wrapping up to a merger of "type_function_name" and "ConstInterval" and "ConstDatetime".
+    -}
+    baseIdent =
+      ident <|>
+      keywordNameFromSet set
+      where
+        set =
+          HashSet.unreservedKeyword <> HashSet.typeFuncNameKeyword <>
+          -- From defs of "ConstInterval" and "ConstDatetime":
+          HashSet.fromList ["interval", "timestamp", "time"]
 
 
 -- * Clauses
