@@ -1741,39 +1741,87 @@ TypecastTypename (UnquotedIdent "int4") False 2 True
 
 >>> testParser typecastTypename "int4?[][]"
 TypecastTypename (UnquotedIdent "int4") True 2 False
-
->>> testParser typecastTypename "interval"
-TypecastTypename (UnquotedIdent "interval") False 0 False
-
->>> testParser typecastTypename "time"
-TypecastTypename (UnquotedIdent "time") False 0 False
-
->>> testParser typecastTypename "timestamp"
-TypecastTypename (UnquotedIdent "timestamp") False 0 False
-
->>> testParser typecastTypename "timestamptz"
-TypecastTypename (UnquotedIdent "timestamptz") False 0 False
 -}
 typecastTypename = label "type" $ do
-  _baseName <- baseIdent
+  _baseName <- typecastTypenameBaseIdent
   endHead
   _baseNullable <- option False (True <$ space <* char '?')
   _arrayLevels <- fmap length $ many $ space *> char '[' *> endHead *> space *> char ']'
   _arrayNullable <- option False (True <$ space <* char '?')
   return (TypecastTypename _baseName _baseNullable _arrayLevels _arrayNullable)
+
+{-|
+A custom derivation from definition of SimpleTypename,
+wrapping up to a merger of "type_function_name" and "ConstInterval" and "ConstDatetime".
+
+>>> testParser typecastTypenameBaseIdent "bool"
+UnquotedIdent "bool"
+
+>>> testParser typecastTypenameBaseIdent "int2"
+UnquotedIdent "int2"
+
+>>> testParser typecastTypenameBaseIdent "int4"
+UnquotedIdent "int4"
+
+>>> testParser typecastTypenameBaseIdent "int8"
+UnquotedIdent "int8"
+
+>>> testParser typecastTypenameBaseIdent "float4"
+UnquotedIdent "float4"
+
+>>> testParser typecastTypenameBaseIdent "float8"
+UnquotedIdent "float8"
+
+>>> testParser typecastTypenameBaseIdent "numeric"
+UnquotedIdent "numeric"
+
+>>> testParser typecastTypenameBaseIdent "char"
+UnquotedIdent "char"
+
+>>> testParser typecastTypenameBaseIdent "text"
+UnquotedIdent "text"
+
+>>> testParser typecastTypenameBaseIdent "bytea"
+UnquotedIdent "bytea"
+
+>>> testParser typecastTypenameBaseIdent "date"
+UnquotedIdent "date"
+
+>>> testParser typecastTypenameBaseIdent "timestamp"
+UnquotedIdent "timestamp"
+
+>>> testParser typecastTypenameBaseIdent "timestamptz"
+UnquotedIdent "timestamptz"
+
+>>> testParser typecastTypenameBaseIdent "time"
+UnquotedIdent "time"
+
+>>> testParser typecastTypenameBaseIdent "timetz"
+UnquotedIdent "timetz"
+
+>>> testParser typecastTypenameBaseIdent "interval"
+UnquotedIdent "interval"
+
+>>> testParser typecastTypenameBaseIdent "uuid"
+UnquotedIdent "uuid"
+
+>>> testParser typecastTypenameBaseIdent "inet"
+UnquotedIdent "inet"
+
+>>> testParser typecastTypenameBaseIdent "json"
+UnquotedIdent "json"
+
+>>> testParser typecastTypenameBaseIdent "jsonb"
+UnquotedIdent "jsonb"
+-}
+typecastTypenameBaseIdent =
+  ident <|>
+  keywordNameFromSet set
   where
-    {-
-    A custom derivation from definition of SimpleTypename,
-    wrapping up to a merger of "type_function_name" and "ConstInterval" and "ConstDatetime".
-    -}
-    baseIdent =
-      ident <|>
-      keywordNameFromSet set
-      where
-        set =
-          HashSet.unreservedKeyword <> HashSet.typeFuncNameKeyword <>
-          -- From defs of "ConstInterval" and "ConstDatetime":
-          HashSet.fromList ["interval", "timestamp", "time"]
+    set =
+      HashSet.unreservedKeyword <> HashSet.typeFuncNameKeyword <>
+      -- From defs of "ConstInterval", "ConstDatetime" and others from "SimpleTypename":
+      HashSet.fromList ["interval", "timestamp", "time", "numeric", "char"]
 
 
 -- * Clauses
