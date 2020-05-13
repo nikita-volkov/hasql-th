@@ -81,10 +81,6 @@ import Unsafe.Coerce as Exports
 -------------------------
 import Data.Functor.Contravariant.Divisible as Exports
 
--- selective
--------------------------
-import Control.Selective as Exports
-
 -- bytestring
 -------------------------
 import Data.ByteString as Exports (ByteString)
@@ -101,15 +97,6 @@ import Data.Map.Strict as Exports (Map)
 import Data.Sequence as Exports (Seq)
 import Data.Set as Exports (Set)
 
--- unordered-containers
--------------------------
-import Data.HashSet as Exports (HashSet)
-import Data.HashMap.Strict as Exports (HashMap)
-
--- hashable
--------------------------
-import Data.Hashable as Exports (Hashable)
-
 -- foldl
 -------------------------
 import Control.Foldl as Exports (Fold(..))
@@ -117,10 +104,6 @@ import Control.Foldl as Exports (Fold(..))
 -- uuid
 -------------------------
 import Data.UUID as Exports (UUID)
-
--- case-insensitive
--------------------------
-import Data.CaseInsensitive as Exports (CI, FoldCase)
 
 
 showAsText :: Show a => a -> Text
