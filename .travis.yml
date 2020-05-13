@@ -21,7 +21,7 @@ install:
     travis_retry sudo apt-get install cabal-install-$cabal ghc-$ghc;
     export PATH=/opt/ghc/$ghc/bin:/opt/cabal/$cabal/bin:$PATH;
   # Update the Cabal database
-  - cabal update
+  - cabal v1-update
   # Switch to the distro:
   - 
     export pkg_name=$(cabal info . | awk '{print $2;exit}');
@@ -37,26 +37,26 @@ install:
       );
     fi;
   # Install executables
-  - cabal install happy
-  - cabal install doctest
+  - cabal v1-install happy
+  - cabal v1-install doctest
   # Install the library dependencies
-  - cabal install --only-dependencies --reorder-goals --force-reinstalls
+  - cabal v1-install --only-dependencies --reorder-goals --force-reinstalls
       ${constraint_options[@]}
       $([ "$tests" = "1" ] && echo "--enable-tests")
       $([ "$benchmarks" = "1" ] && echo "--enable-benchmarks")
   # Build the library
-  - cabal build
+  - cabal v1-build
   # Configure and build the remaining stuff
-  - cabal configure 
+  - cabal v1-configure 
       $([ "$tests" = "1" ] && echo "--enable-tests")
       $([ "$benchmarks" = "1" ] && echo "--enable-benchmarks")
       -f doctest
-  - cabal build
+  - cabal v1-build
 
 script:
   - |
     if [ "$tests" = "1" ];
     then
-      cabal doctest;
-      travis_wait 40 cabal test --show-details=always;
+      cabal v1-doctest;
+      travis_wait 40 cabal v1-test --show-details=always;
     fi;
