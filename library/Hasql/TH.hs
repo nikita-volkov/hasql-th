@@ -108,9 +108,11 @@ import Data.Vector (Vector)
 import Language.Haskell.TH.Syntax
 import Language.Haskell.TH.Quote
 import qualified Hasql.TH.Exp as Exp
-import qualified Hasql.TH.Syntax.Extraction as Extraction
+import qualified Hasql.TH.Syntax.Projections.Exp as ExpExtraction
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
+import qualified PostgresqlSyntax.Ast as Ast
+import qualified PostgresqlSyntax.Parsing as Parsing
 
 
 -- * Helpers
@@ -121,11 +123,18 @@ exp = let
   _unsupported _ = fail "Unsupported"
   in \ _exp -> QuasiQuoter _exp _unsupported _unsupported _unsupported
 
-statementExp :: (Extraction.Statement -> Exp) -> (Text -> Either Text Extraction.Statement) -> QuasiQuoter
-statementExp _exp _extract = exp (either (fail . Text.unpack) (return . _exp) . _extract . fromString)
+expParser :: (Text -> Either Text Exp) -> QuasiQuoter
+expParser _parser =
+  exp $ \ _inputString -> either (fail . Text.unpack) return $ _parser $ fromString _inputString
+
+expPreparableStmtAstParser :: (Ast.PreparableStmt -> Either Text Exp) -> QuasiQuoter
+expPreparableStmtAstParser _parser =
+  expParser $ \ _input -> do
+    _ast <- first fromString $ Parsing.run (Parsing.atEnd Parsing.preparableStmt) _input
+    _parser _ast
 
 
--- * Statements
+-- * Statement
 -------------------------
 
 {-|
@@ -159,12 +168,11 @@ Incorrect SQL:
 ...
   |
 1 | elect 1
-  | ^^^^^^
-unexpected "elect "
+  |      ^
 ...
 -}
 singletonStatement :: QuasiQuoter
-singletonStatement = statementExp Exp.singletonStatement Extraction.statement
+singletonStatement = expPreparableStmtAstParser (ExpExtraction.undecodedStatement Exp.singleRowResultDecoder)
 
 {-|
 @
@@ -179,7 +187,7 @@ Statement producing one row or none.
 ... :: Statement () (Maybe Int16)
 -}
 maybeStatement :: QuasiQuoter
-maybeStatement = statementExp Exp.maybeStatement Extraction.statement
+maybeStatement = expPreparableStmtAstParser (ExpExtraction.undecodedStatement Exp.rowMaybeResultDecoder)
 
 {-|
 @
@@ -194,7 +202,7 @@ Statement producing a vector of rows.
 ... :: Statement () (Vector Int16)
 -}
 vectorStatement :: QuasiQuoter
-vectorStatement = statementExp Exp.vectorStatement Extraction.statement
+vectorStatement = expPreparableStmtAstParser (ExpExtraction.undecodedStatement Exp.rowVectorResultDecoder)
 
 {-|
 @
@@ -210,7 +218,7 @@ Use this when you need to aggregate rows customly.
 ... :: Fold Int16 b -> Statement () b
 -}
 foldStatement :: QuasiQuoter
-foldStatement = statementExp Exp.foldStatement Extraction.statement
+foldStatement = expPreparableStmtAstParser ExpExtraction.foldStatement
 
 {-|
 @
@@ -226,7 +234,7 @@ Statement producing no results.
 ... :: Statement (Text, Text) ()
 -}
 resultlessStatement :: QuasiQuoter
-resultlessStatement = statementExp Exp.resultlessStatement Extraction.rowlessStatement
+resultlessStatement = expPreparableStmtAstParser (ExpExtraction.undecodedStatement (const Exp.noResultResultDecoder))
 
 {-|
 @
@@ -242,7 +250,7 @@ Statement counting the rows it affects.
 ... :: Statement () Int64
 -}
 rowsAffectedStatement :: QuasiQuoter
-rowsAffectedStatement = statementExp Exp.rowsAffectedStatement Extraction.rowlessStatement
+rowsAffectedStatement = expPreparableStmtAstParser (ExpExtraction.undecodedStatement (const Exp.rowsAffectedResultDecoder))
 
 
 -- * SQL ByteStrings

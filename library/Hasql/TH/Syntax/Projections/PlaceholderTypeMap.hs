@@ -1,25 +1,25 @@
 module Hasql.TH.Syntax.Projections.PlaceholderTypeMap where
 
 import Hasql.TH.Prelude hiding (union)
-import Hasql.TH.Syntax.Ast
+import PostgresqlSyntax.Ast
 import Hasql.TH.Syntax.Projections.ChildExprList (ChildExpr(..))
 import qualified Data.IntMap.Strict as IntMap
 import qualified Hasql.TH.Syntax.Projections.ChildExprList as ChildExprList
 
 
-preparableStmt :: PreparableStmt -> Either Text (IntMap TypecastTypename)
+preparableStmt :: PreparableStmt -> Either Text (IntMap Typename)
 preparableStmt = childExprList . ChildExprList.preparableStmt
 
-childExprList :: [ChildExpr] -> Either Text (IntMap TypecastTypename)
+childExprList :: [ChildExpr] -> Either Text (IntMap Typename)
 childExprList = foldM union IntMap.empty <=< traverse childExpr
 
-union :: IntMap TypecastTypename -> IntMap TypecastTypename -> Either Text (IntMap TypecastTypename)
+union :: IntMap Typename -> IntMap Typename -> Either Text (IntMap Typename)
 union a b = IntMap.mergeWithKey merge (fmap Right) (fmap Right) a b & sequence where
   merge index a b = if a == b
     then Just (Right a)
     else Just (Left ("Placeholder $" <> (fromString . show) index <> " has conflicting type annotations"))
 
-childExpr :: ChildExpr -> Either Text (IntMap TypecastTypename)
+childExpr :: ChildExpr -> Either Text (IntMap Typename)
 childExpr = \ case
   AChildExpr a -> aExpr a
   BChildExpr a -> bExpr a

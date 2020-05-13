@@ -4,14 +4,10 @@ AST traversal extracting output types.
 module Hasql.TH.Syntax.Projections.OutputTypeList where
 
 import Hasql.TH.Prelude
-import Hasql.TH.Syntax.Ast
+import PostgresqlSyntax.Ast
 
-{- $setup
->>> import qualified Hasql.TH.Syntax.Parsing as P
->>> parse parser = either (error . show) id . Text.Megaparsec.parse parser ""
--}
 
-foldable :: Foldable f => (a -> Either Text [TypecastTypename]) -> f a -> Either Text [TypecastTypename]
+foldable :: Foldable f => (a -> Either Text [Typename]) -> f a -> Either Text [Typename]
 foldable fn = fmap join . traverse fn . toList
 
 preparableStmt = \ case

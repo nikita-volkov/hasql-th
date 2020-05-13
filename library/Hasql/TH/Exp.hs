@@ -1,9 +1,11 @@
+{-|
+Expression construction.
+-}
 module Hasql.TH.Exp where
 
 import Hasql.TH.Prelude hiding (sequence_, string, list)
 import Language.Haskell.TH.Syntax
 import qualified Hasql.TH.Prelude as Prelude
-import qualified Hasql.TH.Syntax.Extraction as Extraction
 import qualified Hasql.Encoders as Encoders
 import qualified Hasql.Decoders as Decoders
 import qualified Hasql.Statement as Statement
@@ -105,75 +107,11 @@ cozip = \ case
         _tail
   [] -> AppE (VarE 'pure) (TupE [])
 
-
--- * Statement
--------------------------
-
-statement :: ([Extraction.Decoder] -> Exp) -> Extraction.Statement -> Exp
-statement _decodersExp (Extraction.Statement _sql _encoders _decoders) =
-  appList
-    (ConE 'Statement.Statement)
-    [
-      byteString _sql,
-      encoderList _encoders,
-      _decodersExp _decoders,
-      ConE 'True
-    ]
-
-resultlessStatement :: Extraction.Statement -> Exp
-resultlessStatement = statement (const (VarE 'Decoders.noResult))
-
-rowsAffectedStatement :: Extraction.Statement -> Exp
-rowsAffectedStatement = statement (const (VarE 'Decoders.rowsAffected))
-
-rowStatement :: Name -> Extraction.Statement -> Exp
-rowStatement _rowDecoderName = statement (\ _decoders -> AppE (VarE _rowDecoderName) (decoderList _decoders))
-
 {-|
->>> test = either (fail . show) (return . singletonStatement) . Extraction.statement
-
->>> :t $(test "select 1 :: int4")
-$(test "select 1 :: int4") :: Statement.Statement () Int32
-
->>> :t $(test "select 1 :: int4, b :: text")
-$(test "select 1 :: int4, b :: text")
-  :: Statement.Statement () (Int32, Text)
-
->>> :t $(test "select $2 :: int4, $1 :: text")
-$(test "select $2 :: int4, $1 :: text")
-  :: Statement.Statement (Text, Int32) (Int32, Text)
+Lambda expression, which destructures 'Fold'.
 -}
-singletonStatement :: Extraction.Statement -> Exp
-singletonStatement = rowStatement 'Decoders.singleRow
-
-{-|
->>> test = either (fail . show) (return . maybeStatement) . Extraction.statement
-
->>> :t $(test "select 1 :: int4")
-$(test "select 1 :: int4") :: Statement.Statement () (Maybe Int32)
--}
-maybeStatement :: Extraction.Statement -> Exp
-maybeStatement = rowStatement 'Decoders.rowMaybe
-
-{-|
->>> test = either (fail . show) (return . vectorStatement) . Extraction.statement
-
->>> :t $(test "select 1 :: int4")
-$(test "select 1 :: int4")
-  :: Statement.Statement () (Data.Vector.Vector Int32)
--}
-vectorStatement :: Extraction.Statement -> Exp
-vectorStatement = rowStatement 'Decoders.rowVector
-
-{-|
->>> test = either (fail . show) (return . foldStatement) . Extraction.statement
-
->>> :t $(test "select 1 :: int4")
-$(test "select 1 :: int4")
-  :: Fold Int32 b -> Statement.Statement () b
--}
-foldStatement :: Extraction.Statement -> Exp
-foldStatement _statement = let
+foldLam :: (Exp -> Exp -> Exp -> Exp) -> Exp
+foldLam _body = let
   _stepVarName = mkName "step"
   _initVarName = mkName "init"
   _extractVarName = mkName "extract"
@@ -187,52 +125,80 @@ foldStatement _statement = let
             VarP _extractVarName
           ]
       ]
-      (
-        statement
-          (\ _decoders ->
-            AppE
-              (AppE (VarE 'fmap) (VarE _extractVarName))
-              (AppE
-                (AppE
-                  (AppE (VarE 'Decoders.foldlRows) (VarE _stepVarName))
-                  (VarE _initVarName))
-                (decoderList _decoders)))
-          _statement
-      )
+      (_body (VarE _stepVarName) (VarE _initVarName) (VarE _extractVarName))
 
-{-|
-Encoder of a product of parameters.
--}
-encoderList :: [Extraction.Encoder] -> Exp
-encoderList = contrazip . fmap encoder
 
-encoder :: Extraction.Encoder -> Exp
-encoder = let
-  applyParam = AppE (VarE 'Encoders.param)
-  applyArray levels = AppE (VarE 'Encoders.array) . applyArrayDimensionality levels
-  applyArrayDimensionality levels =
-    if levels > 0
-      then AppE (AppE (VarE 'Encoders.dimension) (VarE 'Vector.foldl')) . applyArrayDimensionality (pred levels)
-      else AppE (VarE 'Encoders.element)
-  applyNullability nullable = AppE (VarE (if nullable then 'Encoders.nullable else 'Encoders.nonNullable))
-  in \ (Extraction.Encoder valueEncoderName valueNull dimensionality arrayNull) ->
-    if dimensionality > 0
-      then VarE valueEncoderName & applyNullability valueNull & applyArray dimensionality & applyNullability arrayNull & applyParam
-      else VarE valueEncoderName & applyNullability valueNull & applyParam
+-- * Statement
+-------------------------
 
-decoderList :: [Extraction.Decoder] -> Exp
-decoderList = cozip . fmap decoder
+statement :: Exp -> Exp -> Exp -> Exp
+statement _sql _encoder _decoder =
+  appList (ConE 'Statement.Statement) [_sql, _encoder, _decoder, ConE 'True]
 
-decoder :: Extraction.Decoder -> Exp
-decoder = let
-  applyColumn = AppE (VarE 'Decoders.column)
-  applyArray levels = AppE (VarE 'Decoders.array) . applyArrayDimensionality levels
-  applyArrayDimensionality levels =
-    if levels > 0
-      then AppE (AppE (VarE 'Decoders.dimension) (VarE 'Vector.replicateM)) . applyArrayDimensionality (pred levels)
-      else AppE (VarE 'Decoders.element)
-  applyNullability nullable = AppE (VarE (if nullable then 'Decoders.nullable else 'Decoders.nonNullable))
-  in \ (Extraction.Decoder valueDecoderName valueNull dimensionality arrayNull) ->
-    if dimensionality > 0
-      then VarE valueDecoderName & applyNullability valueNull & applyArray dimensionality & applyNullability arrayNull & applyColumn
-      else VarE valueDecoderName & applyNullability valueNull & applyColumn
+noResultResultDecoder :: Exp
+noResultResultDecoder = VarE 'Decoders.noResult
+
+rowsAffectedResultDecoder :: Exp
+rowsAffectedResultDecoder = VarE 'Decoders.rowsAffected
+
+singleRowResultDecoder :: Exp -> Exp
+singleRowResultDecoder = 'Decoders.singleRow & VarE & AppE
+
+rowMaybeResultDecoder :: Exp -> Exp
+rowMaybeResultDecoder = AppE (VarE 'Decoders.rowMaybe)
+
+rowVectorResultDecoder :: Exp -> Exp
+rowVectorResultDecoder = AppE (VarE 'Decoders.rowVector)
+
+foldStatement :: Exp -> Exp -> Exp -> Exp
+foldStatement _sql _encoder _rowDecoder =
+  foldLam (\ _step _init _extract -> statement _sql _encoder (foldResultDecoder _step _init _extract _rowDecoder))
+
+foldResultDecoder :: Exp -> Exp -> Exp -> Exp -> Exp
+foldResultDecoder _step _init _extract _rowDecoder =
+  appList (VarE 'fmap) [_extract, appList (VarE 'Decoders.foldlRows) [_step, _init, _rowDecoder]]
+
+unidimensionalParamEncoder :: Bool -> Exp -> Exp
+unidimensionalParamEncoder nullable =
+  applyParamToEncoder . applyNullabilityToEncoder nullable
+
+multidimensionalParamEncoder :: Bool -> Int -> Bool -> Exp -> Exp
+multidimensionalParamEncoder nullable dimensionality arrayNull =
+  applyParamToEncoder . applyNullabilityToEncoder arrayNull . AppE (VarE 'Encoders.array) .
+  applyArrayDimensionalityToEncoder dimensionality . applyNullabilityToEncoder nullable
+
+applyParamToEncoder :: Exp -> Exp
+applyParamToEncoder = AppE (VarE 'Encoders.param)
+
+applyNullabilityToEncoder :: Bool -> Exp -> Exp
+applyNullabilityToEncoder nullable = AppE (VarE (if nullable then 'Encoders.nullable else 'Encoders.nonNullable))
+
+applyArrayDimensionalityToEncoder :: Int -> Exp -> Exp
+applyArrayDimensionalityToEncoder levels =
+  if levels > 0
+    then AppE (AppE (VarE 'Encoders.dimension) (VarE 'Vector.foldl')) . applyArrayDimensionalityToEncoder (pred levels)
+    else AppE (VarE 'Encoders.element)
+
+rowDecoder :: [Exp] -> Exp
+rowDecoder = cozip
+
+unidimensionalColumnDecoder :: Bool -> Exp -> Exp
+unidimensionalColumnDecoder nullable =
+  applyColumnToDecoder . applyNullabilityToDecoder nullable
+
+multidimensionalColumnDecoder :: Bool -> Int -> Bool -> Exp -> Exp
+multidimensionalColumnDecoder nullable dimensionality arrayNull =
+  applyColumnToDecoder . applyNullabilityToDecoder arrayNull . AppE (VarE 'Decoders.array) .
+  applyArrayDimensionalityToDecoder dimensionality . applyNullabilityToDecoder nullable
+
+applyColumnToDecoder :: Exp -> Exp
+applyColumnToDecoder = AppE (VarE 'Decoders.column)
+
+applyNullabilityToDecoder :: Bool -> Exp -> Exp
+applyNullabilityToDecoder nullable = AppE (VarE (if nullable then 'Decoders.nullable else 'Decoders.nonNullable))
+
+applyArrayDimensionalityToDecoder :: Int -> Exp -> Exp
+applyArrayDimensionalityToDecoder levels =
+  if levels > 0
+    then AppE (AppE (VarE 'Decoders.dimension) (VarE 'Vector.replicateM)) . applyArrayDimensionalityToDecoder (pred levels)
+    else AppE (VarE 'Decoders.element)

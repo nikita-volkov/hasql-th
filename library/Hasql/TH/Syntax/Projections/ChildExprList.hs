@@ -1,7 +1,7 @@
 module Hasql.TH.Syntax.Projections.ChildExprList where
 
 import Hasql.TH.Prelude hiding (sortBy, bit, fromList)
-import Hasql.TH.Syntax.Ast
+import PostgresqlSyntax.Ast
 
 
 -- * Types
@@ -24,7 +24,7 @@ childExpr = \ case
 
 aChildExpr = \ case
   CExprAExpr a -> cChildExpr a
-  TypecastAExpr a b -> aExpr a <> typecastTypename b
+  TypecastAExpr a b -> aExpr a <> typename b
   CollateAExpr a b -> aExpr a <> anyName b
   AtTimeZoneAExpr a b -> aExpr a <> aExpr b
   PlusAExpr a -> aExpr a
@@ -46,7 +46,7 @@ aChildExpr = \ case
 
 bChildExpr = \ case
   CExprBExpr a -> cChildExpr a
-  TypecastBExpr a b -> bExpr a <> typecastTypename b
+  TypecastBExpr a b -> bExpr a <> typename b
   PlusBExpr a -> bExpr a
   MinusBExpr a -> bExpr a
   SymbolicBinOpBExpr a b c -> bExpr a <> symbolicExprBinOp b <> bExpr c
@@ -590,11 +590,8 @@ indirectionEl = \ case
 
 typeList = foldMap typename
 
-typecastTypename _ = []
-
-typename = \ case
-  ArrayBoundsTypename _ a b -> simpleTypename a <> arrayBounds b
-  ArrayDimTypename _ a _ -> simpleTypename a
+typename (Typename a b c d) =
+  simpleTypename b
 
 simpleTypename = \ case
   GenericTypeSimpleTypename a -> genericType a
