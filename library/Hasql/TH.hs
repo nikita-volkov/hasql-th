@@ -107,8 +107,8 @@ import Hasql.Statement (Statement)
 import Data.Vector (Vector)
 import Language.Haskell.TH.Syntax
 import Language.Haskell.TH.Quote
-import qualified Hasql.TH.Exp as Exp
-import qualified Hasql.TH.Syntax.Projections.Exp as ExpExtraction
+import qualified Hasql.TH.Construction.Exp as Exp
+import qualified Hasql.TH.Extraction.Exp as ExpExtraction
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
 import qualified PostgresqlSyntax.Ast as Ast

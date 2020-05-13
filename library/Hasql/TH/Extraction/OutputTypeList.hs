@@ -1,7 +1,7 @@
 {-|
 AST traversal extracting output types.
 -}
-module Hasql.TH.Syntax.Projections.OutputTypeList where
+module Hasql.TH.Extraction.OutputTypeList where
 
 import Hasql.TH.Prelude
 import PostgresqlSyntax.Ast

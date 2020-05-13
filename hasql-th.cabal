@@ -30,14 +30,14 @@ library
   exposed-modules:
     Hasql.TH
   other-modules:
-    Hasql.TH.Exp
+    Hasql.TH.Construction.Exp
+    Hasql.TH.Extraction.ChildExprList
+    Hasql.TH.Extraction.Exp
+    Hasql.TH.Extraction.InputTypeList
+    Hasql.TH.Extraction.OutputTypeList
+    Hasql.TH.Extraction.PlaceholderTypeMap
+    Hasql.TH.Extraction.PrimitiveType
     Hasql.TH.Prelude
-    Hasql.TH.Syntax.Projections.Exp
-    Hasql.TH.Syntax.Projections.ChildExprList
-    Hasql.TH.Syntax.Projections.PrimitiveType
-    Hasql.TH.Syntax.Projections.InputTypeList
-    Hasql.TH.Syntax.Projections.OutputTypeList
-    Hasql.TH.Syntax.Projections.PlaceholderTypeMap
   build-depends:
     base >=4.11 && <5,
     bytestring >=0.10 && <0.11,

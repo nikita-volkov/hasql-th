@@ -1,10 +1,10 @@
-module Hasql.TH.Syntax.Projections.PlaceholderTypeMap where
+module Hasql.TH.Extraction.PlaceholderTypeMap where
 
 import Hasql.TH.Prelude hiding (union)
 import PostgresqlSyntax.Ast
-import Hasql.TH.Syntax.Projections.ChildExprList (ChildExpr(..))
+import Hasql.TH.Extraction.ChildExprList (ChildExpr(..))
 import qualified Data.IntMap.Strict as IntMap
-import qualified Hasql.TH.Syntax.Projections.ChildExprList as ChildExprList
+import qualified Hasql.TH.Extraction.ChildExprList as ChildExprList
 
 
 preparableStmt :: PreparableStmt -> Either Text (IntMap Typename)

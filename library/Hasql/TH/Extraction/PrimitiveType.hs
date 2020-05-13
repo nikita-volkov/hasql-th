@@ -1,4 +1,4 @@
-module Hasql.TH.Syntax.Projections.PrimitiveType where
+module Hasql.TH.Extraction.PrimitiveType where
 
 import Hasql.TH.Prelude hiding (sortBy, bit, fromList)
 import PostgresqlSyntax.Ast

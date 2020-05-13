@@ -1,11 +1,11 @@
 {-|
 AST traversal extracting input types.
 -}
-module Hasql.TH.Syntax.Projections.InputTypeList where
+module Hasql.TH.Extraction.InputTypeList where
 
 import Hasql.TH.Prelude
 import PostgresqlSyntax.Ast
-import qualified Hasql.TH.Syntax.Projections.PlaceholderTypeMap as PlaceholderTypeMap
+import qualified Hasql.TH.Extraction.PlaceholderTypeMap as PlaceholderTypeMap
 import qualified Data.IntMap.Strict as IntMap
 
 {-|

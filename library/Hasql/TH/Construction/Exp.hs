@@ -1,7 +1,7 @@
 {-|
 Expression construction.
 -}
-module Hasql.TH.Exp where
+module Hasql.TH.Construction.Exp where
 
 import Hasql.TH.Prelude hiding (sequence_, string, list)
 import Language.Haskell.TH.Syntax

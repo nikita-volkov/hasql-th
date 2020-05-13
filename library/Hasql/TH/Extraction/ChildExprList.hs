@@ -1,4 +1,4 @@
-module Hasql.TH.Syntax.Projections.ChildExprList where
+module Hasql.TH.Extraction.ChildExprList where
 
 import Hasql.TH.Prelude hiding (sortBy, bit, fromList)
 import PostgresqlSyntax.Ast

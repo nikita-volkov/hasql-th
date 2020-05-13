@@ -1,13 +1,13 @@
-module Hasql.TH.Syntax.Projections.Exp where
+module Hasql.TH.Extraction.Exp where
 
 import Hasql.TH.Prelude
 import Language.Haskell.TH
 import qualified Hasql.Encoders as Encoders
 import qualified Hasql.Decoders as Decoders
-import qualified Hasql.TH.Syntax.Projections.InputTypeList as InputTypeList
-import qualified Hasql.TH.Syntax.Projections.OutputTypeList as OutputTypeList
-import qualified Hasql.TH.Syntax.Projections.PrimitiveType as PrimitiveType
-import qualified Hasql.TH.Exp as Exp
+import qualified Hasql.TH.Extraction.InputTypeList as InputTypeList
+import qualified Hasql.TH.Extraction.OutputTypeList as OutputTypeList
+import qualified Hasql.TH.Extraction.PrimitiveType as PrimitiveType
+import qualified Hasql.TH.Construction.Exp as Exp
 import qualified PostgresqlSyntax.Ast as Ast
 import qualified PostgresqlSyntax.Rendering as Rendering
 
