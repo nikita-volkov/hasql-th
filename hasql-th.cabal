@@ -40,12 +40,12 @@ library
     Hasql.TH.Prelude
   build-depends:
     base >=4.11 && <5,
-    bytestring >=0.10 && <0.11,
+    bytestring >=0.10 && <0.12,
     containers >=0.6 && <0.7,
     contravariant >=1.5.2 && <2,
     foldl >=1.4.5 && <2,
     hasql >=1.4 && <1.5,
-    postgresql-syntax >=0.3 && <0.4,
+    postgresql-syntax >=0.4 && <0.5,
     template-haskell >=2.8 && <3,
     template-haskell-compat-v0208 >=0.1.2 && <2,
     text >=1 && <2,
