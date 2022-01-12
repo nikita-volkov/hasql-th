@@ -1,32 +1,31 @@
 module Hasql.TH.Extraction.PrimitiveType where
 
-import Hasql.TH.Prelude hiding (sortBy, bit, fromList)
+import Hasql.TH.Prelude hiding (bit, fromList, sortBy)
 import PostgresqlSyntax.Ast
 
+data PrimitiveType
+  = BoolPrimitiveType
+  | Int2PrimitiveType
+  | Int4PrimitiveType
+  | Int8PrimitiveType
+  | Float4PrimitiveType
+  | Float8PrimitiveType
+  | NumericPrimitiveType
+  | CharPrimitiveType
+  | TextPrimitiveType
+  | ByteaPrimitiveType
+  | DatePrimitiveType
+  | TimestampPrimitiveType
+  | TimestamptzPrimitiveType
+  | TimePrimitiveType
+  | TimetzPrimitiveType
+  | IntervalPrimitiveType
+  | UuidPrimitiveType
+  | InetPrimitiveType
+  | JsonPrimitiveType
+  | JsonbPrimitiveType
 
-data PrimitiveType =
-  BoolPrimitiveType |
-  Int2PrimitiveType |
-  Int4PrimitiveType |
-  Int8PrimitiveType |
-  Float4PrimitiveType |
-  Float8PrimitiveType |
-  NumericPrimitiveType |
-  CharPrimitiveType |
-  TextPrimitiveType |
-  ByteaPrimitiveType |
-  DatePrimitiveType |
-  TimestampPrimitiveType |
-  TimestamptzPrimitiveType |
-  TimePrimitiveType |
-  TimetzPrimitiveType |
-  IntervalPrimitiveType |
-  UuidPrimitiveType |
-  InetPrimitiveType |
-  JsonPrimitiveType |
-  JsonbPrimitiveType
-
-simpleTypename = \ case
+simpleTypename = \case
   GenericTypeSimpleTypename a -> genericType a
   NumericSimpleTypename a -> numeric a
   BitSimpleTypename a -> bit a
@@ -40,7 +39,7 @@ genericType (GenericType a b c) = case b of
     Just _ -> Left "Type modifiers are not supported"
     Nothing -> ident a
 
-numeric = \ case
+numeric = \case
   IntNumeric -> Right Int4PrimitiveType
   IntegerNumeric -> Right Int4PrimitiveType
   SmallintNumeric -> Right Int2PrimitiveType
@@ -65,19 +64,19 @@ bit _ = Left "Bit codec is not supported"
 
 character _ = Right TextPrimitiveType
 
-constDatetime = \ case
+constDatetime = \case
   TimestampConstDatetime _ a -> if tz a then Right TimestamptzPrimitiveType else Right TimestampPrimitiveType
   TimeConstDatetime _ a -> if tz a then Right TimetzPrimitiveType else Right TimePrimitiveType
   where
-    tz = \ case
+    tz = \case
       Just a -> a
       Nothing -> False
 
-ident = \ case
+ident = \case
   QuotedIdent a -> name a
   UnquotedIdent a -> name a
 
-name = \ case
+name = \case
   "bool" -> Right BoolPrimitiveType
   "int2" -> Right Int2PrimitiveType
   "int4" -> Right Int4PrimitiveType

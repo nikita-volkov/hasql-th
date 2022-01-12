@@ -1,36 +1,31 @@
-{-|
-Expression construction.
--}
+-- |
+-- Expression construction.
 module Hasql.TH.Construction.Exp where
 
-import Hasql.TH.Prelude hiding (sequence_, string, list)
-import Language.Haskell.TH.Syntax
-import qualified Hasql.TH.Prelude as Prelude
-import qualified Hasql.Encoders as Encoders
-import qualified Hasql.Decoders as Decoders
-import qualified Hasql.Statement as Statement
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Unsafe as ByteString
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Vector.Generic as Vector
+import qualified Hasql.Decoders as Decoders
+import qualified Hasql.Encoders as Encoders
+import qualified Hasql.Statement as Statement
+import Hasql.TH.Prelude hiding (list, sequence_, string)
+import qualified Hasql.TH.Prelude as Prelude
+import Language.Haskell.TH.Syntax
 import qualified TemplateHaskell.Compat.V0208 as Compat
 
-
 -- * Helpers
--------------------------
 
 appList :: Exp -> [Exp] -> Exp
-appList = foldl' AppE 
+appList = foldl' AppE
 
 byteString :: ByteString -> Exp
 byteString x =
   appList
     (VarE 'unsafeDupablePerformIO)
-    [
-      appList
+    [ appList
         (VarE 'ByteString.unsafePackAddressLen)
-        [
-          LitE (IntegerL (fromIntegral (ByteString.length x))),
+        [ LitE (IntegerL (fromIntegral (ByteString.length x))),
           LitE (StringPrimL (ByteString.unpack x))
         ]
     ]
@@ -60,76 +55,73 @@ tuple :: Int -> Exp
 tuple = ConE . tupleDataName
 
 splitTupleAt :: Int -> Int -> Exp
-splitTupleAt arity position = let
-  nameByIndex index = Name (OccName ('_' : show index)) NameS
-  names = enumFromTo 0 (pred arity) & map nameByIndex
-  pats = names & map VarP
-  pat = TupP pats
-  exps = names & map VarE
-  body = splitAt position exps & \ (a, b) -> Compat.tupE [Compat.tupE a, Compat.tupE b]
-  in LamE [pat] body
+splitTupleAt arity position =
+  let nameByIndex index = Name (OccName ('_' : show index)) NameS
+      names = enumFromTo 0 (pred arity) & map nameByIndex
+      pats = names & map VarP
+      pat = TupP pats
+      exps = names & map VarE
+      body = splitAt position exps & \(a, b) -> Compat.tupE [Compat.tupE a, Compat.tupE b]
+   in LamE [pat] body
 
-{-|
-Given a list of divisible functor expressions,
-constructs an expression, which composes them together into
-a single divisible functor, parameterized by a tuple of according arity.
--}
+-- |
+-- Given a list of divisible functor expressions,
+-- constructs an expression, which composes them together into
+-- a single divisible functor, parameterized by a tuple of according arity.
 contrazip :: [Exp] -> Exp
-contrazip = \ case
+contrazip = \case
   _head : [] -> _head
   _head : _tail -> appList (VarE 'divide) [splitTupleAt (succ (length _tail)) 1, _head, contrazip _tail]
-  [] -> SigE (VarE 'conquer)
-    (let
-      _fName = mkName "f"
-      _fVar = VarT _fName
-      in ForallT [PlainTV _fName] [AppT (ConT ''Divisible) (VarT _fName)]
-          (AppT (VarT _fName) (TupleT 0)))
+  [] ->
+    SigE
+      (VarE 'conquer)
+      ( let _fName = mkName "f"
+            _fVar = VarT _fName
+         in ForallT
+              [PlainTV _fName]
+              [AppT (ConT ''Divisible) (VarT _fName)]
+              (AppT (VarT _fName) (TupleT 0))
+      )
 
-{-|
-Given a list of applicative functor expressions,
-constructs an expression, which composes them together into
-a single applicative functor, parameterized by a tuple of according arity.
-
->>> $(return (cozip [])) :: Maybe ()
-Just ()
-
->>> $(return (cozip (fmap (AppE (ConE 'Just) . LitE . IntegerL) [1,2,3]))) :: Maybe (Int, Int, Int)
-Just (1,2,3)
--}
+-- |
+-- Given a list of applicative functor expressions,
+-- constructs an expression, which composes them together into
+-- a single applicative functor, parameterized by a tuple of according arity.
+--
+-- >>> $(return (cozip [])) :: Maybe ()
+-- Just ()
+--
+-- >>> $(return (cozip (fmap (AppE (ConE 'Just) . LitE . IntegerL) [1,2,3]))) :: Maybe (Int, Int, Int)
+-- Just (1,2,3)
 cozip :: [Exp] -> Exp
-cozip = \ case
+cozip = \case
   _head : [] -> _head
-  _head : _tail -> let
-    _length = length _tail + 1
-    in
-      foldl' (\ a b -> AppE (AppE (VarE '(<*>)) a) b)
-        (AppE (AppE (VarE 'fmap) (tuple _length)) _head)
-        _tail
+  _head : _tail ->
+    let _length = length _tail + 1
+     in foldl'
+          (\a b -> AppE (AppE (VarE '(<*>)) a) b)
+          (AppE (AppE (VarE 'fmap) (tuple _length)) _head)
+          _tail
   [] -> AppE (VarE 'pure) (TupE [])
 
-{-|
-Lambda expression, which destructures 'Fold'.
--}
+-- |
+-- Lambda expression, which destructures 'Fold'.
 foldLam :: (Exp -> Exp -> Exp -> Exp) -> Exp
-foldLam _body = let
-  _stepVarName = mkName "step"
-  _initVarName = mkName "init"
-  _extractVarName = mkName "extract"
-  in
-    LamE
-      [
-        ConP 'Fold
-          [
-            VarP _stepVarName,
-            VarP _initVarName,
-            VarP _extractVarName
-          ]
-      ]
-      (_body (VarE _stepVarName) (VarE _initVarName) (VarE _extractVarName))
-
+foldLam _body =
+  let _stepVarName = mkName "step"
+      _initVarName = mkName "init"
+      _extractVarName = mkName "extract"
+   in LamE
+        [ ConP
+            'Fold
+            [ VarP _stepVarName,
+              VarP _initVarName,
+              VarP _extractVarName
+            ]
+        ]
+        (_body (VarE _stepVarName) (VarE _initVarName) (VarE _extractVarName))
 
 -- * Statement
--------------------------
 
 statement :: Exp -> Exp -> Exp -> Exp
 statement _sql _encoder _decoder =
@@ -152,7 +144,7 @@ rowVectorResultDecoder = AppE (VarE 'Decoders.rowVector)
 
 foldStatement :: Exp -> Exp -> Exp -> Exp
 foldStatement _sql _encoder _rowDecoder =
-  foldLam (\ _step _init _extract -> statement _sql _encoder (foldResultDecoder _step _init _extract _rowDecoder))
+  foldLam (\_step _init _extract -> statement _sql _encoder (foldResultDecoder _step _init _extract _rowDecoder))
 
 foldResultDecoder :: Exp -> Exp -> Exp -> Exp -> Exp
 foldResultDecoder _step _init _extract _rowDecoder =
@@ -164,8 +156,9 @@ unidimensionalParamEncoder nullable =
 
 multidimensionalParamEncoder :: Bool -> Int -> Bool -> Exp -> Exp
 multidimensionalParamEncoder nullable dimensionality arrayNull =
-  applyParamToEncoder . applyNullabilityToEncoder arrayNull . AppE (VarE 'Encoders.array) .
-  applyArrayDimensionalityToEncoder dimensionality . applyNullabilityToEncoder nullable
+  applyParamToEncoder . applyNullabilityToEncoder arrayNull . AppE (VarE 'Encoders.array)
+    . applyArrayDimensionalityToEncoder dimensionality
+    . applyNullabilityToEncoder nullable
 
 applyParamToEncoder :: Exp -> Exp
 applyParamToEncoder = AppE (VarE 'Encoders.param)
@@ -188,8 +181,9 @@ unidimensionalColumnDecoder nullable =
 
 multidimensionalColumnDecoder :: Bool -> Int -> Bool -> Exp -> Exp
 multidimensionalColumnDecoder nullable dimensionality arrayNull =
-  applyColumnToDecoder . applyNullabilityToDecoder arrayNull . AppE (VarE 'Decoders.array) .
-  applyArrayDimensionalityToDecoder dimensionality . applyNullabilityToDecoder nullable
+  applyColumnToDecoder . applyNullabilityToDecoder arrayNull . AppE (VarE 'Decoders.array)
+    . applyArrayDimensionalityToDecoder dimensionality
+    . applyNullabilityToDecoder nullable
 
 applyColumnToDecoder :: Exp -> Exp
 applyColumnToDecoder = AppE (VarE 'Decoders.column)

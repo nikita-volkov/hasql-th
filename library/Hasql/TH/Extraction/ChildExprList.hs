@@ -1,28 +1,23 @@
 module Hasql.TH.Extraction.ChildExprList where
 
-import Hasql.TH.Prelude hiding (sortBy, bit, fromList)
+import Hasql.TH.Prelude hiding (bit, fromList, sortBy)
 import PostgresqlSyntax.Ast
 
-
 -- * Types
--------------------------
 
 data ChildExpr = AChildExpr AExpr | BChildExpr BExpr | CChildExpr CExpr
   deriving (Show, Eq, Ord)
 
-
 -- *
--------------------------
 
-{-|
-Dives one level of recursion.
--}
-childExpr = \ case
+-- |
+-- Dives one level of recursion.
+childExpr = \case
   AChildExpr a -> aChildExpr a
   BChildExpr a -> bChildExpr a
   CChildExpr a -> cChildExpr a
 
-aChildExpr = \ case
+aChildExpr = \case
   CExprAExpr a -> cChildExpr a
   TypecastAExpr a b -> aExpr a <> typename b
   CollateAExpr a b -> aExpr a <> anyName b
@@ -44,7 +39,7 @@ aChildExpr = \ case
   UniqueAExpr a -> selectWithParens a
   DefaultAExpr -> []
 
-bChildExpr = \ case
+bChildExpr = \case
   CExprBExpr a -> cChildExpr a
   TypecastBExpr a b -> bExpr a <> typename b
   PlusBExpr a -> bExpr a
@@ -53,7 +48,7 @@ bChildExpr = \ case
   QualOpBExpr a b -> qualOp a <> bExpr b
   IsOpBExpr a b c -> bExpr a <> bExprIsOp c
 
-cChildExpr = \ case
+cChildExpr = \case
   ColumnrefCExpr a -> columnref a
   AexprConstCExpr a -> aexprConst a
   ParamCExpr a b -> foldMap indirection b
@@ -67,30 +62,26 @@ cChildExpr = \ case
   ImplicitRowCExpr a -> implicitRow a
   GroupingCExpr a -> exprList a
 
-
 -- *
--------------------------
 
-preparableStmt = \ case
+preparableStmt = \case
   SelectPreparableStmt a -> selectStmt a
   InsertPreparableStmt a -> insertStmt a
   UpdatePreparableStmt a -> updateStmt a
   DeletePreparableStmt a -> deleteStmt a
 
-
 -- * Insert
--------------------------
 
 insertStmt (InsertStmt a b c d e) =
-  foldMap withClause a <>
-  insertTarget b <>
-  insertRest c <>
-  foldMap onConflict d <>
-  foldMap returningClause e
+  foldMap withClause a
+    <> insertTarget b
+    <> insertRest c
+    <> foldMap onConflict d
+    <> foldMap returningClause e
 
 insertTarget (InsertTarget a b) = qualifiedName a <> colId b
 
-insertRest = \ case
+insertRest = \case
   SelectInsertRest a b c -> foldMap insertColumnList a <> foldMap overrideKind b <> selectStmt c
   DefaultValuesInsertRest -> []
 
@@ -102,31 +93,29 @@ insertColumnItem (InsertColumnItem a b) = colId a <> foldMap indirection b
 
 onConflict (OnConflict a b) = foldMap confExpr a <> onConflictDo b
 
-onConflictDo = \ case
+onConflictDo = \case
   UpdateOnConflictDo b c -> setClauseList b <> foldMap whereClause c
   NothingOnConflictDo -> []
 
-confExpr = \ case
+confExpr = \case
   WhereConfExpr a b -> indexParams a <> foldMap whereClause b
   ConstraintConfExpr a -> name a
 
 returningClause = targetList
 
-
 -- * Update
--------------------------
 
 updateStmt (UpdateStmt a b c d e f) =
-  foldMap withClause a <>
-  relationExprOptAlias b <>
-  setClauseList c <>
-  foldMap fromClause d <>
-  foldMap whereOrCurrentClause e <>
-  foldMap returningClause f
+  foldMap withClause a
+    <> relationExprOptAlias b
+    <> setClauseList c
+    <> foldMap fromClause d
+    <> foldMap whereOrCurrentClause e
+    <> foldMap returningClause f
 
 setClauseList = foldMap setClause
 
-setClause = \ case
+setClause = \case
   TargetSetClause a b -> setTarget a <> aExpr b
   TargetListSetClause a b -> setTargetList a <> aExpr b
 
@@ -134,35 +123,31 @@ setTarget (SetTarget a b) = colId a <> foldMap indirection b
 
 setTargetList = foldMap setTarget
 
-
 -- * Delete
--------------------------
 
 deleteStmt (DeleteStmt a b c d e) =
-  foldMap withClause a <>
-  relationExprOptAlias b <>
-  foldMap usingClause c <>
-  foldMap whereOrCurrentClause d <>
-  foldMap returningClause e
+  foldMap withClause a
+    <> relationExprOptAlias b
+    <> foldMap usingClause c
+    <> foldMap whereOrCurrentClause d
+    <> foldMap returningClause e
 
 usingClause = fromList
 
-
 -- * Select
--------------------------
 
-selectStmt = \ case
+selectStmt = \case
   Left a -> selectNoParens a
   Right a -> selectWithParens a
 
 selectNoParens (SelectNoParens a b c d e) =
-  foldMap withClause a <>
-  selectClause b <>
-  foldMap sortClause c <>
-  foldMap selectLimit d <>
-  foldMap forLockingClause e
+  foldMap withClause a
+    <> selectClause b
+    <> foldMap sortClause c
+    <> foldMap selectLimit d
+    <> foldMap forLockingClause e
 
-selectWithParens = \ case
+selectWithParens = \case
   NoParensSelectWithParens a -> selectNoParens a
   WithParensSelectWithParens a -> selectWithParens a
 
@@ -170,29 +155,29 @@ withClause (WithClause _ a) = foldMap commonTableExpr a
 
 commonTableExpr (CommonTableExpr a b c d) = preparableStmt d
 
-selectLimit = \ case
+selectLimit = \case
   LimitOffsetSelectLimit a b -> limitClause a <> offsetClause b
   OffsetLimitSelectLimit a b -> offsetClause a <> limitClause b
   LimitSelectLimit a -> limitClause a
   OffsetSelectLimit a -> offsetClause a
 
-limitClause = \ case
+limitClause = \case
   LimitLimitClause a b -> selectLimitValue a <> exprList b
   FetchOnlyLimitClause a b c -> foldMap selectFetchFirstValue b
 
-offsetClause = \ case
+offsetClause = \case
   ExprOffsetClause a -> aExpr a
   FetchFirstOffsetClause a b -> selectFetchFirstValue a
 
-selectFetchFirstValue = \ case
+selectFetchFirstValue = \case
   ExprSelectFetchFirstValue a -> cExpr a
   NumSelectFetchFirstValue _ _ -> []
 
-selectLimitValue = \ case
+selectLimitValue = \case
   ExprSelectLimitValue a -> aExpr a
   AllSelectLimitValue -> []
 
-forLockingClause = \ case
+forLockingClause = \case
   ItemsForLockingClause a -> foldMap forLockingItem a
   ReadOnlyForLockingClause -> []
 
@@ -201,23 +186,25 @@ forLockingItem (ForLockingItem a b c) =
 
 selectClause = either simpleSelect selectWithParens
 
-simpleSelect = \ case
+simpleSelect = \case
   NormalSimpleSelect a b c d e f g ->
-    foldMap targeting a <> foldMap intoClause b <> foldMap fromClause c <>
-    foldMap whereClause d <> foldMap groupClause e <> foldMap havingClause f <>
-    foldMap windowClause g
+    foldMap targeting a <> foldMap intoClause b <> foldMap fromClause c
+      <> foldMap whereClause d
+      <> foldMap groupClause e
+      <> foldMap havingClause f
+      <> foldMap windowClause g
   ValuesSimpleSelect a -> valuesClause a
   TableSimpleSelect a -> relationExpr a
   BinSimpleSelect _ a _ b -> selectClause a <> selectClause b
 
-targeting = \ case
+targeting = \case
   NormalTargeting a -> foldMap targetEl a
   AllTargeting a -> foldMap (foldMap targetEl) a
   DistinctTargeting a b -> foldMap exprList a <> foldMap targetEl b
 
 targetList = foldMap targetEl
 
-targetEl = \ case
+targetEl = \case
   AliasedExprTargetEl a _ -> aExpr a
   ImplicitlyAliasedExprTargetEl a _ -> aExpr a
   ExprTargetEl a -> aExpr a
@@ -231,7 +218,7 @@ fromList = foldMap tableRef
 
 whereClause = aExpr
 
-whereOrCurrentClause = \ case
+whereOrCurrentClause = \case
   ExprWhereOrCurrentClause a -> aExpr a
   CursorWhereOrCurrentClause a -> cursorName a
 
@@ -245,7 +232,7 @@ valuesClause = foldMap exprList
 
 optTempTableName _ = []
 
-groupByItem = \ case
+groupByItem = \case
   ExprGroupByItem a -> aExpr a
   EmptyGroupingSetGroupByItem -> []
   RollupGroupByItem a -> exprList a
@@ -258,11 +245,11 @@ windowSpecification (WindowSpecification _ a b c) = foldMap (foldMap aExpr) a <>
 
 frameClause (FrameClause _ a _) = frameExtent a
 
-frameExtent = \ case
+frameExtent = \case
   SingularFrameExtent a -> frameBound a
   BetweenFrameExtent a b -> frameBound a <> frameBound b
 
-frameBound = \ case
+frameBound = \case
   UnboundedPrecedingFrameBound -> []
   UnboundedFollowingFrameBound -> []
   CurrentRowFrameBound -> []
@@ -271,21 +258,19 @@ frameBound = \ case
 
 sortClause = foldMap sortBy
 
-sortBy = \ case
+sortBy = \case
   UsingSortBy a b c -> aExpr a <> qualAllOp b <> foldMap nullsOrder c
   AscDescSortBy a b c -> aExpr a <> foldMap ascDesc b <> foldMap nullsOrder c
 
-
 -- * Table refs
--------------------------
 
-tableRef = \ case
+tableRef = \case
   RelationExprTableRef a b c -> relationExpr a <> foldMap aliasClause b <> foldMap tablesampleClause c
   FuncTableRef a b c -> funcTable b <> foldMap funcAliasClause c
   SelectTableRef _ a _ -> selectWithParens a
   JoinTableRef a _ -> joinedTable a
 
-relationExpr = \ case
+relationExpr = \case
   SimpleRelationExpr a _ -> qualifiedName a
   OnlyRelationExpr a _ -> qualifiedName a
 
@@ -295,7 +280,7 @@ tablesampleClause (TablesampleClause a b c) = funcName a <> exprList b <> foldMa
 
 repeatableClause = aExpr
 
-funcTable = \ case
+funcTable = \case
   FuncExprFuncTable a b -> funcExprWindowless a <> optOrdinality b
   RowsFromFuncTable a b -> rowsfromList a <> optOrdinality b
 
@@ -315,40 +300,40 @@ collateClause = anyName
 
 aliasClause = const []
 
-funcAliasClause = \ case
+funcAliasClause = \case
   AliasFuncAliasClause a -> aliasClause a
   AsFuncAliasClause a -> tableFuncElementList a
   AsColIdFuncAliasClause a b -> colId a <> tableFuncElementList b
   ColIdFuncAliasClause a b -> colId a <> tableFuncElementList b
 
-joinedTable = \ case
+joinedTable = \case
   InParensJoinedTable a -> joinedTable a
   MethJoinedTable a b c -> joinMeth a <> tableRef b <> tableRef c
 
-joinMeth = \ case
+joinMeth = \case
   CrossJoinMeth -> []
   QualJoinMeth _ a -> joinQual a
   NaturalJoinMeth _ -> []
 
-joinQual = \ case
+joinQual = \case
   UsingJoinQual _ -> []
   OnJoinQual a -> aExpr a
 
-
 -- *
--------------------------
 
 exprList = fmap AChildExpr . toList
 
 aExpr = pure . AChildExpr
+
 bExpr = pure . BChildExpr
+
 cExpr = pure . CChildExpr
 
-funcExpr = \ case
+funcExpr = \case
   ApplicationFuncExpr a b c d -> funcApplication a <> foldMap withinGroupClause b <> foldMap filterClause c <> foldMap overClause d
   SubexprFuncExpr a -> funcExprCommonSubexpr a
 
-funcExprWindowless = \ case
+funcExprWindowless = \case
   ApplicationFuncExprWindowless a -> funcApplication a
   CommonSubexprFuncExprWindowless a -> funcExprCommonSubexpr a
 
@@ -356,11 +341,11 @@ withinGroupClause = sortClause
 
 filterClause a = aExpr a
 
-overClause = \ case
+overClause = \case
   WindowOverClause a -> windowSpecification a
   ColIdOverClause _ -> []
 
-funcExprCommonSubexpr = \ case
+funcExprCommonSubexpr = \case
   CollationForFuncExprCommonSubexpr a -> aExpr a
   CurrentDateFuncExprCommonSubexpr -> []
   CurrentTimeFuncExprCommonSubexpr _ -> []
@@ -393,11 +378,11 @@ overlayList (OverlayList a b c d) = foldMap aExpr ([a, b, c] <> toList d)
 
 positionList (PositionList a b) = bExpr a <> bExpr b
 
-substrList = \ case
+substrList = \case
   ExprSubstrList a b -> aExpr a <> substrListFromFor b
   ExprListSubstrList a -> exprList a
 
-substrListFromFor = \ case
+substrListFromFor = \case
   FromForSubstrListFromFor a b -> aExpr a <> aExpr b
   ForFromSubstrListFromFor a b -> aExpr a <> aExpr b
   FromSubstrListFromFor a -> aExpr a
@@ -405,21 +390,21 @@ substrListFromFor = \ case
 
 trimModifier _ = []
 
-trimList = \ case
+trimList = \case
   ExprFromExprListTrimList a b -> aExpr a <> exprList b
   FromExprListTrimList a -> exprList a
-  ExprListTrimList a -> exprList a  
+  ExprListTrimList a -> exprList a
 
 whenClause (WhenClause a b) = aExpr a <> aExpr b
 
 funcApplication (FuncApplication a b) = funcName a <> foldMap funcApplicationParams b
 
-funcApplicationParams = \ case
+funcApplicationParams = \case
   NormalFuncApplicationParams _ a b -> foldMap funcArgExpr a <> foldMap (foldMap sortBy) b
   VariadicFuncApplicationParams a b c -> foldMap (foldMap funcArgExpr) a <> funcArgExpr b <> foldMap (foldMap sortBy) c
   StarFuncApplicationParams -> []
 
-funcArgExpr = \ case
+funcArgExpr = \case
   ExprFuncArgExpr a -> aExpr a
   ColonEqualsFuncArgExpr _ a -> aExpr a
   EqualsGreaterFuncArgExpr _ a -> aExpr a
@@ -428,36 +413,34 @@ caseExpr (CaseExpr a b c) = foldMap aExpr a <> whenClauseList b <> foldMap aExpr
 
 whenClauseList = foldMap whenClause
 
-arrayExpr = \ case
+arrayExpr = \case
   ExprListArrayExpr a -> exprList a
   ArrayExprListArrayExpr a -> arrayExprList a
   EmptyArrayExpr -> []
 
 arrayExprList = foldMap arrayExpr
 
-inExpr = \ case
+inExpr = \case
   SelectInExpr a -> selectWithParens a
   ExprListInExpr a -> exprList a
 
-
 -- * Operators
--------------------------
 
-symbolicExprBinOp = \ case
+symbolicExprBinOp = \case
   MathSymbolicExprBinOp a -> mathOp a
   QualSymbolicExprBinOp a -> qualOp a
 
-qualOp = \ case
+qualOp = \case
   OpQualOp a -> op a
   OperatorQualOp a -> anyOperator a
 
-qualAllOp = \ case
+qualAllOp = \case
   AllQualAllOp a -> allOp a
   AnyQualAllOp a -> anyOperator a
 
 verbalExprBinOp = const []
 
-aExprReversableOp = \ case
+aExprReversableOp = \case
   NullAExprReversableOp -> []
   TrueAExprReversableOp -> []
   FalseAExprReversableOp -> []
@@ -469,22 +452,22 @@ aExprReversableOp = \ case
   InAExprReversableOp a -> inExpr a
   DocumentAExprReversableOp -> []
 
-subqueryOp = \ case
+subqueryOp = \case
   AllSubqueryOp a -> allOp a
   AnySubqueryOp a -> anyOperator a
   LikeSubqueryOp _ -> []
   IlikeSubqueryOp _ -> []
 
-bExprIsOp = \ case
+bExprIsOp = \case
   DistinctFromBExprIsOp a -> bExpr a
   OfBExprIsOp a -> typeList a
   DocumentBExprIsOp -> []
 
-allOp = \ case
+allOp = \case
   OpAllOp a -> op a
   MathAllOp a -> mathOp a
 
-anyOperator = \ case
+anyOperator = \case
   AllOpAnyOperator a -> allOp a
   QualifiedAnyOperator a b -> colId a <> anyOperator b
 
@@ -492,11 +475,9 @@ op = const []
 
 mathOp = const []
 
-
 -- * Rows
--------------------------
 
-row = \ case
+row = \case
   ExplicitRowRow a -> explicitRow a
   ImplicitRowRow a -> implicitRow a
 
@@ -504,11 +485,9 @@ explicitRow = foldMap exprList
 
 implicitRow (ImplicitRow a b) = exprList a <> aExpr b
 
-
 -- * Constants
--------------------------
 
-aexprConst = \ case
+aexprConst = \case
   IAexprConst _ -> []
   FAexprConst _ -> []
   SAexprConst _ -> []
@@ -523,13 +502,13 @@ aexprConst = \ case
 
 funcConstArgs (FuncConstArgs a b) = foldMap funcArgExpr a <> foldMap sortClause b
 
-constTypename = \ case
+constTypename = \case
   NumericConstTypename a -> numeric a
   ConstBitConstTypename a -> constBit a
   ConstCharacterConstTypename a -> constCharacter a
   ConstDatetimeConstTypename a -> constDatetime a
 
-numeric = \ case
+numeric = \case
   IntNumeric -> []
   IntegerNumeric -> []
   SmallintNumeric -> []
@@ -552,9 +531,7 @@ constDatetime _ = []
 
 interval _ = []
 
-
 -- * Names
--------------------------
 
 ident _ = []
 
@@ -568,32 +545,30 @@ anyName (AnyName a b) = colId a <> foldMap attrs b
 
 columnref (Columnref a b) = colId a <> foldMap indirection b
 
-funcName = \ case
+funcName = \case
   TypeFuncName a -> typeFunctionName a
   IndirectedFuncName a b -> colId a <> indirection b
 
-qualifiedName = \ case
+qualifiedName = \case
   SimpleQualifiedName _ -> []
   IndirectedQualifiedName _ a -> indirection a
 
 indirection = foldMap indirectionEl
 
-indirectionEl = \ case
+indirectionEl = \case
   AttrNameIndirectionEl _ -> []
   AllIndirectionEl -> []
   ExprIndirectionEl a -> aExpr a
   SliceIndirectionEl a b -> exprList a <> exprList b
 
-
 -- * Types
--------------------------
 
 typeList = foldMap typename
 
 typename (Typename a b c d) =
   simpleTypename b
 
-simpleTypename = \ case
+simpleTypename = \case
   GenericTypeSimpleTypename a -> genericType a
   NumericSimpleTypename a -> numeric a
   BitSimpleTypename a -> bit a
@@ -617,15 +592,13 @@ character _ = []
 
 subType _ = []
 
-
 -- * Indexes
--------------------------
 
 indexParams = foldMap indexElem
 
 indexElem (IndexElem a b c d e) = indexElemDef a <> foldMap anyName b <> foldMap anyName c
 
-indexElemDef = \ case
+indexElemDef = \case
   IdIndexElemDef a -> colId a
   FuncIndexElemDef a -> funcExprWindowless a
   ExprIndexElemDef a -> aExpr a
