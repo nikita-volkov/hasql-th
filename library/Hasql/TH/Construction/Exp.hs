@@ -78,7 +78,7 @@ contrazip = \case
       ( let _fName = mkName "f"
             _fVar = VarT _fName
          in ForallT
-              [PlainTV _fName]
+              [Compat.specifiedPlainTV _fName]
               [AppT (ConT ''Divisible) (VarT _fName)]
               (AppT (VarT _fName) (TupleT 0))
       )
@@ -112,7 +112,7 @@ foldLam _body =
       _initVarName = mkName "init"
       _extractVarName = mkName "extract"
    in LamE
-        [ ConP
+        [ Compat.conp
             'Fold
             [ VarP _stepVarName,
               VarP _initVarName,
