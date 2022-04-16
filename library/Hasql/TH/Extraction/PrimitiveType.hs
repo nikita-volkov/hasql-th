@@ -62,7 +62,7 @@ numeric = \case
 
 bit _ = Left "Bit codec is not supported"
 
-character _ = Right TextPrimitiveType
+character _ = Right CharPrimitiveType
 
 constDatetime = \case
   TimestampConstDatetime _ a -> if tz a then Right TimestamptzPrimitiveType else Right TimestampPrimitiveType
