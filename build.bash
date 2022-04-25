@@ -7,4 +7,4 @@ $(find . -name "*.hs" \
   -not -path "./.git/*")
 
 stack build --fast --test \
---ghc-options "-j6 +RTS -A128m -n2m -RTS -fwarn-incomplete-patterns"
+--ghc-options "-j +RTS -A128m -n2m -RTS -Werror=incomplete-patterns"

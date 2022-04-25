@@ -69,6 +69,11 @@ preparableStmt = \case
   InsertPreparableStmt a -> insertStmt a
   UpdatePreparableStmt a -> updateStmt a
   DeletePreparableStmt a -> deleteStmt a
+  CallPreparableStmt a -> callStmt a
+
+-- * Call
+
+callStmt (CallStmt a) = funcApplication a
 
 -- * Insert
 

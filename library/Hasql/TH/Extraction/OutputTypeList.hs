@@ -13,6 +13,12 @@ preparableStmt = \case
   InsertPreparableStmt a -> insertStmt a
   UpdatePreparableStmt a -> updateStmt a
   DeletePreparableStmt a -> deleteStmt a
+  CallPreparableStmt a -> callStmt a
+
+-- * Call
+
+callStmt (CallStmt a) =
+  Left "CALL statement is not supported. Use SELECT function_name()"
 
 -- * Insert
 

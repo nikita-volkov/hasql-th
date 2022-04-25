@@ -1,5 +1,5 @@
 name: hasql-th
-version: 0.4.0.12
+version: 0.4.0.13
 category: Hasql, Database, PostgreSQL, Template Haskell
 synopsis: Template Haskell utilities for Hasql
 description:
@@ -45,7 +45,7 @@ library
     contravariant >=1.5.2 && <2,
     foldl >=1.4.5 && <2,
     hasql >=1.4 && <1.6,
-    postgresql-syntax >=0.4 && <0.5,
+    postgresql-syntax >=0.4.1 && <0.5,
     template-haskell >=2.8 && <3,
     template-haskell-compat-v0208 >=0.1.7 && <2,
     text >=1 && <3,
