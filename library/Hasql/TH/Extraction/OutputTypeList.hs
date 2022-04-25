@@ -18,7 +18,7 @@ preparableStmt = \case
 -- * Call
 
 callStmt (CallStmt a) =
-  Left "CALL statement is not supported. Use SELECT function_name()"
+  Right []
 
 -- * Insert
 
