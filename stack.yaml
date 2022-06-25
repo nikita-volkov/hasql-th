@@ -1,3 +1,1 @@
-resolver: nightly-2022-04-25
-extra-deps:
-  - postgresql-syntax-0.4.1
+resolver: nightly-2022-06-08

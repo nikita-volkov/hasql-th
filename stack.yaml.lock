@@ -3,17 +3,10 @@
 # For more information, please see the documentation at:
 #   https://docs.haskellstack.org/en/stable/lock_files
 
-packages:
-- completed:
-    hackage: postgresql-syntax-0.4.1@sha256:187e3537ccf35f314d3fd69ef96c781605198003ff17054ccc26df9b9f1ec059,4184
-    pantry-tree:
-      size: 1181
-      sha256: 84888439701b03567638324c84882d84633cf1c72b39797a2c8b8c30c395ce21
-  original:
-    hackage: postgresql-syntax-0.4.1
+packages: []
 snapshots:
 - completed:
-    size: 554662
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/nightly/2022/4/25.yaml
-    sha256: 26ae00db80f62bc06bece3933042a3409a0298ea69cb031a4042199a61c0c8ad
-  original: nightly-2022-04-25
+    sha256: 869e23c4f7367895ae63b129255b70bc8b4b965229aa258f6c50141c6b10ae76
+    size: 607265
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/nightly/2022/6/8.yaml
+  original: nightly-2022-06-08

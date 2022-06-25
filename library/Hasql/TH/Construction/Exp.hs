@@ -112,7 +112,7 @@ foldLam _body =
       _initVarName = mkName "init"
       _extractVarName = mkName "extract"
    in LamE
-        [ Compat.conp
+        [ Compat.conP
             'Fold
             [ VarP _stepVarName,
               VarP _initVarName,
