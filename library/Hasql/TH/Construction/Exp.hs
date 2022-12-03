@@ -108,9 +108,9 @@ cozip = \case
 -- Lambda expression, which destructures 'Fold'.
 foldLam :: (Exp -> Exp -> Exp -> Exp) -> Exp
 foldLam _body =
-  let _stepVarName = mkName "step"
-      _initVarName = mkName "init"
-      _extractVarName = mkName "extract"
+  let _stepVarName = mkName "progress"
+      _initVarName = mkName "start"
+      _extractVarName = mkName "finish"
    in LamE
         [ Compat.conP
             'Fold
