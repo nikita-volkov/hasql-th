@@ -133,6 +133,11 @@ expPreparableStmtAstParser _parser =
     _ast <- first fromString $ Parsing.run (Parsing.atEnd Parsing.preparableStmt) _input
     _parser _ast
 
+-- $setup
+-- >>> import Data.Int
+-- >>> import Data.Vector
+-- >>> import Hasql.Statement
+
 -- * Statement
 
 -- |
