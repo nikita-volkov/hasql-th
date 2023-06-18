@@ -23,5 +23,5 @@ main = do
 testDB :: DBT.ClientConfig -> Tasty.TestTree
 testDB clientConfig =
   Tasty.testCase "smoke test" $
-    Tasty.assertEqual "" True =<< runMIO ()
+    Tasty.assertEqual "" (pure True) =<< runMIO ()
       (DBT.withConnectionSession clientConfig $ Hasql.statement () [MHasql.singletonStatement|SELECT true :: bool|])
