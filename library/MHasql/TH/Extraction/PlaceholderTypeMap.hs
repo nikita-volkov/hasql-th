@@ -1,9 +1,9 @@
-module Hasql.TH.Extraction.PlaceholderTypeMap where
+module MHasql.TH.Extraction.PlaceholderTypeMap where
 
 import qualified Data.IntMap.Strict as IntMap
-import Hasql.TH.Extraction.ChildExprList (ChildExpr (..))
-import qualified Hasql.TH.Extraction.ChildExprList as ChildExprList
-import Hasql.TH.Prelude hiding (union)
+import MHasql.TH.Extraction.ChildExprList (ChildExpr (..))
+import qualified MHasql.TH.Extraction.ChildExprList as ChildExprList
+import MHasql.TH.Prelude hiding (union)
 import PostgresqlSyntax.Ast
 
 preparableStmt :: PreparableStmt -> Either Text (IntMap Typename)

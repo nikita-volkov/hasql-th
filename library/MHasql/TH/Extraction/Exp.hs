@@ -1,12 +1,12 @@
-module Hasql.TH.Extraction.Exp where
+module MHasql.TH.Extraction.Exp where
 
 import qualified Hasql.Decoders as Decoders
 import qualified Hasql.Encoders as Encoders
-import qualified Hasql.TH.Construction.Exp as Exp
-import qualified Hasql.TH.Extraction.InputTypeList as InputTypeList
-import qualified Hasql.TH.Extraction.OutputTypeList as OutputTypeList
-import qualified Hasql.TH.Extraction.PrimitiveType as PrimitiveType
-import Hasql.TH.Prelude
+import qualified MHasql.TH.Construction.Exp as Exp
+import qualified MHasql.TH.Extraction.InputTypeList as InputTypeList
+import qualified MHasql.TH.Extraction.OutputTypeList as OutputTypeList
+import qualified MHasql.TH.Extraction.PrimitiveType as PrimitiveType
+import MHasql.TH.Prelude
 import Language.Haskell.TH
 import qualified PostgresqlSyntax.Ast as Ast
 import qualified PostgresqlSyntax.Rendering as Rendering

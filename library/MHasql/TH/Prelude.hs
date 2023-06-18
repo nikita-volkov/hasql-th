@@ -1,4 +1,4 @@
-module Hasql.TH.Prelude
+module MHasql.TH.Prelude
   ( module Exports,
     showAsText,
     suffixRec,

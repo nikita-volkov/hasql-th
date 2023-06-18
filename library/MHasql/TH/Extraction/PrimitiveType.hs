@@ -1,6 +1,6 @@
-module Hasql.TH.Extraction.PrimitiveType where
+module MHasql.TH.Extraction.PrimitiveType where
 
-import Hasql.TH.Prelude hiding (bit, fromList, sortBy)
+import MHasql.TH.Prelude hiding (bit, fromList, sortBy)
 import PostgresqlSyntax.Ast
 
 data PrimitiveType

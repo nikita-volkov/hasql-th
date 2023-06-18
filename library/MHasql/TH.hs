@@ -1,4 +1,4 @@
-module Hasql.TH
+module MHasql.TH
   ( -- * Statements
 
     -- |
@@ -108,9 +108,9 @@ import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
 import Data.Vector (Vector)
 import Hasql.Statement (Statement)
-import qualified Hasql.TH.Construction.Exp as Exp
-import qualified Hasql.TH.Extraction.Exp as ExpExtraction
-import Hasql.TH.Prelude hiding (exp)
+import qualified MHasql.TH.Construction.Exp as Exp
+import qualified MHasql.TH.Extraction.Exp as ExpExtraction
+import MHasql.TH.Prelude hiding (exp)
 import Language.Haskell.TH.Quote
 import Language.Haskell.TH.Syntax
 import qualified PostgresqlSyntax.Ast as Ast
