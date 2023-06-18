@@ -1,3 +1,14 @@
 resolver: nightly-2023-06-11
 packages:
 - .
+extra-deps:
+- github: mbj/mhs
+  commit: bd1b8bbaf3a69eac0d17bf701945ce817a1bdf31
+  subdirs:
+  - cbt
+  - conversions
+  - dbt
+  - mio-core
+  - mio-log
+  - mprelude
+  - source-constraints

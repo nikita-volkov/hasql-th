@@ -11,44 +11,15 @@ license: MIT
 license-file: LICENSE
 
 default-extensions:
-- ApplicativeDo
-- Arrows
-- BangPatterns
-- ConstraintKinds
-- DataKinds
-- DefaultSignatures
-- DeriveDataTypeable
-- DeriveFoldable
-- DeriveFunctor
-- DeriveGeneric
-- DeriveTraversable
-- DuplicateRecordFields
-- EmptyDataDecls
-- FlexibleContexts
 - FlexibleInstances
-- FunctionalDependencies
-- GADTs
-- GeneralizedNewtypeDeriving
 - LambdaCase
-- LiberalTypeSynonyms
-- MagicHash
-- MultiParamTypeClasses
-- MultiWayIf
 - NoImplicitPrelude
 - NoMonomorphismRestriction
 - OverloadedStrings
-- PatternGuards
-- ParallelListComp
 - QuasiQuotes
-- RankNTypes
-- RecordWildCards
 - ScopedTypeVariables
-- StandaloneDeriving
 - TemplateHaskell
 - TupleSections
-- TypeFamilies
-- TypeOperators
-- UnboxedTuples
 
 dependencies:
 - base
@@ -65,7 +36,7 @@ dependencies:
 - vector
 
 library:
-  source-dirs: library
+  source-dirs: src
   exposed-modules:
     MHasql.TH
   other-modules:
@@ -77,3 +48,21 @@ library:
     MHasql.TH.Extraction.PlaceholderTypeMap
     MHasql.TH.Extraction.PrimitiveType
     MHasql.TH.Prelude
+
+tests:
+  test:
+    main: Main.hs
+    source-dirs: test
+    ghc-options:
+    - -rtsopts
+    - -threaded
+    - -with-rtsopts=-N
+    dependencies:
+    - cbt
+    - dbt
+    - hasql
+    - mhasql-th
+    - mio-core
+    - mprelude
+    - tasty
+    - tasty-hunit

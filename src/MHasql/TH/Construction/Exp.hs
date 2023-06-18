@@ -4,12 +4,11 @@ module MHasql.TH.Construction.Exp where
 
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Unsafe as ByteString
-import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Vector.Generic as Vector
 import qualified Hasql.Decoders as Decoders
 import qualified Hasql.Encoders as Encoders
 import qualified Hasql.Statement as Statement
-import MHasql.TH.Prelude hiding (list, sequence_, string)
+import MHasql.TH.Prelude hiding (sequence_)
 import qualified MHasql.TH.Prelude as Prelude
 import Language.Haskell.TH.Syntax
 import qualified TemplateHaskell.Compat.V0208 as Compat
@@ -70,17 +69,17 @@ splitTupleAt arity position =
 -- a single divisible functor, parameterized by a tuple of according arity.
 contrazip :: [Exp] -> Exp
 contrazip = \case
-  _head : [] -> _head
-  _head : _tail -> appList (VarE 'divide) [splitTupleAt (succ (length _tail)) 1, _head, contrazip _tail]
+  head : [] -> head
+  head : tail -> appList (VarE 'divide) [splitTupleAt (succ (length tail)) 1, head, contrazip tail]
   [] ->
     SigE
       (VarE 'conquer)
-      ( let _fName = mkName "f"
-            _fVar = VarT _fName
+      ( let fName = mkName "f"
+            fVar = VarT fName
          in ForallT
-              [Compat.specifiedPlainTV _fName]
-              [AppT (ConT ''Divisible) (VarT _fName)]
-              (AppT (VarT _fName) (TupleT 0))
+              [Compat.specifiedPlainTV fName]
+              [AppT (ConT ''Divisible) (VarT fName)]
+              (AppT (VarT fName) (TupleT 0))
       )
 
 -- |
@@ -95,37 +94,37 @@ contrazip = \case
 -- Just (1,2,3)
 cozip :: [Exp] -> Exp
 cozip = \case
-  _head : [] -> _head
-  _head : _tail ->
-    let _length = length _tail + 1
+  head : [] -> head
+  head : tail ->
+    let length' = length tail + 1
      in foldl'
           (\a b -> AppE (AppE (VarE '(<*>)) a) b)
-          (AppE (AppE (VarE 'fmap) (tuple _length)) _head)
-          _tail
+          (AppE (AppE (VarE 'fmap) (tuple length')) head)
+          tail
   [] -> AppE (VarE 'pure) (TupE [])
 
 -- |
 -- Lambda expression, which destructures 'Fold'.
 foldLam :: (Exp -> Exp -> Exp -> Exp) -> Exp
-foldLam _body =
-  let _stepVarName = mkName "progress"
-      _initVarName = mkName "start"
-      _extractVarName = mkName "finish"
+foldLam body =
+  let stepVarName = mkName "progress"
+      initVarName = mkName "start"
+      extractVarName = mkName "finish"
    in LamE
         [ Compat.conP
             'Fold
-            [ VarP _stepVarName,
-              VarP _initVarName,
-              VarP _extractVarName
+            [ VarP stepVarName,
+              VarP initVarName,
+              VarP extractVarName
             ]
         ]
-        (_body (VarE _stepVarName) (VarE _initVarName) (VarE _extractVarName))
+        (body (VarE stepVarName) (VarE initVarName) (VarE extractVarName))
 
 -- * Statement
 
 statement :: Exp -> Exp -> Exp -> Exp
-statement _sql _encoder _decoder =
-  appList (ConE 'Statement.Statement) [_sql, _encoder, _decoder, ConE 'True]
+statement sql encoder decoder =
+  appList (ConE 'Statement.Statement) [sql, encoder, decoder, ConE 'True]
 
 noResultResultDecoder :: Exp
 noResultResultDecoder = VarE 'Decoders.noResult
@@ -143,12 +142,12 @@ rowVectorResultDecoder :: Exp -> Exp
 rowVectorResultDecoder = AppE (VarE 'Decoders.rowVector)
 
 foldStatement :: Exp -> Exp -> Exp -> Exp
-foldStatement _sql _encoder _rowDecoder =
-  foldLam (\_step _init _extract -> statement _sql _encoder (foldResultDecoder _step _init _extract _rowDecoder))
+foldStatement sql encoder rowDecoder =
+  foldLam (\step init extract -> statement sql encoder (foldResultDecoder step init extract rowDecoder))
 
 foldResultDecoder :: Exp -> Exp -> Exp -> Exp -> Exp
-foldResultDecoder _step _init _extract _rowDecoder =
-  appList (VarE 'fmap) [_extract, appList (VarE 'Decoders.foldlRows) [_step, _init, _rowDecoder]]
+foldResultDecoder step init extract rowDecoder =
+  appList (VarE 'fmap) [extract, appList (VarE 'Decoders.foldlRows) [step, init, rowDecoder]]
 
 unidimensionalParamEncoder :: Bool -> Exp -> Exp
 unidimensionalParamEncoder nullable =
