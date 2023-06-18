@@ -35,6 +35,9 @@ dependencies:
 - uuid
 - vector
 
+ghc-options:
+- -Wall
+
 library:
   source-dirs: src
   exposed-modules:

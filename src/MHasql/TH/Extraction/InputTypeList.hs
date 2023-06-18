@@ -2,6 +2,7 @@
 -- AST traversal extracting input types.
 module MHasql.TH.Extraction.InputTypeList where
 
+import Data.Functor (($>))
 import qualified Data.IntMap.Strict as IntMap
 import qualified MHasql.TH.Extraction.PlaceholderTypeMap as PlaceholderTypeMap
 import MHasql.TH.Prelude
@@ -44,9 +45,9 @@ preparableStmt :: PreparableStmt -> Either Text [Typename]
 preparableStmt = placeholderTypeMap <=< PlaceholderTypeMap.preparableStmt
 
 placeholderTypeMap :: IntMap Typename -> Either Text [Typename]
-placeholderTypeMap a = do
+placeholderTypeMap map' =
   zipWithM
     (\a b -> if a == b then Right () else Left ("You've missed placeholder $" <> showAsText b))
-    (IntMap.keys a)
+    (IntMap.keys map')
     [1 ..]
-  return (IntMap.elems a)
+  $> (IntMap.elems map')

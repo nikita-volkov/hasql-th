@@ -1,6 +1,8 @@
+{-# OPTIONS -Wno-missing-signatures #-}
+
 module MHasql.TH.Extraction.PrimitiveType where
 
-import MHasql.TH.Prelude hiding (bit, fromList, sortBy)
+import MHasql.TH.Prelude
 import PostgresqlSyntax.Ast
 
 data PrimitiveType
@@ -31,7 +33,7 @@ simpleTypename = \case
   BitSimpleTypename a -> bit a
   CharacterSimpleTypename a -> character a
   ConstDatetimeSimpleTypename a -> constDatetime a
-  ConstIntervalSimpleTypename a -> Right IntervalPrimitiveType
+  ConstIntervalSimpleTypename _a -> Right IntervalPrimitiveType
 
 genericType (GenericType a b c) = case b of
   Just _ -> Left "Type attributes are not supported"
@@ -97,4 +99,4 @@ name = \case
   "inet" -> Right InetPrimitiveType
   "json" -> Right JsonPrimitiveType
   "jsonb" -> Right JsonbPrimitiveType
-  name -> Left ("No codec exists for type: " <> name)
+  name' -> Left ("No codec exists for type: " <> name')
