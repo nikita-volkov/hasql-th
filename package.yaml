@@ -65,7 +65,7 @@ dependencies:
 - vector
 
 library:
-  source-dirs: library
+  source-dirs: src
   exposed-modules:
     MHasql.TH
   other-modules:
