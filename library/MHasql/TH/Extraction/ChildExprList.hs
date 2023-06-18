@@ -1,6 +1,6 @@
-module Hasql.TH.Extraction.ChildExprList where
+module MHasql.TH.Extraction.ChildExprList where
 
-import Hasql.TH.Prelude hiding (bit, fromList, sortBy)
+import MHasql.TH.Prelude hiding (bit, fromList, sortBy)
 import PostgresqlSyntax.Ast
 
 -- * Types

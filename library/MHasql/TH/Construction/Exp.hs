@@ -1,6 +1,6 @@
 -- |
 -- Expression construction.
-module Hasql.TH.Construction.Exp where
+module MHasql.TH.Construction.Exp where
 
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Unsafe as ByteString
@@ -9,8 +9,8 @@ import qualified Data.Vector.Generic as Vector
 import qualified Hasql.Decoders as Decoders
 import qualified Hasql.Encoders as Encoders
 import qualified Hasql.Statement as Statement
-import Hasql.TH.Prelude hiding (list, sequence_, string)
-import qualified Hasql.TH.Prelude as Prelude
+import MHasql.TH.Prelude hiding (list, sequence_, string)
+import qualified MHasql.TH.Prelude as Prelude
 import Language.Haskell.TH.Syntax
 import qualified TemplateHaskell.Compat.V0208 as Compat
 

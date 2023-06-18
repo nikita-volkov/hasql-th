@@ -1,10 +1,10 @@
 -- |
 -- AST traversal extracting input types.
-module Hasql.TH.Extraction.InputTypeList where
+module MHasql.TH.Extraction.InputTypeList where
 
 import qualified Data.IntMap.Strict as IntMap
-import qualified Hasql.TH.Extraction.PlaceholderTypeMap as PlaceholderTypeMap
-import Hasql.TH.Prelude
+import qualified MHasql.TH.Extraction.PlaceholderTypeMap as PlaceholderTypeMap
+import MHasql.TH.Prelude
 import PostgresqlSyntax.Ast
 
 -- |

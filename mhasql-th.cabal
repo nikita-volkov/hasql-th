@@ -1,0 +1,84 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.35.2.
+--
+-- see: https://github.com/sol/hpack
+
+name:           mhasql-th
+version:        0.5.0
+synopsis:       Template Haskell integration for hasql.
+description:    Fork of official hasql-th with different type generation trade offs.
+category:       Hasql, Database, PostgreSQL, Template Haskell
+homepage:       https://github.com/mbj/mhasql-th#readme
+bug-reports:    https://github.com/mbj/mhasql-th/issues
+author:         Markus Schirp <mbj@schirp-dso.com>
+maintainer:     Markus Schirp <mbj@schirp-dso.com>
+copyright:      (c) 2023 Markus Schirp, (c) 2015, Nikita Volkov
+license:        MIT
+license-file:   LICENSE
+build-type:     Simple
+
+source-repository head
+  type: git
+  location: https://github.com/mbj/mhasql-th
+
+library
+  exposed-modules:
+      MHasql.TH
+  other-modules:
+      MHasql.TH.Construction.Exp MHasql.TH.Extraction.ChildExprList MHasql.TH.Extraction.Exp MHasql.TH.Extraction.InputTypeList MHasql.TH.Extraction.OutputTypeList MHasql.TH.Extraction.PlaceholderTypeMap MHasql.TH.Extraction.PrimitiveType MHasql.TH.Prelude
+  hs-source-dirs:
+      library
+  default-extensions:
+      ApplicativeDo
+      Arrows
+      BangPatterns
+      ConstraintKinds
+      DataKinds
+      DefaultSignatures
+      DeriveDataTypeable
+      DeriveFoldable
+      DeriveFunctor
+      DeriveGeneric
+      DeriveTraversable
+      DuplicateRecordFields
+      EmptyDataDecls
+      FlexibleContexts
+      FlexibleInstances
+      FunctionalDependencies
+      GADTs
+      GeneralizedNewtypeDeriving
+      LambdaCase
+      LiberalTypeSynonyms
+      MagicHash
+      MultiParamTypeClasses
+      MultiWayIf
+      NoImplicitPrelude
+      NoMonomorphismRestriction
+      OverloadedStrings
+      PatternGuards
+      ParallelListComp
+      QuasiQuotes
+      RankNTypes
+      RecordWildCards
+      ScopedTypeVariables
+      StandaloneDeriving
+      TemplateHaskell
+      TupleSections
+      TypeFamilies
+      TypeOperators
+      UnboxedTuples
+  build-depends:
+      base
+    , bytestring
+    , containers
+    , contravariant
+    , foldl
+    , hasql
+    , postgresql-syntax
+    , template-haskell
+    , template-haskell-compat-v0208
+    , text
+    , uuid
+    , vector
+  default-language: Haskell2010
