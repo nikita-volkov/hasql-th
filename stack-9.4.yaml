@@ -12,3 +12,5 @@ extra-deps:
   - mio-log
   - mprelude
   - source-constraints
+- github: mbj/postgresql-syntax
+  commit: b7912db829ac748fbeee6e03e9948e3062faf94a

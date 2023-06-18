@@ -42,26 +42,29 @@ rowDecoder a = do
 paramEncoder :: Ast.Typename -> Either Text Exp
 paramEncoder =
   byTypename
-    (\a b -> valueEncoder a & fmap (Exp.unidimensionalParamEncoder b))
-    (\a b c d -> valueEncoder a & fmap (Exp.multidimensionalParamEncoder b c d))
+    (\a -> valueEncoder a & fmap Exp.unidimensionalParamEncoder)
+    (\a b -> valueEncoder a & fmap (Exp.multidimensionalParamEncoder b))
 
 columnDecoder :: Ast.Typename -> Either Text Exp
 columnDecoder =
   byTypename
-    (\a b -> valueDecoder a & fmap (Exp.unidimensionalColumnDecoder b))
-    (\a b c d -> valueDecoder a & fmap (Exp.multidimensionalColumnDecoder b c d))
+    (\a -> valueDecoder a & fmap Exp.unidimensionalColumnDecoder)
+    (\a b -> valueDecoder a & fmap (Exp.multidimensionalColumnDecoder b))
 
-byTypename :: (PrimitiveType.PrimitiveType -> Bool -> Either Text Exp) -> (PrimitiveType.PrimitiveType -> Bool -> Int -> Bool -> Either Text Exp) -> Ast.Typename -> Either Text Exp
-byTypename unidimensional multidimensional (Ast.Typename a b c d) =
+byTypename
+  :: (PrimitiveType.PrimitiveType -> Either Text Exp)
+  -> (PrimitiveType.PrimitiveType -> Int -> Either Text Exp)
+  -> Ast.Typename -> Either Text Exp
+byTypename unidimensional multidimensional (Ast.Typename a b d) =
   if a
     then Left "SETOF is not supported"
     else do
       e <- PrimitiveType.simpleTypename b
       case d of
-        Nothing -> unidimensional e c
-        Just (f, g) -> case f of
-          Ast.BoundsTypenameArrayDimensions h -> multidimensional e c (length h) g
-          Ast.ExplicitTypenameArrayDimensions _ -> multidimensional e c 1 g
+        Nothing -> unidimensional e
+        Just f -> case f of
+          Ast.BoundsTypenameArrayDimensions h -> multidimensional e (length h)
+          Ast.ExplicitTypenameArrayDimensions _ -> multidimensional e 1
 
 valueEncoder :: PrimitiveType.PrimitiveType -> Either Text Exp
 valueEncoder =

@@ -10,10 +10,10 @@ module MHasql.TH
     --
     --  Here's an example of how to use it:
     --
-    --  >selectUserDetails :: Statement Int32 (Maybe (Text, Text, Maybe Text))
+    --  >selectUserDetails :: Statement Int32 (Maybe (Maybe Text, Maybe Text, Maybe Text))
     --  >selectUserDetails =
     --  >  [maybeStatement|
-    --  >    select name :: text, email :: text, phone :: text?
+    --  >    select name :: text, email :: text, phone :: text
     --  >    from "user"
     --  >    where id = $1 :: int4
     --  >    |]
@@ -59,30 +59,10 @@ module MHasql.TH
     --
     --  === Nulls
     --
-    --  As you might have noticed in the example,
-    --  we introduce one change to the Postgres syntax in the way
-    --  the typesignatures are parsed:
-    --  we interpret question-marks in them as specification of nullability.
-    --  Here's more examples of that:
+    --  As you might have noticed in the example, that all types by default come with a `Maybe` wrapper.
+    --  This will be improved in future commits to allow explicit non nullability while not having to
+    --  derivate from PG native syntax.
     --
-    --  >>> :t [singletonStatement| select a :: int4? |]
-    --  ...
-    --    :: Statement () (Maybe Int32)
-    --
-    --  You can use it to specify the nullability of array elements:
-    --
-    --  >>> :t [singletonStatement| select a :: int4?[] |]
-    --  ...
-    --    :: Data.Vector.Generic.Base.Vector v (Maybe Int32) =>
-    --       Statement () (v (Maybe Int32))
-    --
-    --  And of arrays themselves:
-    --
-    --  >>> :t [singletonStatement| select a :: int4?[]? |]
-    --  ...
-    --    :: Data.Vector.Generic.Base.Vector v (Maybe Int32) =>
-    --       Statement () (Maybe (v (Maybe Int32)))
-
     -- ** Row-parsing statements
     singletonStatement,
     maybeStatement,
@@ -151,7 +131,8 @@ expPreparableStmtAstParser _parser =
 -- === __Examples__
 --
 -- >>> :t [singletonStatement|select 1 :: int2|]
--- ... :: Statement () Int16
+-- ...
+-- ... :: Statement () (Maybe Int16)
 --
 -- >>> :{
 --   :t [singletonStatement|
@@ -161,7 +142,7 @@ expPreparableStmtAstParser _parser =
 --        |]
 -- :}
 -- ...
--- ... :: Statement (Text, Text) Int32
+-- ... :: Statement (Maybe Text, Maybe Text) (Maybe Int32)
 --
 -- Incorrect SQL:
 --
@@ -184,7 +165,8 @@ singletonStatement = expPreparableStmtAstParser (ExpExtraction.undecodedStatemen
 -- === __Examples__
 --
 -- >>> :t [maybeStatement|select 1 :: int2|]
--- ... :: Statement () (Maybe Int16)
+-- ...
+-- ... :: Statement () (Maybe (Maybe Int16))
 maybeStatement :: QuasiQuoter
 maybeStatement = expPreparableStmtAstParser (ExpExtraction.undecodedStatement Exp.rowMaybeResultDecoder)
 
@@ -198,7 +180,8 @@ maybeStatement = expPreparableStmtAstParser (ExpExtraction.undecodedStatement Ex
 -- === __Examples__
 --
 -- >>> :t [vectorStatement|select 1 :: int2|]
--- ... :: Statement () (Vector Int16)
+-- ...
+-- ... :: Statement () (Vector (Maybe Int16))
 vectorStatement :: QuasiQuoter
 vectorStatement = expPreparableStmtAstParser (ExpExtraction.undecodedStatement Exp.rowVectorResultDecoder)
 
@@ -212,8 +195,9 @@ vectorStatement = expPreparableStmtAstParser (ExpExtraction.undecodedStatement E
 --
 -- === __Examples__
 --
--- >>> :t [foldStatement|select 1 :: int2|]
--- ... :: Fold Int16 b -> Statement () b
+-- >>> :t [foldStatement|SELECT 1 :: int2|]
+-- ...
+-- ... :: Fold (Maybe Int16) b -> Statement () b
 foldStatement :: QuasiQuoter
 foldStatement = expPreparableStmtAstParser ExpExtraction.foldStatement
 
@@ -228,7 +212,7 @@ foldStatement = expPreparableStmtAstParser ExpExtraction.foldStatement
 --
 -- >>> :t [resultlessStatement|insert into "user" (name, email) values ($1 :: text, $2 :: text)|]
 -- ...
--- ... :: Statement (Text, Text) ()
+-- ... :: Statement (Maybe Text, Maybe Text) ()
 resultlessStatement :: QuasiQuoter
 resultlessStatement = expPreparableStmtAstParser (ExpExtraction.undecodedStatement (const Exp.noResultResultDecoder))
 
@@ -273,12 +257,14 @@ uncheckedSqlFile = quoteFile uncheckedSql
 -- $
 -- >>> :t [maybeStatement| select (password = $2 :: bytea) :: bool, id :: int4 from "user" where "email" = $1 :: text |]
 -- ...
--- ... Statement (Text, ByteString) (Maybe (Bool, Int32))
+-- ... Statement
+-- ...   (Maybe Text, Maybe ByteString) (Maybe (Maybe Bool, Maybe Int32))
 --
 -- >>> :t [maybeStatement| select id :: int4 from application where pub_key = $1 :: uuid and sec_key_pt1 = $2 :: int8 and sec_key_pt2 = $3 :: int8 |]
 -- ...
--- ... Statement (UUID, Int64, Int64) (Maybe Int32)
+-- ... Statement
+-- ...   (Maybe UUID, Maybe Int64, Maybe Int64) (Maybe (Maybe Int32))
 --
 -- >>> :t [singletonStatement| select 1 :: int4 from a left join b on b.id = a.id |]
 -- ...
--- ... Statement () Int32
+-- ... Statement () (Maybe Int32)
