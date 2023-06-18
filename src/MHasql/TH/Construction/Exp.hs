@@ -8,8 +8,7 @@ import qualified Data.Vector.Generic as Vector
 import qualified Hasql.Decoders as Decoders
 import qualified Hasql.Encoders as Encoders
 import qualified Hasql.Statement as Statement
-import MHasql.TH.Prelude hiding (sequence_)
-import qualified MHasql.TH.Prelude as Prelude
+import MHasql.TH.Prelude
 import Language.Haskell.TH.Syntax
 import qualified TemplateHaskell.Compat.V0208 as Compat
 
@@ -45,7 +44,7 @@ sequence_ :: [Exp] -> Exp
 sequence_ = foldl' andThen pureUnit
 
 pureUnit :: Exp
-pureUnit = AppE (VarE 'Prelude.pure) (TupE [])
+pureUnit = AppE (VarE 'pure) (TupE [])
 
 andThen :: Exp -> Exp -> Exp
 andThen exp1 exp2 = AppE (AppE (VarE '(*>)) exp1) exp2
@@ -75,7 +74,6 @@ contrazip = \case
     SigE
       (VarE 'conquer)
       ( let fName = mkName "f"
-            fVar = VarT fName
          in ForallT
               [Compat.specifiedPlainTV fName]
               [AppT (ConT ''Divisible) (VarT fName)]
@@ -142,12 +140,12 @@ rowVectorResultDecoder :: Exp -> Exp
 rowVectorResultDecoder = AppE (VarE 'Decoders.rowVector)
 
 foldStatement :: Exp -> Exp -> Exp -> Exp
-foldStatement sql encoder rowDecoder =
-  foldLam (\step init extract -> statement sql encoder (foldResultDecoder step init extract rowDecoder))
+foldStatement sql encoder rowDecoder' =
+  foldLam (\step init extract -> statement sql encoder (foldResultDecoder step init extract rowDecoder'))
 
 foldResultDecoder :: Exp -> Exp -> Exp -> Exp -> Exp
-foldResultDecoder step init extract rowDecoder =
-  appList (VarE 'fmap) [extract, appList (VarE 'Decoders.foldlRows) [step, init, rowDecoder]]
+foldResultDecoder step init extract rowDecoder' =
+  appList (VarE 'fmap) [extract, appList (VarE 'Decoders.foldlRows) [step, init, rowDecoder']]
 
 unidimensionalParamEncoder :: Bool -> Exp -> Exp
 unidimensionalParamEncoder nullable =

@@ -1,3 +1,5 @@
+{-# OPTIONS -Wno-missing-signatures #-}
+
 -- |
 -- AST traversal extracting output types.
 module MHasql.TH.Extraction.OutputTypeList where
@@ -17,12 +19,12 @@ preparableStmt = \case
 
 -- * Call
 
-callStmt (CallStmt a) =
+callStmt (CallStmt _a) =
   Right []
 
 -- * Insert
 
-insertStmt (InsertStmt a b c d e) = foldable returningClause e
+insertStmt (InsertStmt _a _b _c _d e) = foldable returningClause e
 
 returningClause = targetList
 
@@ -81,8 +83,8 @@ valuesClause = foldable (foldable aExpr)
 aExpr = \case
   CExprAExpr a -> cExpr a
   TypecastAExpr _ a -> Right [a]
-  a -> Left "Result expression is missing a typecast"
+  _a -> Left "Result expression is missing a typecast"
 
 cExpr = \case
   InParensCExpr a Nothing -> aExpr a
-  a -> Left "Result expression is missing a typecast"
+  _a -> Left "Result expression is missing a typecast"

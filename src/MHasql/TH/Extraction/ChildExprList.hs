@@ -1,6 +1,7 @@
+{-# OPTIONS -Wno-missing-signatures #-}
 module MHasql.TH.Extraction.ChildExprList where
 
-import MHasql.TH.Prelude hiding (bit, fromList, sortBy)
+import MHasql.TH.Prelude
 import PostgresqlSyntax.Ast
 
 -- * Types
@@ -30,8 +31,8 @@ aChildExpr = \case
   AndAExpr a b -> aExpr a <> aExpr b
   OrAExpr a b -> aExpr a <> aExpr b
   NotAExpr a -> aExpr a
-  VerbalExprBinOpAExpr a b c d e -> aExpr a <> verbalExprBinOp c <> aExpr d <> foldMap aExpr e
-  ReversableOpAExpr a b c -> aExpr a <> aExprReversableOp c
+  VerbalExprBinOpAExpr a _b c d e -> aExpr a <> verbalExprBinOp c <> aExpr d <> foldMap aExpr e
+  ReversableOpAExpr a _b c -> aExpr a <> aExprReversableOp c
   IsnullAExpr a -> aExpr a
   NotnullAExpr a -> aExpr a
   OverlapsAExpr a b -> row a <> row b
@@ -46,12 +47,12 @@ bChildExpr = \case
   MinusBExpr a -> bExpr a
   SymbolicBinOpBExpr a b c -> bExpr a <> symbolicExprBinOp b <> bExpr c
   QualOpBExpr a b -> qualOp a <> bExpr b
-  IsOpBExpr a b c -> bExpr a <> bExprIsOp c
+  IsOpBExpr a _b c -> bExpr a <> bExprIsOp c
 
 cChildExpr = \case
   ColumnrefCExpr a -> columnref a
   AexprConstCExpr a -> aexprConst a
-  ParamCExpr a b -> foldMap indirection b
+  ParamCExpr _a b -> foldMap indirection b
   InParensCExpr a b -> aExpr a <> foldMap indirection b
   CaseCExpr a -> caseExpr a
   FuncCExpr a -> funcExpr a
@@ -158,7 +159,7 @@ selectWithParens = \case
 
 withClause (WithClause _ a) = foldMap commonTableExpr a
 
-commonTableExpr (CommonTableExpr a b c d) = preparableStmt d
+commonTableExpr (CommonTableExpr _a _b _c d) = preparableStmt d
 
 selectLimit = \case
   LimitOffsetSelectLimit a b -> limitClause a <> offsetClause b
@@ -168,11 +169,11 @@ selectLimit = \case
 
 limitClause = \case
   LimitLimitClause a b -> selectLimitValue a <> exprList b
-  FetchOnlyLimitClause a b c -> foldMap selectFetchFirstValue b
+  FetchOnlyLimitClause _a b _c -> foldMap selectFetchFirstValue b
 
 offsetClause = \case
   ExprOffsetClause a -> aExpr a
-  FetchFirstOffsetClause a b -> selectFetchFirstValue a
+  FetchFirstOffsetClause a _b -> selectFetchFirstValue a
 
 selectFetchFirstValue = \case
   ExprSelectFetchFirstValue a -> cExpr a
@@ -186,7 +187,7 @@ forLockingClause = \case
   ItemsForLockingClause a -> foldMap forLockingItem a
   ReadOnlyForLockingClause -> []
 
-forLockingItem (ForLockingItem a b c) =
+forLockingItem (ForLockingItem _a b _c) =
   foldMap (foldMap qualifiedName) b
 
 selectClause = either simpleSelect selectWithParens
@@ -271,7 +272,7 @@ sortBy = \case
 
 tableRef = \case
   RelationExprTableRef a b c -> relationExpr a <> foldMap aliasClause b <> foldMap tablesampleClause c
-  FuncTableRef a b c -> funcTable b <> foldMap funcAliasClause c
+  FuncTableRef _a b c -> funcTable b <> foldMap funcAliasClause c
   SelectTableRef _ a _ -> selectWithParens a
   JoinTableRef a _ -> joinedTable a
 
@@ -452,7 +453,7 @@ aExprReversableOp = \case
   UnknownAExprReversableOp -> []
   DistinctFromAExprReversableOp a -> aExpr a
   OfAExprReversableOp a -> typeList a
-  BetweenAExprReversableOp a b c -> bExpr b <> aExpr c
+  BetweenAExprReversableOp _a b c -> bExpr b <> aExpr c
   BetweenSymmetricAExprReversableOp a b -> bExpr a <> aExpr b
   InAExprReversableOp a -> inExpr a
   DocumentAExprReversableOp -> []
@@ -570,7 +571,7 @@ indirectionEl = \case
 
 typeList = foldMap typename
 
-typename (Typename a b c d) =
+typename (Typename _a b _c _d) =
   simpleTypename b
 
 simpleTypename = \case
@@ -601,7 +602,7 @@ subType _ = []
 
 indexParams = foldMap indexElem
 
-indexElem (IndexElem a b c d e) = indexElemDef a <> foldMap anyName b <> foldMap anyName c
+indexElem (IndexElem a b c _d _e) = indexElemDef a <> foldMap anyName b <> foldMap anyName c
 
 indexElemDef = \case
   IdIndexElemDef a -> colId a

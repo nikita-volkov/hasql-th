@@ -39,6 +39,7 @@ library
       ScopedTypeVariables
       TemplateHaskell
       TupleSections
+  ghc-options: -Wall
   build-depends:
       base
     , bytestring
@@ -71,6 +72,7 @@ test-suite doctest
       ScopedTypeVariables
       TemplateHaskell
       TupleSections
+  ghc-options: -Wall
   build-depends:
       base
     , bytestring
@@ -105,7 +107,7 @@ test-suite test
       ScopedTypeVariables
       TemplateHaskell
       TupleSections
-  ghc-options: -rtsopts -threaded -with-rtsopts=-N
+  ghc-options: -Wall -rtsopts -threaded -with-rtsopts=-N
   build-depends:
       base
     , bytestring

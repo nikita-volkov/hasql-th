@@ -106,11 +106,9 @@ where
 
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
-import Data.Vector (Vector)
-import Hasql.Statement (Statement)
 import qualified MHasql.TH.Construction.Exp as Exp
 import qualified MHasql.TH.Extraction.Exp as ExpExtraction
-import MHasql.TH.Prelude hiding (exp)
+import MHasql.TH.Prelude
 import Language.Haskell.TH.Quote
 import Language.Haskell.TH.Syntax
 import qualified PostgresqlSyntax.Ast as Ast

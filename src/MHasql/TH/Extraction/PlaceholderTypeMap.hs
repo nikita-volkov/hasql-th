@@ -1,9 +1,11 @@
+{-# OPTIONS -Wno-missing-signatures #-}
+
 module MHasql.TH.Extraction.PlaceholderTypeMap where
 
 import qualified Data.IntMap.Strict as IntMap
 import MHasql.TH.Extraction.ChildExprList (ChildExpr (..))
 import qualified MHasql.TH.Extraction.ChildExprList as ChildExprList
-import MHasql.TH.Prelude hiding (union)
+import MHasql.TH.Prelude
 import PostgresqlSyntax.Ast
 
 preparableStmt :: PreparableStmt -> Either Text (IntMap Typename)
@@ -15,9 +17,9 @@ childExprList = foldM union IntMap.empty <=< traverse childExpr
 union :: IntMap Typename -> IntMap Typename -> Either Text (IntMap Typename)
 union a b = IntMap.mergeWithKey merge (fmap Right) (fmap Right) a b & sequence
   where
-    merge index a b =
-      if a == b
-        then Just (Right a)
+    merge index a' b' =
+      if a' == b'
+        then Just (Right a')
         else Just (Left ("Placeholder $" <> (fromString . show) index <> " has conflicting type annotations"))
 
 childExpr :: ChildExpr -> Either Text (IntMap Typename)

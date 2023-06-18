@@ -16,16 +16,16 @@ undecodedStatement decoderProj ast =
   let sql = (Exp.byteString . Rendering.toByteString . Rendering.preparableStmt) ast
    in do
         encoder <- paramsEncoder ast
-        rowDecoder <- rowDecoder ast
-        return (Exp.statement sql encoder (decoderProj rowDecoder))
+        rowDecoder' <- rowDecoder ast
+        return (Exp.statement sql encoder (decoderProj rowDecoder'))
 
 foldStatement :: Ast.PreparableStmt -> Either Text Exp
 foldStatement ast =
   let sql = (Exp.byteString . Rendering.toByteString . Rendering.preparableStmt) ast
    in do
         encoder <- paramsEncoder ast
-        rowDecoder <- rowDecoder ast
-        return (Exp.foldStatement sql encoder rowDecoder)
+        rowDecoder' <- rowDecoder ast
+        return (Exp.foldStatement sql encoder rowDecoder')
 
 paramsEncoder :: Ast.PreparableStmt -> Either Text Exp
 paramsEncoder a = do
