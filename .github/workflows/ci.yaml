@@ -1,0 +1,63 @@
+name: CI
+
+on: push
+
+jobs:
+  dependencies:
+    runs-on: ${{ matrix.os }}
+    env:
+      STACK_YAML: ${{ github.workspace }}/stack-${{ matrix.ghc }}.yaml
+    strategy:
+      fail-fast: false
+      matrix:
+        ghc: ['9.4']
+        os:  [ubuntu-latest]
+    steps:
+    - uses: actions/checkout@v3
+    - name: Download Stack
+      run: ./ci/download-stack.sh
+    - name: Cache Dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.stack
+        key: ${{ matrix.os }}-${{ matrix.ghc }}-${{ hashFiles(env.STACK_YAML, format('{0}.lock', env.STACK_YAML)) }}
+        restore-keys: |
+          ${{ matrix.os }}-${{ matrix.ghc }}-${{ hashFiles(env.STACK_YAML, format('{0}.lock', env.STACK_YAML)) }}
+          ${{ matrix.os }}-${{ matrix.ghc }}
+    - name: Install dependencies
+      run: ./stack build --test --only-dependencies
+  tests:
+    runs-on: ${{ matrix.os }}
+    needs: dependencies
+    env:
+      STACK_YAML: ${{ github.workspace }}/stack-${{ matrix.ghc }}.yaml
+    strategy:
+      fail-fast: false
+      matrix:
+        ghc: ['9.4']
+        os:  [ubuntu-latest]
+    steps:
+    - uses: actions/checkout@v3
+    - name: Download Stack
+      run: ./ci/download-stack.sh
+    - name: Cache Dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.stack
+        key: ${{ matrix.os }}-${{ matrix.ghc }}-${{ hashFiles(env.STACK_YAML, format('{0}.lock', env.STACK_YAML)) }}
+        restore-keys: |
+          ${{ matrix.os }}-${{ matrix.ghc }}-${{ hashFiles(env.STACK_YAML, format('{0}.lock', env.STACK_YAML)) }}
+          ${{ matrix.os }}-${{ matrix.ghc }}
+    - name: Install dependencies
+      run: ./stack build --test --only-dependencies
+    - name: Build
+      run: ./stack build --fast --test --no-run-tests
+    - name: Run tests
+      run: ./stack build --fast --test
+  all-checks:
+    runs-on: ubuntu-latest
+    name: All Checks Pass
+    needs:
+    - tests
+    steps:
+    - run: exit 0
