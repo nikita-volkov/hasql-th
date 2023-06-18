@@ -3,7 +3,98 @@
 # For more information, please see the documentation at:
 #   https://docs.haskellstack.org/en/stable/lock_files
 
-packages: []
+packages:
+- completed:
+    name: cbt
+    pantry-tree:
+      sha256: ce00d75476b93a972544e38643b4452113fdfe0826279db52e7ce78d0576eee5
+      size: 1145
+    sha256: e7d49ab8f9526677baa2f7d034e4262fa4a0490705d716fe690051c6d9b793ed
+    size: 162030
+    subdir: cbt
+    url: https://github.com/mbj/mhs/archive/bd1b8bbaf3a69eac0d17bf701945ce817a1bdf31.tar.gz
+    version: 0.2.4
+  original:
+    subdir: cbt
+    url: https://github.com/mbj/mhs/archive/bd1b8bbaf3a69eac0d17bf701945ce817a1bdf31.tar.gz
+- completed:
+    name: conversions
+    pantry-tree:
+      sha256: e397a4eac6b74d801eefd98d74e2c9b35e61080cffb2b4c0705b93dd597d9831
+      size: 575
+    sha256: e7d49ab8f9526677baa2f7d034e4262fa4a0490705d716fe690051c6d9b793ed
+    size: 162030
+    subdir: conversions
+    url: https://github.com/mbj/mhs/archive/bd1b8bbaf3a69eac0d17bf701945ce817a1bdf31.tar.gz
+    version: 0.0.10
+  original:
+    subdir: conversions
+    url: https://github.com/mbj/mhs/archive/bd1b8bbaf3a69eac0d17bf701945ce817a1bdf31.tar.gz
+- completed:
+    name: dbt
+    pantry-tree:
+      sha256: 78f38c91daeaafdf48c727060f83ec89ac2ec8b87e3ded65edb230fa33dd9d68
+      size: 813
+    sha256: e7d49ab8f9526677baa2f7d034e4262fa4a0490705d716fe690051c6d9b793ed
+    size: 162030
+    subdir: dbt
+    url: https://github.com/mbj/mhs/archive/bd1b8bbaf3a69eac0d17bf701945ce817a1bdf31.tar.gz
+    version: 0.2.0
+  original:
+    subdir: dbt
+    url: https://github.com/mbj/mhs/archive/bd1b8bbaf3a69eac0d17bf701945ce817a1bdf31.tar.gz
+- completed:
+    name: mio-core
+    pantry-tree:
+      sha256: de00336dbbb3078857082873c5f1a9a382e8996d9b3e43607fd99f85abdf1d49
+      size: 338
+    sha256: e7d49ab8f9526677baa2f7d034e4262fa4a0490705d716fe690051c6d9b793ed
+    size: 162030
+    subdir: mio-core
+    url: https://github.com/mbj/mhs/archive/bd1b8bbaf3a69eac0d17bf701945ce817a1bdf31.tar.gz
+    version: 0.0.1
+  original:
+    subdir: mio-core
+    url: https://github.com/mbj/mhs/archive/bd1b8bbaf3a69eac0d17bf701945ce817a1bdf31.tar.gz
+- completed:
+    name: mio-log
+    pantry-tree:
+      sha256: 9abe4446173007411d9b0052f3ba81ea54413267cd4932f1e979c6b1905b105e
+      size: 461
+    sha256: e7d49ab8f9526677baa2f7d034e4262fa4a0490705d716fe690051c6d9b793ed
+    size: 162030
+    subdir: mio-log
+    url: https://github.com/mbj/mhs/archive/bd1b8bbaf3a69eac0d17bf701945ce817a1bdf31.tar.gz
+    version: 0.0.3
+  original:
+    subdir: mio-log
+    url: https://github.com/mbj/mhs/archive/bd1b8bbaf3a69eac0d17bf701945ce817a1bdf31.tar.gz
+- completed:
+    name: mprelude
+    pantry-tree:
+      sha256: d1d842e75a9824f5bce3ad4473cb8b5e390a548ddce171475c94386c9b1d3c60
+      size: 366
+    sha256: e7d49ab8f9526677baa2f7d034e4262fa4a0490705d716fe690051c6d9b793ed
+    size: 162030
+    subdir: mprelude
+    url: https://github.com/mbj/mhs/archive/bd1b8bbaf3a69eac0d17bf701945ce817a1bdf31.tar.gz
+    version: 0.2.1
+  original:
+    subdir: mprelude
+    url: https://github.com/mbj/mhs/archive/bd1b8bbaf3a69eac0d17bf701945ce817a1bdf31.tar.gz
+- completed:
+    name: source-constraints
+    pantry-tree:
+      sha256: 707b8e65f052eead8a312d096f909c7cfb1047d0b6d9ea72d6a8aa7a5448e46c
+      size: 650
+    sha256: e7d49ab8f9526677baa2f7d034e4262fa4a0490705d716fe690051c6d9b793ed
+    size: 162030
+    subdir: source-constraints
+    url: https://github.com/mbj/mhs/archive/bd1b8bbaf3a69eac0d17bf701945ce817a1bdf31.tar.gz
+    version: 0.0.4
+  original:
+    subdir: source-constraints
+    url: https://github.com/mbj/mhs/archive/bd1b8bbaf3a69eac0d17bf701945ce817a1bdf31.tar.gz
 snapshots:
 - completed:
     sha256: 2cbbf12b252ddfed57ca48fd2e086e534fa91d48e61716e479251729ab7351bf

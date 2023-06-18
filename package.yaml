@@ -77,3 +77,21 @@ library:
     MHasql.TH.Extraction.PlaceholderTypeMap
     MHasql.TH.Extraction.PrimitiveType
     MHasql.TH.Prelude
+
+tests:
+  test:
+    main: Main.hs
+    source-dirs: test
+    ghc-options:
+    - -rtsopts
+    - -threaded
+    - -with-rtsopts=-N
+    dependencies:
+    - cbt
+    - dbt
+    - hasql
+    - mhasql-th
+    - mio-core
+    - mprelude
+    - tasty
+    - tasty-hunit

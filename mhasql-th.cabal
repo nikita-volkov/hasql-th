@@ -82,3 +82,72 @@ library
     , uuid
     , vector
   default-language: Haskell2010
+
+test-suite test
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  other-modules:
+      Paths_mhasql_th
+  hs-source-dirs:
+      test
+  default-extensions:
+      ApplicativeDo
+      Arrows
+      BangPatterns
+      ConstraintKinds
+      DataKinds
+      DefaultSignatures
+      DeriveDataTypeable
+      DeriveFoldable
+      DeriveFunctor
+      DeriveGeneric
+      DeriveTraversable
+      DuplicateRecordFields
+      EmptyDataDecls
+      FlexibleContexts
+      FlexibleInstances
+      FunctionalDependencies
+      GADTs
+      GeneralizedNewtypeDeriving
+      LambdaCase
+      LiberalTypeSynonyms
+      MagicHash
+      MultiParamTypeClasses
+      MultiWayIf
+      NoImplicitPrelude
+      NoMonomorphismRestriction
+      OverloadedStrings
+      PatternGuards
+      ParallelListComp
+      QuasiQuotes
+      RankNTypes
+      RecordWildCards
+      ScopedTypeVariables
+      StandaloneDeriving
+      TemplateHaskell
+      TupleSections
+      TypeFamilies
+      TypeOperators
+      UnboxedTuples
+  ghc-options: -rtsopts -threaded -with-rtsopts=-N
+  build-depends:
+      base
+    , bytestring
+    , cbt
+    , containers
+    , contravariant
+    , dbt
+    , foldl
+    , hasql
+    , mhasql-th
+    , mio-core
+    , mprelude
+    , postgresql-syntax
+    , tasty
+    , tasty-hunit
+    , template-haskell
+    , template-haskell-compat-v0208
+    , text
+    , uuid
+    , vector
+  default-language: Haskell2010
