@@ -98,18 +98,18 @@ import qualified PostgresqlSyntax.Parsing as Parsing
 
 exp :: (String -> Q Exp) -> QuasiQuoter
 exp =
-  let _unsupported _ = fail "Unsupported"
-   in \_exp -> QuasiQuoter _exp _unsupported _unsupported _unsupported
+  let unsupported _ = fail "Unsupported"
+   in \exp' -> QuasiQuoter exp' unsupported unsupported unsupported
 
 expParser :: (Text -> Either Text Exp) -> QuasiQuoter
-expParser _parser =
-  exp $ \_inputString -> either (fail . Text.unpack) return $ _parser $ fromString _inputString
+expParser parser =
+  exp $ \inputString -> either (fail . Text.unpack) return $ parser $ fromString inputString
 
 expPreparableStmtAstParser :: (Ast.PreparableStmt -> Either Text Exp) -> QuasiQuoter
-expPreparableStmtAstParser _parser =
-  expParser $ \_input -> do
-    _ast <- first fromString $ Parsing.run (Parsing.atEnd Parsing.preparableStmt) _input
-    _parser _ast
+expPreparableStmtAstParser parser =
+  expParser $ \input -> do
+    ast <- first fromString $ Parsing.run (Parsing.atEnd Parsing.preparableStmt) input
+    parser ast
 
 -- $setup
 -- >>> import Data.Int
