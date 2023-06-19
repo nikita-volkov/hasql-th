@@ -105,11 +105,11 @@ expParser :: (Text -> Either Text Exp) -> QuasiQuoter
 expParser parser =
   exp $ \inputString -> either (fail . Text.unpack) return $ parser $ fromString inputString
 
-expPreparableStmtAstParser :: (Ast.PreparableStmt -> Either Text Exp) -> QuasiQuoter
+expPreparableStmtAstParser :: (Text -> Ast.PreparableStmt -> Either Text Exp) -> QuasiQuoter
 expPreparableStmtAstParser parser =
   expParser $ \input -> do
     ast <- first fromString $ Parsing.run (Parsing.atEnd Parsing.preparableStmt) input
-    parser ast
+    parser input ast
 
 -- $setup
 -- >>> import Data.Int
