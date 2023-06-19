@@ -1,5 +1,6 @@
 module MHasql.TH.Extraction.Exp where
 
+import qualified Data.Text.Encoding as Text
 import qualified Hasql.Decoders as Decoders
 import qualified Hasql.Encoders as Encoders
 import qualified MHasql.TH.Construction.Exp as Exp
@@ -9,23 +10,18 @@ import qualified MHasql.TH.Extraction.PrimitiveType as PrimitiveType
 import MHasql.TH.Prelude
 import Language.Haskell.TH
 import qualified PostgresqlSyntax.Ast as Ast
-import qualified PostgresqlSyntax.Rendering as Rendering
 
-undecodedStatement :: (Exp -> Exp) -> Ast.PreparableStmt -> Either Text Exp
-undecodedStatement decoderProj ast =
-  let sql = (Exp.byteString . Rendering.toByteString . Rendering.preparableStmt) ast
-   in do
-        encoder <- paramsEncoder ast
-        rowDecoder' <- rowDecoder ast
-        return (Exp.statement sql encoder (decoderProj rowDecoder'))
+undecodedStatement :: (Exp -> Exp) -> Text -> Ast.PreparableStmt -> Either Text Exp
+undecodedStatement decoderProj sql ast = do
+  encoder <- paramsEncoder ast
+  rowDecoder' <- rowDecoder ast
+  return (Exp.statement (Exp.byteString $ Text.encodeUtf8 sql) encoder (decoderProj rowDecoder'))
 
-foldStatement :: Ast.PreparableStmt -> Either Text Exp
-foldStatement ast =
-  let sql = (Exp.byteString . Rendering.toByteString . Rendering.preparableStmt) ast
-   in do
-        encoder <- paramsEncoder ast
-        rowDecoder' <- rowDecoder ast
-        return (Exp.foldStatement sql encoder rowDecoder')
+foldStatement :: Text -> Ast.PreparableStmt -> Either Text Exp
+foldStatement sql ast = do
+  encoder <- paramsEncoder ast
+  rowDecoder' <- rowDecoder ast
+  return (Exp.foldStatement (Exp.byteString $ Text.encodeUtf8 sql) encoder rowDecoder')
 
 paramsEncoder :: Ast.PreparableStmt -> Either Text Exp
 paramsEncoder a = do
