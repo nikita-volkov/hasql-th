@@ -47,4 +47,4 @@ placeholderTypeMap map' =
     (\a b -> if a == b then Right () else Left ("You've missed placeholder $" <> showAsText b))
     (IntMap.keys map')
     [1 ..]
-  $> (IntMap.elems map')
+  $> IntMap.elems map'

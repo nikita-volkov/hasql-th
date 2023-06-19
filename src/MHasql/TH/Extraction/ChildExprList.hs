@@ -345,7 +345,7 @@ funcExprWindowless = \case
 
 withinGroupClause = sortClause
 
-filterClause a = aExpr a
+filterClause = aExpr
 
 overClause = \case
   WindowOverClause a -> windowSpecification a

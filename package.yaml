@@ -29,6 +29,7 @@ dependencies:
 - foldl
 - hasql
 - postgresql-syntax
+- tasty-mgolden
 - template-haskell
 - template-haskell-compat-v0208
 - text
@@ -63,6 +64,7 @@ tests:
     dependencies:
     - cbt
     - dbt
+    - devtools
     - hasql
     - mhasql-th
     - mio-core

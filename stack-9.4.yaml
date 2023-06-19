@@ -8,9 +8,11 @@ extra-deps:
   - cbt
   - conversions
   - dbt
+  - devtools
   - mio-core
   - mio-log
   - mprelude
   - source-constraints
+  - tasty-mgolden
 - github: mbj/postgresql-syntax
   commit: 93352c9105406a96a97ba63dca9374645efee5b6

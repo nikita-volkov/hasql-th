@@ -44,6 +44,19 @@ packages:
     subdir: dbt
     url: https://github.com/mbj/mhs/archive/bd1b8bbaf3a69eac0d17bf701945ce817a1bdf31.tar.gz
 - completed:
+    name: devtools
+    pantry-tree:
+      sha256: 8d69ec32779df73a6706d8d4102c6d5ea001eb6b8c8c23b1a48e9bdfece16b2d
+      size: 578
+    sha256: e7d49ab8f9526677baa2f7d034e4262fa4a0490705d716fe690051c6d9b793ed
+    size: 162030
+    subdir: devtools
+    url: https://github.com/mbj/mhs/archive/bd1b8bbaf3a69eac0d17bf701945ce817a1bdf31.tar.gz
+    version: 0.2.0
+  original:
+    subdir: devtools
+    url: https://github.com/mbj/mhs/archive/bd1b8bbaf3a69eac0d17bf701945ce817a1bdf31.tar.gz
+- completed:
     name: mio-core
     pantry-tree:
       sha256: de00336dbbb3078857082873c5f1a9a382e8996d9b3e43607fd99f85abdf1d49
@@ -94,6 +107,19 @@ packages:
     version: 0.0.4
   original:
     subdir: source-constraints
+    url: https://github.com/mbj/mhs/archive/bd1b8bbaf3a69eac0d17bf701945ce817a1bdf31.tar.gz
+- completed:
+    name: tasty-mgolden
+    pantry-tree:
+      sha256: 4f375e4e5af8c41a8b387d359a3aadd75125f1617cd55b66abcae6e399385870
+      size: 621
+    sha256: e7d49ab8f9526677baa2f7d034e4262fa4a0490705d716fe690051c6d9b793ed
+    size: 162030
+    subdir: tasty-mgolden
+    url: https://github.com/mbj/mhs/archive/bd1b8bbaf3a69eac0d17bf701945ce817a1bdf31.tar.gz
+    version: 0.0.2
+  original:
+    subdir: tasty-mgolden
     url: https://github.com/mbj/mhs/archive/bd1b8bbaf3a69eac0d17bf701945ce817a1bdf31.tar.gz
 - completed:
     name: postgresql-syntax

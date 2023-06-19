@@ -47,7 +47,7 @@ pureUnit :: Exp
 pureUnit = AppE (VarE 'pure) (TupE [])
 
 andThen :: Exp -> Exp -> Exp
-andThen exp1 exp2 = AppE (AppE (VarE '(*>)) exp1) exp2
+andThen exp = AppE (AppE (VarE '(*>)) exp)
 
 tuple :: Int -> Exp
 tuple = ConE . tupleDataName
@@ -68,7 +68,7 @@ splitTupleAt arity position =
 -- a single divisible functor, parameterized by a tuple of according arity.
 contrazip :: [Exp] -> Exp
 contrazip = \case
-  head : [] -> head
+  [head] -> head
   head : tail -> appList (VarE 'divide) [splitTupleAt (succ (length tail)) 1, head, contrazip tail]
   [] ->
     SigE
@@ -92,11 +92,11 @@ contrazip = \case
 -- Just (1,2,3)
 cozip :: [Exp] -> Exp
 cozip = \case
-  head : [] -> head
+  [head] -> head
   head : tail ->
     let length' = length tail + 1
      in foldl'
-          (\a b -> AppE (AppE (VarE '(<*>)) a) b)
+          (AppE . AppE (VarE '(<*>)))
           (AppE (AppE (VarE 'fmap) (tuple length')) head)
           tail
   [] -> AppE (VarE 'pure) (TupE [])

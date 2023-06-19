@@ -48,6 +48,7 @@ library
     , foldl
     , hasql
     , postgresql-syntax
+    , tasty-mgolden
     , template-haskell
     , template-haskell-compat-v0208
     , text
@@ -83,6 +84,7 @@ test-suite doctest
     , hasql
     , mhasql-th
     , postgresql-syntax
+    , tasty-mgolden
     , template-haskell
     , template-haskell-compat-v0208
     , text
@@ -115,6 +117,7 @@ test-suite test
     , containers
     , contravariant
     , dbt
+    , devtools
     , foldl
     , hasql
     , mhasql-th
@@ -123,6 +126,7 @@ test-suite test
     , postgresql-syntax
     , tasty
     , tasty-hunit
+    , tasty-mgolden
     , template-haskell
     , template-haskell-compat-v0208
     , text
