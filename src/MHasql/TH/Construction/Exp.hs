@@ -147,15 +147,15 @@ foldResultDecoder :: Exp -> Exp -> Exp -> Exp -> Exp
 foldResultDecoder step init extract rowDecoder' =
   appList (VarE 'fmap) [extract, appList (VarE 'Decoders.foldlRows) [step, init, rowDecoder']]
 
-unidimensionalParamEncoder :: Bool -> Exp -> Exp
-unidimensionalParamEncoder nullable =
-  applyParamToEncoder . applyNullabilityToEncoder nullable
+unidimensionalParamEncoder :: Exp -> Exp
+unidimensionalParamEncoder =
+  applyParamToEncoder . applyNullabilityToEncoder True
 
-multidimensionalParamEncoder :: Bool -> Int -> Bool -> Exp -> Exp
-multidimensionalParamEncoder nullable dimensionality arrayNull =
-  applyParamToEncoder . applyNullabilityToEncoder arrayNull . AppE (VarE 'Encoders.array)
+multidimensionalParamEncoder :: Int -> Exp -> Exp
+multidimensionalParamEncoder dimensionality =
+  applyParamToEncoder . applyNullabilityToEncoder True . AppE (VarE 'Encoders.array)
     . applyArrayDimensionalityToEncoder dimensionality
-    . applyNullabilityToEncoder nullable
+    . applyNullabilityToEncoder True
 
 applyParamToEncoder :: Exp -> Exp
 applyParamToEncoder = AppE (VarE 'Encoders.param)
@@ -172,15 +172,15 @@ applyArrayDimensionalityToEncoder levels =
 rowDecoder :: [Exp] -> Exp
 rowDecoder = cozip
 
-unidimensionalColumnDecoder :: Bool -> Exp -> Exp
-unidimensionalColumnDecoder nullable =
-  applyColumnToDecoder . applyNullabilityToDecoder nullable
+unidimensionalColumnDecoder :: Exp -> Exp
+unidimensionalColumnDecoder =
+  applyColumnToDecoder . applyNullabilityToDecoder True
 
-multidimensionalColumnDecoder :: Bool -> Int -> Bool -> Exp -> Exp
-multidimensionalColumnDecoder nullable dimensionality arrayNull =
-  applyColumnToDecoder . applyNullabilityToDecoder arrayNull . AppE (VarE 'Decoders.array)
+multidimensionalColumnDecoder :: Int -> Exp -> Exp
+multidimensionalColumnDecoder dimensionality =
+  applyColumnToDecoder . applyNullabilityToDecoder True . AppE (VarE 'Decoders.array)
     . applyArrayDimensionalityToDecoder dimensionality
-    . applyNullabilityToDecoder nullable
+    . applyNullabilityToDecoder True
 
 applyColumnToDecoder :: Exp -> Exp
 applyColumnToDecoder = AppE (VarE 'Decoders.column)

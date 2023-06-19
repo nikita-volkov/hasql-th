@@ -571,7 +571,7 @@ indirectionEl = \case
 
 typeList = foldMap typename
 
-typename (Typename _a b _c _d) =
+typename (Typename _a b _c) =
   simpleTypename b
 
 simpleTypename = \case

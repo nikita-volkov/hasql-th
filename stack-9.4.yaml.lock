@@ -95,6 +95,17 @@ packages:
   original:
     subdir: source-constraints
     url: https://github.com/mbj/mhs/archive/bd1b8bbaf3a69eac0d17bf701945ce817a1bdf31.tar.gz
+- completed:
+    name: postgresql-syntax
+    pantry-tree:
+      sha256: 0b5dec9b00df1e927d73b56c0df02e2d9ad51f29205d81ba0d00b1fc35bc3dbf
+      size: 1841
+    sha256: 799a33b3173f583a5ee68b5c4f3741cf05607a0634e1d62324d87161f942cbb4
+    size: 173513
+    url: https://github.com/mbj/postgresql-syntax/archive/93352c9105406a96a97ba63dca9374645efee5b6.tar.gz
+    version: 0.4.1
+  original:
+    url: https://github.com/mbj/postgresql-syntax/archive/93352c9105406a96a97ba63dca9374645efee5b6.tar.gz
 snapshots:
 - completed:
     sha256: 2cbbf12b252ddfed57ca48fd2e086e534fa91d48e61716e479251729ab7351bf
