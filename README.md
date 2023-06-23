@@ -65,8 +65,6 @@ The library supports almost all of Postgresql syntax available for preparable st
 
 ## Quality
 
-[![Build Status](https://travis-ci.org/nikita-volkov/hasql-th.svg?branch=master)](https://travis-ci.org/nikita-volkov/hasql-th)
-
 The parser and renderer get heavily tested using the following property: rendering a random AST then parsing it should produce the same AST. This pretty much covers most possible reasons for bugs in the library.
 
 # Implementation
