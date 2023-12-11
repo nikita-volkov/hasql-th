@@ -8,8 +8,6 @@ import PostgresqlSyntax.Ast
 data ChildExpr = AChildExpr AExpr | BChildExpr BExpr | CChildExpr CExpr
   deriving (Show, Eq, Ord)
 
--- *
-
 -- |
 -- Dives one level of recursion.
 childExpr = \case
@@ -61,8 +59,6 @@ cChildExpr = \case
   ExplicitRowCExpr a -> explicitRow a
   ImplicitRowCExpr a -> implicitRow a
   GroupingCExpr a -> exprList a
-
--- *
 
 preparableStmt = \case
   SelectPreparableStmt a -> selectStmt a
@@ -193,7 +189,9 @@ selectClause = either simpleSelect selectWithParens
 
 simpleSelect = \case
   NormalSimpleSelect a b c d e f g ->
-    foldMap targeting a <> foldMap intoClause b <> foldMap fromClause c
+    foldMap targeting a
+      <> foldMap intoClause b
+      <> foldMap fromClause c
       <> foldMap whereClause d
       <> foldMap groupClause e
       <> foldMap havingClause f
@@ -323,8 +321,6 @@ joinMeth = \case
 joinQual = \case
   UsingJoinQual _ -> []
   OnJoinQual a -> aExpr a
-
--- *
 
 exprList = fmap AChildExpr . toList
 

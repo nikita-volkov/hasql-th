@@ -5,7 +5,7 @@ module Hasql.TH.Extraction.OutputTypeList where
 import Hasql.TH.Prelude
 import PostgresqlSyntax.Ast
 
-foldable :: Foldable f => (a -> Either Text [Typename]) -> f a -> Either Text [Typename]
+foldable :: (Foldable f) => (a -> Either Text [Typename]) -> f a -> Either Text [Typename]
 foldable fn = fmap join . traverse fn . toList
 
 preparableStmt = \case

@@ -82,7 +82,7 @@ import Text.Read as Exports (Read (..), readEither, readMaybe)
 import Unsafe.Coerce as Exports
 import Prelude as Exports hiding (all, and, any, concat, concatMap, elem, fail, foldl, foldl1, foldr, foldr1, id, mapM, mapM_, maximum, minimum, notElem, or, product, sequence, sequence_, sum, (.))
 
-showAsText :: Show a => a -> Text
+showAsText :: (Show a) => a -> Text
 showAsText = show >>> fromString
 
 -- |
