@@ -30,7 +30,7 @@ byteString x =
         ]
     ]
 
-integral :: Integral a => a -> Exp
+integral :: (Integral a) => a -> Exp
 integral x = LitE (IntegerL (fromIntegral x))
 
 list :: (a -> Exp) -> [a] -> Exp
@@ -156,7 +156,9 @@ unidimensionalParamEncoder nullable =
 
 multidimensionalParamEncoder :: Bool -> Int -> Bool -> Exp -> Exp
 multidimensionalParamEncoder nullable dimensionality arrayNull =
-  applyParamToEncoder . applyNullabilityToEncoder arrayNull . AppE (VarE 'Encoders.array)
+  applyParamToEncoder
+    . applyNullabilityToEncoder arrayNull
+    . AppE (VarE 'Encoders.array)
     . applyArrayDimensionalityToEncoder dimensionality
     . applyNullabilityToEncoder nullable
 
@@ -181,7 +183,9 @@ unidimensionalColumnDecoder nullable =
 
 multidimensionalColumnDecoder :: Bool -> Int -> Bool -> Exp -> Exp
 multidimensionalColumnDecoder nullable dimensionality arrayNull =
-  applyColumnToDecoder . applyNullabilityToDecoder arrayNull . AppE (VarE 'Decoders.array)
+  applyColumnToDecoder
+    . applyNullabilityToDecoder arrayNull
+    . AppE (VarE 'Decoders.array)
     . applyArrayDimensionalityToDecoder dimensionality
     . applyNullabilityToDecoder nullable
 

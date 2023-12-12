@@ -1,7 +1,8 @@
-name: hasql-th
-version: 0.4.0.18
-category: Hasql, Database, PostgreSQL, Template Haskell
-synopsis: Template Haskell utilities for Hasql
+cabal-version: 3.0
+name:          hasql-th
+version:       0.4.0.19
+category:      Hasql, Database, PostgreSQL, Template Haskell
+synopsis:      Template Haskell utilities for Hasql
 description:
   Extension-library for Hasql,
   bringing compile-time syntax checking,
@@ -9,26 +10,63 @@ description:
   other TemplateHaskell-based utilities.
   .
   For details please see <https://github.com/nikita-volkov/hasql-th the readme>.
-homepage: https://github.com/nikita-volkov/hasql-th
-bug-reports: https://github.com/nikita-volkov/hasql-th/issues
-author: Nikita Volkov <nikita.y.volkov@mail.ru>
-maintainer: Nikita Volkov <nikita.y.volkov@mail.ru>
-copyright: (c) 2015, Nikita Volkov
-license: MIT
-license-file: LICENSE
-build-type: Simple
-cabal-version: >=1.10
+
+homepage:      https://github.com/nikita-volkov/hasql-th
+bug-reports:   https://github.com/nikita-volkov/hasql-th/issues
+author:        Nikita Volkov <nikita.y.volkov@mail.ru>
+maintainer:    Nikita Volkov <nikita.y.volkov@mail.ru>
+copyright:     (c) 2015, Nikita Volkov
+license:       MIT
+license-file:  LICENSE
 
 source-repository head
-  type: git
+  type:     git
   location: git://github.com/nikita-volkov/hasql-th.git
 
 library
-  hs-source-dirs: library
-  default-extensions: ApplicativeDo, Arrows, BangPatterns, ConstraintKinds, DataKinds, DefaultSignatures, DeriveDataTypeable, DeriveFoldable, DeriveFunctor, DeriveGeneric, DeriveTraversable, DuplicateRecordFields, EmptyDataDecls, FlexibleContexts, FlexibleInstances, FunctionalDependencies, GADTs, GeneralizedNewtypeDeriving, LambdaCase, LiberalTypeSynonyms, MagicHash, MultiParamTypeClasses, MultiWayIf, NoImplicitPrelude, NoMonomorphismRestriction, OverloadedStrings, PatternGuards, ParallelListComp, QuasiQuotes, RankNTypes, RecordWildCards, ScopedTypeVariables, StandaloneDeriving, TemplateHaskell, TupleSections, TypeFamilies, TypeOperators, UnboxedTuples
-  default-language: Haskell2010
-  exposed-modules:
-    Hasql.TH
+  hs-source-dirs:     library
+  default-extensions:
+    NoImplicitPrelude
+    NoMonomorphismRestriction
+    ApplicativeDo
+    Arrows
+    BangPatterns
+    ConstraintKinds
+    DataKinds
+    DefaultSignatures
+    DeriveDataTypeable
+    DeriveFoldable
+    DeriveFunctor
+    DeriveGeneric
+    DeriveTraversable
+    DuplicateRecordFields
+    EmptyDataDecls
+    FlexibleContexts
+    FlexibleInstances
+    FunctionalDependencies
+    GADTs
+    GeneralizedNewtypeDeriving
+    LambdaCase
+    LiberalTypeSynonyms
+    MagicHash
+    MultiParamTypeClasses
+    MultiWayIf
+    OverloadedStrings
+    ParallelListComp
+    PatternGuards
+    QuasiQuotes
+    RankNTypes
+    RecordWildCards
+    ScopedTypeVariables
+    StandaloneDeriving
+    TemplateHaskell
+    TupleSections
+    TypeFamilies
+    TypeOperators
+    UnboxedTuples
+
+  default-language:   Haskell2010
+  exposed-modules:    Hasql.TH
   other-modules:
     Hasql.TH.Construction.Exp
     Hasql.TH.Extraction.ChildExprList
@@ -38,16 +76,17 @@ library
     Hasql.TH.Extraction.PlaceholderTypeMap
     Hasql.TH.Extraction.PrimitiveType
     Hasql.TH.Prelude
+
   build-depends:
-    base >=4.11 && <5,
-    bytestring >=0.10 && <0.12,
-    containers >=0.6 && <0.7,
-    contravariant >=1.5.2 && <2,
-    foldl >=1.4.5 && <2,
-    hasql >=1.4 && <1.7,
-    postgresql-syntax >=0.4.1 && <0.5,
-    template-haskell >=2.8 && <3,
-    template-haskell-compat-v0208 >=0.1.9 && <2,
-    text >=1 && <3,
-    uuid >=1.3 && <2,
-    vector >=0.12 && <0.14
+    , base >=4.11 && <5
+    , bytestring >=0.10 && <0.13
+    , containers >=0.6 && <0.8
+    , contravariant >=1.5.2 && <2
+    , foldl >=1.4.5 && <2
+    , hasql >=1.4 && <1.7
+    , postgresql-syntax >=0.4.1 && <0.5
+    , template-haskell >=2.8 && <3
+    , template-haskell-compat-v0208 >=0.1.9 && <2
+    , text >=1 && <3
+    , uuid >=1.3 && <2
+    , vector >=0.12 && <0.14
