@@ -1,6 +1,6 @@
 cabal-version: 3.0
 name:          hasql-th
-version:       0.4.0.19
+version:       0.4.0.20
 category:      Hasql, Database, PostgreSQL, Template Haskell
 synopsis:      Template Haskell utilities for Hasql
 description:
@@ -83,7 +83,7 @@ library
     , containers >=0.6 && <0.8
     , contravariant >=1.5.2 && <2
     , foldl >=1.4.5 && <2
-    , hasql >=1.4 && <1.7
+    , hasql >=1.4 && <1.8
     , postgresql-syntax >=0.4.1 && <0.5
     , template-haskell >=2.8 && <3
     , template-haskell-compat-v0208 >=0.1.9 && <2
