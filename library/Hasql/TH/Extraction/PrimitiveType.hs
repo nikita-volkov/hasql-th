@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-missing-signatures #-}
+
 module Hasql.TH.Extraction.PrimitiveType where
 
 import Hasql.TH.Prelude hiding (bit, fromList, sortBy)

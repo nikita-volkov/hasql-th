@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-missing-signatures #-}
+
 -- |
 -- AST traversal extracting output types.
 module Hasql.TH.Extraction.OutputTypeList where
