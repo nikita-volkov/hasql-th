@@ -11,7 +11,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - ghc: 8.8.1
+          - ghc: 8.10.1
             ghc-options: ""
             ignore-haddock: true
             ignore-cabal-check: true
@@ -19,6 +19,21 @@ jobs:
             ignore-cabal-check: true
 
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
 
