@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-missing-signatures #-}
+
 module Hasql.TH.Extraction.PlaceholderTypeMap where
 
 import qualified Data.IntMap.Strict as IntMap

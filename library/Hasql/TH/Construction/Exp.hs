@@ -4,12 +4,11 @@ module Hasql.TH.Construction.Exp where
 
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Unsafe as ByteString
-import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Vector.Generic as Vector
 import qualified Hasql.Decoders as Decoders
 import qualified Hasql.Encoders as Encoders
 import qualified Hasql.Statement as Statement
-import Hasql.TH.Prelude hiding (list, sequence_, string)
+import Hasql.TH.Prelude hiding (sequence_)
 import qualified Hasql.TH.Prelude as Prelude
 import Language.Haskell.TH.Syntax
 import qualified TemplateHaskell.Compat.V0208 as Compat

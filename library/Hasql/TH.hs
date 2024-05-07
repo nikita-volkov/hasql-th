@@ -106,8 +106,6 @@ where
 
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
-import Data.Vector (Vector)
-import Hasql.Statement (Statement)
 import qualified Hasql.TH.Construction.Exp as Exp
 import qualified Hasql.TH.Extraction.Exp as ExpExtraction
 import Hasql.TH.Prelude hiding (exp)
