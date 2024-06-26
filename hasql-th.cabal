@@ -1,6 +1,6 @@
 cabal-version: 3.0
 name: hasql-th
-version: 0.4.0.21
+version: 0.4.0.22
 category: Hasql, Database, PostgreSQL, Template Haskell
 synopsis: Template Haskell utilities for Hasql
 description:
@@ -8,7 +8,7 @@ description:
   bringing compile-time syntax checking,
   great simplification of declaration of statements and
   other TemplateHaskell-based utilities.
-  .
+
   For details please see <https://github.com/nikita-volkov/hasql-th the readme>.
 
 homepage: https://github.com/nikita-volkov/hasql-th
@@ -83,7 +83,7 @@ library
     containers >=0.6 && <0.8,
     contravariant >=1.5.2 && <2,
     foldl >=1.4.5 && <2,
-    hasql >=1.4 && <1.8,
+    hasql >=1.4 && <1.9,
     postgresql-syntax >=0.4.1 && <0.5,
     template-haskell >=2.8 && <3,
     template-haskell-compat-v0208 >=0.1.9 && <2,
