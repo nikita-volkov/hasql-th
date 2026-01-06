@@ -124,7 +124,7 @@ foldLam _body =
 
 statement :: Exp -> Exp -> Exp -> Exp
 statement _sql _encoder _decoder =
-  appList (ConE 'Statement.Statement) [_sql, _encoder, _decoder, ConE 'True]
+  appList (VarE 'Statement.preparable) [_sql, _encoder, _decoder]
 
 noResultResultDecoder :: Exp
 noResultResultDecoder = VarE 'Decoders.noResult
