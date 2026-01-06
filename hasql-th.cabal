@@ -21,7 +21,7 @@ license-file: LICENSE
 
 source-repository head
   type: git
-  location: git://github.com/nikita-volkov/hasql-th.git
+  location: https://github.com/nikita-volkov/hasql-th
 
 library
   hs-source-dirs: library
