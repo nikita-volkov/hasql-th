@@ -60,17 +60,16 @@ splitTupleAt arity position =
 -- a single divisible functor, parameterized by a tuple of according arity.
 contrazip :: [Exp] -> Exp
 contrazip = \case
-  _head : [] -> _head
-  _head : _tail -> appList (VarE 'divide) [splitTupleAt (succ (length _tail)) 1, _head, contrazip _tail]
+  hd : [] -> hd
+  hd : tl -> appList (VarE 'divide) [splitTupleAt (succ (length tl)) 1, hd, contrazip tl]
   [] ->
     SigE
       (VarE 'conquer)
-      ( let _fName = mkName "f"
-            _fVar = VarT _fName
+      ( let fName = mkName "f"
          in ForallT
-              [Compat.specifiedPlainTV _fName]
-              [AppT (ConT ''Divisible) (VarT _fName)]
-              (AppT (VarT _fName) (TupleT 0))
+              [Compat.specifiedPlainTV fName]
+              [AppT (ConT ''Divisible) (VarT fName)]
+              (AppT (VarT fName) (TupleT 0))
       )
 
 -- |
@@ -85,37 +84,37 @@ contrazip = \case
 -- Just (1,2,3)
 cozip :: [Exp] -> Exp
 cozip = \case
-  _head : [] -> _head
-  _head : _tail ->
-    let _length = length _tail + 1
+  hd : [] -> hd
+  hd : tl ->
+    let len = length tl + 1
      in foldl'
           (\a b -> AppE (AppE (VarE '(<*>)) a) b)
-          (AppE (AppE (VarE 'fmap) (tuple _length)) _head)
-          _tail
+          (AppE (AppE (VarE 'fmap) (tuple len)) hd)
+          tl
   [] -> AppE (VarE 'pure) (TupE [])
 
 -- |
 -- Lambda expression, which destructures 'Fold'.
 foldLam :: (Exp -> Exp -> Exp -> Exp) -> Exp
-foldLam _body =
-  let _stepVarName = mkName "progress"
-      _initVarName = mkName "start"
-      _extractVarName = mkName "finish"
+foldLam body =
+  let stepVarName = mkName "progress"
+      initVarName = mkName "start"
+      extractVarName = mkName "finish"
    in LamE
         [ Compat.conP
             'Fold
-            [ VarP _stepVarName,
-              VarP _initVarName,
-              VarP _extractVarName
+            [ VarP stepVarName,
+              VarP initVarName,
+              VarP extractVarName
             ]
         ]
-        (_body (VarE _stepVarName) (VarE _initVarName) (VarE _extractVarName))
+        (body (VarE stepVarName) (VarE initVarName) (VarE extractVarName))
 
 -- * Statement
 
 statement :: Exp -> Exp -> Exp -> Exp
-statement _sql _encoder _decoder =
-  appList (VarE 'Statement.preparable) [_sql, _encoder, _decoder]
+statement sql encoder decoder =
+  appList (VarE 'Statement.preparable) [sql, encoder, decoder]
 
 noResultResultDecoder :: Exp
 noResultResultDecoder = VarE 'Decoders.noResult
@@ -133,12 +132,12 @@ rowVectorResultDecoder :: Exp -> Exp
 rowVectorResultDecoder = AppE (VarE 'Decoders.rowVector)
 
 foldStatement :: Exp -> Exp -> Exp -> Exp
-foldStatement _sql _encoder _rowDecoder =
-  foldLam (\_step _init _extract -> statement _sql _encoder (foldResultDecoder _step _init _extract _rowDecoder))
+foldStatement sql encoder rowDecoder' =
+  foldLam (\step init extract -> statement sql encoder (foldResultDecoder step init extract rowDecoder'))
 
 foldResultDecoder :: Exp -> Exp -> Exp -> Exp -> Exp
-foldResultDecoder _step _init _extract _rowDecoder =
-  appList (VarE 'fmap) [_extract, appList (VarE 'Decoders.foldlRows) [_step, _init, _rowDecoder]]
+foldResultDecoder step init extract rowDecoder' =
+  appList (VarE 'fmap) [extract, appList (VarE 'Decoders.foldlRows) [step, init, rowDecoder']]
 
 unidimensionalParamEncoder :: Bool -> Exp -> Exp
 unidimensionalParamEncoder nullable =

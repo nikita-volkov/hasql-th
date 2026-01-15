@@ -12,20 +12,20 @@ import qualified PostgresqlSyntax.Ast as Ast
 import qualified PostgresqlSyntax.Rendering as Rendering
 
 undecodedStatement :: (Exp -> Exp) -> Ast.PreparableStmt -> Either Text Exp
-undecodedStatement _decoderProj _ast =
-  let _sql = (Exp.text . Rendering.toText . Rendering.preparableStmt) _ast
+undecodedStatement decoderProj ast =
+  let sql = (Exp.text . Rendering.toText . Rendering.preparableStmt) ast
    in do
-        _encoder <- paramsEncoder _ast
-        _rowDecoder <- rowDecoder _ast
-        return (Exp.statement _sql _encoder (_decoderProj _rowDecoder))
+        encoder <- paramsEncoder ast
+        rowDecoder' <- rowDecoder ast
+        return (Exp.statement sql encoder (decoderProj rowDecoder'))
 
 foldStatement :: Ast.PreparableStmt -> Either Text Exp
-foldStatement _ast =
-  let _sql = (Exp.text . Rendering.toText . Rendering.preparableStmt) _ast
+foldStatement ast =
+  let sql = (Exp.text . Rendering.toText . Rendering.preparableStmt) ast
    in do
-        _encoder <- paramsEncoder _ast
-        _rowDecoder <- rowDecoder _ast
-        return (Exp.foldStatement _sql _encoder _rowDecoder)
+        encoder <- paramsEncoder ast
+        rowDecoder' <- rowDecoder ast
+        return (Exp.foldStatement sql encoder rowDecoder')
 
 paramsEncoder :: Ast.PreparableStmt -> Either Text Exp
 paramsEncoder a = do
