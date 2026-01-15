@@ -96,7 +96,6 @@ library
 
   build-depends:
     base >=4.11 && <5,
-    bytestring >=0.10 && <0.13,
     containers >=0.6 && <0.9,
     contravariant >=1.5.2 && <2,
     foldl >=1.4.5 && <2,

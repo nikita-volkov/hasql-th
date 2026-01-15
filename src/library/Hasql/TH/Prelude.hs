@@ -19,7 +19,6 @@ import Control.Monad.ST as Exports
 import Data.Bifunctor as Exports
 import Data.Bits as Exports
 import Data.Bool as Exports
-import Data.ByteString as Exports (ByteString)
 import Data.Char as Exports
 import Data.Coerce as Exports
 import Data.Complex as Exports
@@ -56,6 +55,7 @@ import Data.Traversable as Exports
 import Data.Tuple as Exports
 import Data.UUID as Exports (UUID)
 import Data.Unique as Exports
+import Data.Vector as Exports (Vector)
 import Data.Version as Exports
 import Data.Void as Exports
 import Data.Word as Exports
@@ -68,6 +68,7 @@ import GHC.Conc as Exports hiding (orElse, threadWaitRead, threadWaitReadSTM, th
 import GHC.Exts as Exports (IsList (Item, fromList), groupWith, inline, lazy, sortWith)
 import GHC.Generics as Exports (Generic, Generic1)
 import GHC.IO.Exception as Exports
+import Hasql.Statement as Exports (Statement)
 import Numeric as Exports
 import System.Environment as Exports
 import System.Exit as Exports

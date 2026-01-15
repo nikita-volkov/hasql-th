@@ -2,8 +2,7 @@
 -- Expression construction.
 module Hasql.TH.Construction.Exp where
 
-import qualified Data.ByteString as ByteString
-import qualified Data.ByteString.Unsafe as ByteString
+import qualified Data.Text as Text
 import qualified Data.Vector.Generic as Vector
 import qualified Hasql.Decoders as Decoders
 import qualified Hasql.Encoders as Encoders
@@ -18,16 +17,8 @@ import qualified TemplateHaskell.Compat.V0208 as Compat
 appList :: Exp -> [Exp] -> Exp
 appList = foldl' AppE
 
-byteString :: ByteString -> Exp
-byteString x =
-  appList
-    (VarE 'unsafeDupablePerformIO)
-    [ appList
-        (VarE 'ByteString.unsafePackAddressLen)
-        [ LitE (IntegerL (fromIntegral (ByteString.length x))),
-          LitE (StringPrimL (ByteString.unpack x))
-        ]
-    ]
+text :: Text -> Exp
+text x = AppE (VarE 'Text.pack) (LitE (StringL (Text.unpack x)))
 
 integral :: (Integral a) => a -> Exp
 integral x = LitE (IntegerL (fromIntegral x))

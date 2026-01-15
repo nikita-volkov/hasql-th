@@ -13,7 +13,7 @@ import qualified PostgresqlSyntax.Rendering as Rendering
 
 undecodedStatement :: (Exp -> Exp) -> Ast.PreparableStmt -> Either Text Exp
 undecodedStatement _decoderProj _ast =
-  let _sql = (Exp.byteString . Rendering.toByteString . Rendering.preparableStmt) _ast
+  let _sql = (Exp.text . Rendering.toText . Rendering.preparableStmt) _ast
    in do
         _encoder <- paramsEncoder _ast
         _rowDecoder <- rowDecoder _ast
@@ -21,7 +21,7 @@ undecodedStatement _decoderProj _ast =
 
 foldStatement :: Ast.PreparableStmt -> Either Text Exp
 foldStatement _ast =
-  let _sql = (Exp.byteString . Rendering.toByteString . Rendering.preparableStmt) _ast
+  let _sql = (Exp.text . Rendering.toText . Rendering.preparableStmt) _ast
    in do
         _encoder <- paramsEncoder _ast
         _rowDecoder <- rowDecoder _ast

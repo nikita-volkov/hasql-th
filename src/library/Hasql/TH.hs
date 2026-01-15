@@ -93,19 +93,16 @@ module Hasql.TH
     resultlessStatement,
     rowsAffectedStatement,
 
-    -- * SQL ByteStrings
+    -- * SQL Strings
 
     -- |
-    --  ByteString-producing quasiquoters.
-    --
-    --  For now they perform no compile-time checking.
+    -- Text-producing quasiquoters performing no compile-time checking.
     uncheckedSql,
     uncheckedSqlFile,
   )
 where
 
 import qualified Data.Text as Text
-import qualified Data.Text.Encoding as Text
 import qualified Hasql.TH.Construction.Exp as Exp
 import qualified Hasql.TH.Extraction.Exp as ExpExtraction
 import Hasql.TH.Prelude hiding (exp)
@@ -242,33 +239,33 @@ resultlessStatement = expPreparableStmtAstParser (ExpExtraction.undecodedStateme
 rowsAffectedStatement :: QuasiQuoter
 rowsAffectedStatement = expPreparableStmtAstParser (ExpExtraction.undecodedStatement (const Exp.rowsAffectedResultDecoder))
 
--- * SQL ByteStrings
+-- * SQL Strings
 
 -- |
 -- Quoter of a multiline Unicode SQL string,
 -- which gets converted into a format ready to be used for declaration of statements.
 uncheckedSql :: QuasiQuoter
-uncheckedSql = exp $ return . Exp.byteString . Text.encodeUtf8 . fromString
+uncheckedSql = exp $ return . Exp.text . fromString
 
 -- |
 -- Read an SQL-file, containing multiple statements,
--- and produce an expression of type `ByteString`.
+-- and produce an expression of type 'Text'.
 --
 -- Allows to store plain SQL in external files and read it at compile time.
 --
 -- E.g.,
 --
 -- >migration1 :: Hasql.Session.Session ()
--- >migration1 = Hasql.Session.sql [uncheckedSqlFile|migrations/1.sql|]
+-- >migration1 = Hasql.Session.script [uncheckedSqlFile|migrations/1.sql|]
 uncheckedSqlFile :: QuasiQuoter
 uncheckedSqlFile = quoteFile uncheckedSql
 
 -- * Tests
 
 -- $
--- >>> :t [maybeStatement| select (password = $2 :: bytea) :: bool, id :: int4 from "user" where "email" = $1 :: text |]
+-- >>> :t [maybeStatement| select (password = $2 :: text) :: bool, id :: int4 from "user" where "email" = $1 :: text |]
 -- ...
--- ... Statement (Text, ByteString) (Maybe (Bool, Int32))
+-- ... Statement (Text, Text) (Maybe (Bool, Int32))
 --
 -- >>> :t [maybeStatement| select id :: int4 from application where pub_key = $1 :: uuid and sec_key_pt1 = $2 :: int8 and sec_key_pt2 = $3 :: int8 |]
 -- ...
