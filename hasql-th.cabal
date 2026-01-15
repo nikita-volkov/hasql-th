@@ -1,6 +1,6 @@
 cabal-version: 3.0
 name: hasql-th
-version: 0.4.1.1
+version: 0.5
 category: Hasql, Database, PostgreSQL, Template Haskell
 synopsis: Template Haskell utilities for Hasql
 description:
