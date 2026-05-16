@@ -10,6 +10,11 @@ module Hasql.TH
     --
     --  Here's an example of how to use it:
     --
+    --  Enable the @QuasiQuotes@ language extension in any module that uses
+    --  these quasiquoters:
+    --
+    --  >{-# LANGUAGE QuasiQuotes #-}
+    --
     --  >selectUserDetails :: Statement Int32 (Maybe (Text, Text, Maybe Text))
     --  >selectUserDetails =
     --  >  [maybeStatement|

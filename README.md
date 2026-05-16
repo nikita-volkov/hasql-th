@@ -4,7 +4,13 @@ An extension library for the ["hasql"](https://github.com/nikita-volkov/hasql) P
 
 Here's a brief example of how it works:
 
+> **Note:** these quasiquoters require the `QuasiQuotes` language extension.
+> In a Haskell module, add `{-# LANGUAGE QuasiQuotes #-}`; in GHCi, run
+> `:set -XQuasiQuotes`.
+
 ```haskell
+{-# LANGUAGE QuasiQuotes #-}
+
 selectUserDetails :: Statement Int32 (Maybe (Text, Text, Maybe Text))
 selectUserDetails =
   [maybeStatement|
