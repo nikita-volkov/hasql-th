@@ -3,7 +3,7 @@
 module Hasql.TH.Extraction.PrimitiveType where
 
 import Hasql.TH.Prelude hiding (bit, fromList, sortBy)
-import PostgresqlSyntax.Ast
+import PostgresqlSyntax
 
 data PrimitiveType
   = BoolPrimitiveType
@@ -71,7 +71,7 @@ constDatetime = \case
   TimeConstDatetime _ a -> if tz a then Right TimetzPrimitiveType else Right TimePrimitiveType
   where
     tz = \case
-      Just a -> a
+      Just (Timezone a) -> a
       Nothing -> False
 
 ident = \case

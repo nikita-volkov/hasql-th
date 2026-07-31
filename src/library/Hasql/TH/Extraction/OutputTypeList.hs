@@ -5,7 +5,7 @@
 module Hasql.TH.Extraction.OutputTypeList where
 
 import Hasql.TH.Prelude
-import PostgresqlSyntax.Ast
+import PostgresqlSyntax
 
 foldable :: (Foldable f) => (a -> Either Text [Typename]) -> f a -> Either Text [Typename]
 foldable fn = fmap join . traverse fn . toList
@@ -26,7 +26,7 @@ callStmt (CallStmt a) =
 
 insertStmt (InsertStmt a b c d e) = foldable returningClause e
 
-returningClause = targetList
+returningClause (ReturningClause a) = targetList a
 
 -- * Update
 
@@ -39,8 +39,8 @@ deleteStmt (DeleteStmt _ _ _ _ a) = foldable returningClause a
 -- * Select
 
 selectStmt = \case
-  Left a -> selectNoParens a
-  Right a -> selectWithParens a
+  NoParensSelectStmt a -> selectNoParens a
+  WithParensSelectStmt a -> selectWithParens a
 
 selectNoParens (SelectNoParens _ a _ _ _) = selectClause a
 
@@ -48,7 +48,9 @@ selectWithParens = \case
   NoParensSelectWithParens a -> selectNoParens a
   WithParensSelectWithParens a -> selectWithParens a
 
-selectClause = either simpleSelect selectWithParens
+selectClause = \case
+  SimpleSelectSelectClause a -> simpleSelect a
+  WithParensSelectClause a -> selectWithParens a
 
 simpleSelect = \case
   NormalSimpleSelect a _ _ _ _ _ _ -> foldable targeting a
@@ -66,7 +68,7 @@ targeting = \case
   AllTargeting a -> foldable targetList a
   DistinctTargeting _ b -> targetList b
 
-targetList = foldable targetEl
+targetList (TargetList a) = foldable targetEl a
 
 targetEl = \case
   AliasedExprTargetEl a _ -> aExpr a
@@ -78,7 +80,7 @@ targetEl = \case
       \because it leaves the output types unspecified. \
       \You have to be specific."
 
-valuesClause = foldable (foldable aExpr)
+valuesClause (ValuesClause a) = foldable (\(ExprList b) -> foldable aExpr b) a
 
 aExpr = \case
   CExprAExpr a -> cExpr a

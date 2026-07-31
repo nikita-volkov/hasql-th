@@ -113,8 +113,7 @@ import qualified Hasql.TH.Extraction.Exp as ExpExtraction
 import Hasql.TH.Prelude hiding (exp)
 import Language.Haskell.TH.Quote
 import Language.Haskell.TH.Syntax
-import qualified PostgresqlSyntax.Ast as Ast
-import qualified PostgresqlSyntax.Parsing as Parsing
+import qualified PostgresqlSyntax as Ast
 
 -- * Helpers
 
@@ -130,8 +129,13 @@ expParser parser =
 expPreparableStmtAstParser :: (Ast.PreparableStmt -> Either Text Exp) -> QuasiQuoter
 expPreparableStmtAstParser parser =
   expParser $ \input -> do
-    ast <- first fromString $ Parsing.run (Parsing.atEnd Parsing.preparableStmt) input
+    ast <- Ast.parse settings input
     parser ast
+  where
+    settings =
+      mconcat
+        [ Ast.nullabilityMarkers True
+        ]
 
 -- * Statement
 
@@ -166,7 +170,7 @@ expPreparableStmtAstParser parser =
 -- ...
 --   |
 -- 1 | elect 1
---   |      ^
+--   | ^
 -- ...
 singletonStatement :: QuasiQuoter
 singletonStatement = expPreparableStmtAstParser (ExpExtraction.undecodedStatement Exp.singleRowResultDecoder)

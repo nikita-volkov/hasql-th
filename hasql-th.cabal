@@ -100,7 +100,7 @@ library
     contravariant >=1.5.2 && <2,
     foldl >=1.4.5 && <2,
     hasql >=1.10 && <1.11,
-    postgresql-syntax >=0.4.1 && <0.5,
+    postgresql-syntax >=0.5 && <0.6,
     template-haskell >=2.8 && <3,
     template-haskell-compat-v0208 >=0.1.9 && <0.2,
     text >=1 && <3,

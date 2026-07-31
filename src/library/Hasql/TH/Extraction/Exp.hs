@@ -8,12 +8,11 @@ import qualified Hasql.TH.Extraction.OutputTypeList as OutputTypeList
 import qualified Hasql.TH.Extraction.PrimitiveType as PrimitiveType
 import Hasql.TH.Prelude
 import Language.Haskell.TH
-import qualified PostgresqlSyntax.Ast as Ast
-import qualified PostgresqlSyntax.Rendering as Rendering
+import qualified PostgresqlSyntax as Ast
 
 undecodedStatement :: (Exp -> Exp) -> Ast.PreparableStmt -> Either Text Exp
 undecodedStatement decoderProj ast =
-  let sql = (Exp.text . Rendering.toText . Rendering.preparableStmt) ast
+  let sql = (Exp.text . Ast.toText mempty) ast
    in do
         encoder <- paramsEncoder ast
         rowDecoder' <- rowDecoder ast
@@ -21,7 +20,7 @@ undecodedStatement decoderProj ast =
 
 foldStatement :: Ast.PreparableStmt -> Either Text Exp
 foldStatement ast =
-  let sql = (Exp.text . Rendering.toText . Rendering.preparableStmt) ast
+  let sql = (Exp.text . Ast.toText mempty) ast
    in do
         encoder <- paramsEncoder ast
         rowDecoder' <- rowDecoder ast
@@ -60,7 +59,7 @@ byTypename unidimensional multidimensional (Ast.Typename a b c d) =
       case d of
         Nothing -> unidimensional e c
         Just (f, g) -> case f of
-          Ast.BoundsTypenameArrayDimensions h -> multidimensional e c (length h) g
+          Ast.BoundsTypenameArrayDimensions (Ast.ArrayBounds h) -> multidimensional e c (length h) g
           Ast.ExplicitTypenameArrayDimensions _ -> multidimensional e c 1 g
 
 valueEncoder :: PrimitiveType.PrimitiveType -> Either Text Exp
