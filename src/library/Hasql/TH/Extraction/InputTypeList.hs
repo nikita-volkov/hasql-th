@@ -5,11 +5,12 @@ module Hasql.TH.Extraction.InputTypeList where
 import qualified Data.IntMap.Strict as IntMap
 import qualified Hasql.TH.Extraction.PlaceholderTypeMap as PlaceholderTypeMap
 import Hasql.TH.Prelude
-import PostgresqlSyntax.Ast
+import PostgresqlSyntax
 
 -- |
--- >>> import qualified PostgresqlSyntax.Parsing as P
--- >>> test = either fail (return . preparableStmt) . P.run P.preparableStmt
+-- >>> import qualified Data.Text as Text
+-- >>> import qualified PostgresqlSyntax as P
+-- >>> test = either (fail . Text.unpack) (return . preparableStmt) . P.parse (P.nullabilityMarkers True)
 --
 -- >>> test "select $1 :: INT"
 -- Right [Typename False (NumericSimpleTypename IntNumeric) False Nothing]
@@ -21,10 +22,10 @@ import PostgresqlSyntax.Ast
 -- Right [Typename False (GenericTypeSimpleTypename (GenericType (UnquotedIdent "int4") Nothing Nothing)) False Nothing]
 --
 -- >>> test "select $1 :: text[]?"
--- Right [Typename False (GenericTypeSimpleTypename (GenericType (UnquotedIdent "text") Nothing Nothing)) False (Just (BoundsTypenameArrayDimensions (Nothing :| []),True))]
+-- Right [Typename False (GenericTypeSimpleTypename (GenericType (UnquotedIdent "text") Nothing Nothing)) False (Just (BoundsTypenameArrayDimensions (ArrayBounds (Nothing :| [])),True))]
 --
 -- >>> test "select $1 :: text?[]?"
--- Right [Typename False (GenericTypeSimpleTypename (GenericType (UnquotedIdent "text") Nothing Nothing)) True (Just (BoundsTypenameArrayDimensions (Nothing :| []),True))]
+-- Right [Typename False (GenericTypeSimpleTypename (GenericType (UnquotedIdent "text") Nothing Nothing)) True (Just (BoundsTypenameArrayDimensions (ArrayBounds (Nothing :| [])),True))]
 --
 -- >>> test "select $1"
 -- Left "Placeholder $1 misses an explicit typecast"
