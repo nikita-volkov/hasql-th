@@ -314,12 +314,9 @@ funcAliasClause = \case
 
 joinedTable = \case
   InParensJoinedTable a -> joinedTable a
-  MethJoinedTable a b c -> joinMeth a <> tableRef b <> tableRef c
-
-joinMeth = \case
-  CrossJoinMeth -> []
-  QualJoinMeth _ a -> joinQual a
-  NaturalJoinMeth _ -> []
+  CrossJoinedTable a b -> tableRef a <> tableRef b
+  QualJoinedTable a _ b c -> tableRef a <> tableRef b <> joinQual c
+  NaturalJoinedTable a _ b -> tableRef a <> tableRef b
 
 joinQual = \case
   UsingJoinQual _ -> []
