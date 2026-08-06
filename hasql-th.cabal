@@ -18,7 +18,6 @@ maintainer: Nikita Volkov <nikita.y.volkov@mail.ru>
 copyright: (c) 2015, Nikita Volkov
 license: MIT
 license-file: LICENSE
-
 extra-doc-files:
   CHANGELOG.md
   README.md
