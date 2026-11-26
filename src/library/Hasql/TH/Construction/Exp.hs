@@ -129,7 +129,10 @@ rowMaybeResultDecoder :: Exp -> Exp
 rowMaybeResultDecoder = AppE (VarE 'Decoders.rowMaybe)
 
 rowVectorResultDecoder :: Exp -> Exp
-rowVectorResultDecoder = AppE (VarE 'Decoders.rowVector)
+rowVectorResultDecoder = AppE (VarE 'boxedRowVector)
+
+boxedRowVector :: Decoders.Row row -> Decoders.Result (Vector row)
+boxedRowVector = Decoders.rowVector
 
 foldStatement :: Exp -> Exp -> Exp -> Exp
 foldStatement sql encoder rowDecoder' =
